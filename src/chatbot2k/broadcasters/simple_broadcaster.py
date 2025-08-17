@@ -12,6 +12,7 @@ from chatbot2k.broadcasters.broadcaster import Broadcaster
 from chatbot2k.builtins import apply_builtins
 from chatbot2k.chat_command import to_chat_command
 from chatbot2k.chat_message import ChatMessage
+from chatbot2k.constants import replace_constants
 
 
 @final
@@ -37,7 +38,7 @@ class SimpleBroadcaster(Broadcaster):
                 await sleep(remaining_time)
                 continue
             self._time_of_next_broadcast += self._interval_seconds
-            yield BroadcastMessage(text=apply_builtins(self._message))
+            yield BroadcastMessage(text=replace_constants(apply_builtins(self._message)))
 
     @override
     async def on_chat_message_received(self, message: ChatMessage) -> None:

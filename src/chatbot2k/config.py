@@ -36,6 +36,7 @@ class Config(NamedTuple):
     twitch_channel: str
     commands_file: Path
     broadcasts_file: Path
+    constants_file: Path
     timezone: ZoneInfo
     locale: str
 
@@ -58,6 +59,7 @@ CONFIG = Config(
     twitch_channel=get_environment_variable_or_raise("TWITCH_CHANNEL"),
     commands_file=Path(get_environment_variable_or_raise("COMMANDS_FILE")),
     broadcasts_file=Path(get_environment_variable_or_raise("BROADCASTS_FILE")),
+    constants_file=Path(get_environment_variable_or_raise("CONSTANTS_FILE")),
     timezone=ZoneInfo(get_environment_variable_or_raise("TIMEZONE")),
     locale=get_environment_variable_or_raise("LOCALE"),
 )

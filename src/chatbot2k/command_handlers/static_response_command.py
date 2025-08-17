@@ -6,6 +6,7 @@ from chatbot2k.builtins import apply_builtins
 from chatbot2k.chat_command import ChatCommand
 from chatbot2k.chat_response import ChatResponse
 from chatbot2k.command_handlers.command_handler import CommandHandler
+from chatbot2k.constants import replace_constants
 
 
 @final
@@ -18,4 +19,4 @@ class StaticResponseCommand(CommandHandler):
         if chat_command.arguments:
             # Arguments are not allowed for static response commands.
             return None
-        return ChatResponse(text=apply_builtins(self._response))
+        return ChatResponse(text=replace_constants(apply_builtins(self._response)))
