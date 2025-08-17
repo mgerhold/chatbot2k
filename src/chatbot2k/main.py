@@ -6,10 +6,13 @@ from typing import Optional
 from typing import final
 
 from chatbot2k.broadcast_message import BroadcastMessage
-from chatbot2k.broadcaster import Broadcaster
+from chatbot2k.broadcasters.broadcaster import Broadcaster
+from chatbot2k.broadcasters.parser import parse_broadcasters
 from chatbot2k.chat import Chat
+from chatbot2k.chat_command import to_chat_command
 from chatbot2k.chat_message import ChatMessage
 from chatbot2k.chat_response import ChatResponse
+from chatbot2k.command_handlers.parser import parse_commands
 from chatbot2k.config import CONFIG
 from chatbot2k.twitch_chat import TwitchChat
 
@@ -21,10 +24,17 @@ class Sentinel:
     pass
 
 
+COMMAND_HANDLERS = parse_commands(CONFIG.commands_file)
+BROADCASTERS = parse_broadcasters(CONFIG.broadcasts_file)
+
+
 async def process_chat_message(chat_message: ChatMessage) -> Optional[ChatResponse]:
-    return ChatResponse(
-        text=f"I'm echoing your message: {chat_message.text}",
-    )
+    command: Final = to_chat_command(chat_message)
+    if command is None:
+        return None  # No valid command.
+    if command.name not in COMMAND_HANDLERS:
+        return None  # No known command.
+    return await COMMAND_HANDLERS[command.name].handle_command(command)
 
 
 async def run(
@@ -86,10 +96,7 @@ async def main() -> None:
             channel=CONFIG.twitch_channel,
         ),
     ]
-    broadcasters: Final = [
-        # MockBroadcaster(),
-    ]
-    await run(chats, broadcasters)
+    await run(chats, BROADCASTERS)
 
 
 if __name__ == "__main__":

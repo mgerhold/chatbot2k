@@ -31,6 +31,7 @@ class TwitchChat(Chat):
         super().__init__(
             ChatFeatures(
                 REGULAR_CHAT=True,
+                BROADCASTING=True,
             ),
         )
         self._app_loop: Final = asyncio.get_running_loop()
@@ -82,12 +83,12 @@ class TwitchChat(Chat):
     @override
     async def send_response(self, response: ChatResponse) -> None:
         logging.info(f"Sending response to Twitch chat: {response.text}")
-        await self._twitch_chat_client.send_message(self._channel, response.text)
+        await self._send_message(response.text)
 
     @override
     async def send_broadcast(self, message: BroadcastMessage) -> None:
         logging.info(f"Sending broadcast message to Twitch chat: {message.text}")
-        await self._twitch_chat_client.send_message(self._channel, message.text)
+        await self._send_message(message.text)
 
     async def _on_ready(self, ready_event: EventData) -> None:
         logging.info(f"Twitch chat client is ready. Going to join channel '{self._channel}'...")
@@ -99,3 +100,10 @@ class TwitchChat(Chat):
             self._message_queue.put_nowait,
             ChatMessage(text=message.text),
         )
+
+    async def _send_message(self, message: str) -> None:
+        if not self._twitch_chat_client.is_ready():
+            logging.warning("Twitch chat client is not ready. Cannot send message.")
+            return
+        logging.info(f"Sending message to Twitch chat: {message}")
+        await self._twitch_chat_client.send_message(self._channel, message)

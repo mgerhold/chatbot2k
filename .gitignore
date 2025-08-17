@@ -11,3 +11,6 @@ wheels/
 .idea/
 .vscode/
 .env
+
+broadcasts.json
+commands.json

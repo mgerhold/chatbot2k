@@ -5,7 +5,7 @@ from typing import final
 from typing import override
 
 from chatbot2k.broadcast_message import BroadcastMessage
-from chatbot2k.broadcaster import Broadcaster
+from chatbot2k.broadcasters.broadcaster import Broadcaster
 from chatbot2k.chat_message import ChatMessage
 
 

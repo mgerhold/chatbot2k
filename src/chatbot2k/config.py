@@ -1,8 +1,10 @@
 import os
+from pathlib import Path
 from typing import Final
 from typing import NamedTuple
 from typing import Optional
 from typing import final
+from zoneinfo import ZoneInfo
 
 from dotenv import load_dotenv
 
@@ -32,6 +34,10 @@ class Config(NamedTuple):
     twitch_client_id: str
     twitch_credentials: TwitchClientSecret | OAuthTokens
     twitch_channel: str
+    commands_file: Path
+    broadcasts_file: Path
+    timezone: ZoneInfo
+    locale: str
 
 
 _twitch_client_secret: Final = get_environment_variable_or_raise("TWITCH_CLIENT_SECRET", None)
@@ -50,4 +56,8 @@ CONFIG = Config(
     twitch_client_id=get_environment_variable_or_raise("TWITCH_CLIENT_ID"),
     twitch_credentials=_twitch_credentials,
     twitch_channel=get_environment_variable_or_raise("TWITCH_CHANNEL"),
+    commands_file=Path(get_environment_variable_or_raise("COMMANDS_FILE")),
+    broadcasts_file=Path(get_environment_variable_or_raise("BROADCASTS_FILE")),
+    timezone=ZoneInfo(get_environment_variable_or_raise("TIMEZONE")),
+    locale=get_environment_variable_or_raise("LOCALE"),
 )
