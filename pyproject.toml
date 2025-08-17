@@ -1,0 +1,41 @@
+[project]
+name = "chatbot2k"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+requires-python = ">=3.13"
+dependencies = [
+    "dotenv>=0.9.9",
+    "twitchapi>=4.5.0",
+]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[dependency-groups]
+dev = [
+    "pyrefly>=0.28.1",
+    "ruff>=0.12.9",
+]
+
+[tool.setuptools.package-data]
+"chatbot2k" = ["py.typed"]
+
+[tool.ruff]
+line-length = 120
+
+[tool.ruff.format]
+preview = false
+
+[tool.ruff.lint]
+preview = true
+select = ["E", "W", "F", "I", "B", "C4", "UP", "E401", "ISC001", "ISC002"]
+# https://docs.astral.sh/ruff/formatter/#conflicting-lint-rules
+ignore = ["W191", "E111", "E114", "E117", "D206", "D300", "Q000", "Q001", "Q002", "Q003", "COM812", "COM819", "UP045"]
+
+[tool.ruff.lint.isort]
+force-single-line = true
+
+[tool.ruff.lint.flake8-implicit-str-concat]
+allow-multiline = false
