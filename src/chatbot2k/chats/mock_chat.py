@@ -5,10 +5,10 @@ from collections.abc import AsyncGenerator
 from typing import final
 from typing import override
 
-from chatbot2k.broadcast_message import BroadcastMessage
-from chatbot2k.chat import Chat
-from chatbot2k.chat_message import ChatMessage
-from chatbot2k.chat_response import ChatResponse
+from chatbot2k.chats.chat import Chat
+from chatbot2k.types.broadcast_message import BroadcastMessage
+from chatbot2k.types.chat_message import ChatMessage
+from chatbot2k.types.chat_response import ChatResponse
 
 
 @final
@@ -17,7 +17,11 @@ class MockChat(Chat):
     async def get_message_stream(self) -> AsyncGenerator[ChatMessage]:
         for i in range(5):
             await sleep(random.uniform(0.1, 0.5))
-            yield ChatMessage(text=f"Mock message {i + 1}")
+            yield ChatMessage(
+                text=f"Mock message {i + 1}",
+                sender_name="mock_user",
+                meta_data=None,
+            )
 
     @override
     async def send_response(self, response: ChatResponse) -> None:

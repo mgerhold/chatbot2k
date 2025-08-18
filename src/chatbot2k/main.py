@@ -5,16 +5,16 @@ from typing import Final
 from typing import Optional
 from typing import final
 
-from chatbot2k.broadcast_message import BroadcastMessage
 from chatbot2k.broadcasters.broadcaster import Broadcaster
 from chatbot2k.broadcasters.parser import parse_broadcasters
-from chatbot2k.chat import Chat
-from chatbot2k.chat_command import to_chat_command
-from chatbot2k.chat_message import ChatMessage
-from chatbot2k.chat_response import ChatResponse
+from chatbot2k.chats.chat import Chat
+from chatbot2k.chats.twitch_chat import TwitchChat
 from chatbot2k.command_handlers.parser import parse_commands
 from chatbot2k.config import CONFIG
-from chatbot2k.twitch_chat import TwitchChat
+from chatbot2k.types.broadcast_message import BroadcastMessage
+from chatbot2k.types.chat_command import ChatCommand
+from chatbot2k.types.chat_message import ChatMessage
+from chatbot2k.types.chat_response import ChatResponse
 
 logging.basicConfig(level=logging.INFO)
 
@@ -29,7 +29,7 @@ BROADCASTERS = parse_broadcasters(CONFIG.broadcasts_file)
 
 
 async def process_chat_message(chat_message: ChatMessage) -> Optional[ChatResponse]:
-    command: Final = to_chat_command(chat_message)
+    command: Final = ChatCommand.from_chat_message(chat_message)
     if command is None:
         return None  # No valid command.
     if command.name not in COMMAND_HANDLERS:

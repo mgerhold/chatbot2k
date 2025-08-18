@@ -14,13 +14,13 @@ from twitchAPI.twitch import Twitch
 from twitchAPI.type import AuthScope
 from twitchAPI.type import ChatEvent
 
-from chatbot2k.broadcast_message import BroadcastMessage
-from chatbot2k.chat import Chat
-from chatbot2k.chat_message import ChatMessage
-from chatbot2k.chat_response import ChatResponse
+from chatbot2k.chats.chat import Chat
 from chatbot2k.config import OAuthTokens
 from chatbot2k.config import TwitchClientSecret
-from chatbot2k.feature_flags import ChatFeatures
+from chatbot2k.types.broadcast_message import BroadcastMessage
+from chatbot2k.types.chat_message import ChatMessage
+from chatbot2k.types.chat_response import ChatResponse
+from chatbot2k.types.feature_flags import ChatFeatures
 
 
 @final
@@ -98,7 +98,11 @@ class TwitchChat(Chat):
     async def _on_message(self, message: TwitchChatMessage) -> None:
         self._app_loop.call_soon_threadsafe(
             self._message_queue.put_nowait,
-            ChatMessage(text=message.text),
+            ChatMessage(
+                text=message.text,
+                sender_name=message.user.name,
+                meta_data=message,  # We include the platform-native message.
+            ),
         )
 
     async def _send_message(self, message: str) -> None:
