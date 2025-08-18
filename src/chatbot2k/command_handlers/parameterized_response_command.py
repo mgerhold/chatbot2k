@@ -17,16 +17,18 @@ class ParameterizedResponseCommand(CommandHandler):
         self._format_string: Final = format_string
 
     @override
-    async def handle_command(self, chat_command: ChatCommand) -> Optional[ChatResponse]:
+    async def handle_command(self, chat_command: ChatCommand) -> Optional[list[ChatResponse]]:
         result: Final = self._inject_arguments(chat_command)
         if result is None:
             return None
-        return ChatResponse(
-            text=replace_placeholders_in_message(
-                result,
-                chat_command.source_message,
+        return [
+            ChatResponse(
+                text=replace_placeholders_in_message(
+                    result,
+                    chat_command.source_message,
+                )
             )
-        )
+        ]
 
     def _inject_arguments(self, chat_command: ChatCommand) -> Optional[str]:
         """

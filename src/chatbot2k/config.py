@@ -44,6 +44,7 @@ class Config(NamedTuple):
     commands_file: Path
     broadcasts_file: Path
     constants_file: Path
+    dictionary_file: Path
     timezone: ZoneInfo
     locale: str
 
@@ -69,6 +70,7 @@ CONFIG = Config(
     commands_file=Path(get_environment_variable_or_raise("COMMANDS_FILE")),
     broadcasts_file=Path(get_environment_variable_or_raise("BROADCASTS_FILE")),
     constants_file=Path(get_environment_variable_or_raise("CONSTANTS_FILE")),
+    dictionary_file=Path(get_environment_variable_or_raise("DICTIONARY_FILE")),
     timezone=ZoneInfo(get_environment_variable_or_raise("TIMEZONE")),
     locale=get_environment_variable_or_raise("LOCALE"),
 )

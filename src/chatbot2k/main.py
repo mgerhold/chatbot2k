@@ -11,6 +11,7 @@ from chatbot2k.chats.chat import Chat
 from chatbot2k.chats.twitch_chat import TwitchChat
 from chatbot2k.command_handlers.parser import parse_commands
 from chatbot2k.config import CONFIG
+from chatbot2k.dictionary import Dictionary
 from chatbot2k.types.broadcast_message import BroadcastMessage
 from chatbot2k.types.chat_command import ChatCommand
 from chatbot2k.types.chat_message import ChatMessage
@@ -26,23 +27,21 @@ class Sentinel:
 
 COMMAND_HANDLERS = parse_commands(CONFIG.commands_file)
 BROADCASTERS = parse_broadcasters(CONFIG.broadcasts_file)
+DICTIONARY = Dictionary(CONFIG.dictionary_file)
 
 
-async def process_chat_message(chat_message: ChatMessage) -> Optional[ChatResponse]:
+async def process_chat_message(chat_message: ChatMessage) -> Optional[list[ChatResponse]]:
     command: Final = ChatCommand.from_chat_message(chat_message)
     if command is None:
-        return None  # No valid command.
+        return DICTIONARY.get_explanations(chat_message)  # Maybe `None`.
     if command.name not in COMMAND_HANDLERS:
         return None  # No known command.
     return await COMMAND_HANDLERS[command.name].handle_command(command)
 
 
-async def run(
-    chats: Sequence[Chat],
-    broadcasters: Sequence[Broadcaster],
-) -> None:
+async def run(chats: Sequence[Chat]) -> None:
     queue: Final[asyncio.Queue[tuple[int, ChatMessage | BroadcastMessage | Sentinel]]] = asyncio.Queue()
-    active_participant_indices: Final[set[int]] = set(range(len(chats) + len(broadcasters)))
+    active_participant_indices: Final[set[int]] = set(range(len(chats) + len(BROADCASTERS)))
 
     async def _producer(i: int, chat_or_broadcaster: Chat | Broadcaster) -> None:
         try:
@@ -62,7 +61,7 @@ async def run(
         for i, chat in enumerate(chats):
             task_group.create_task(_producer(i, chat))
 
-        for i, broadcaster in enumerate(broadcasters):
+        for i, broadcaster in enumerate(BROADCASTERS):
             task_group.create_task(_producer(i + len(chats), broadcaster))
 
         while active_participant_indices:
@@ -72,14 +71,14 @@ async def run(
                 case Sentinel():
                     active_participant_indices.discard(i)
                 case ChatMessage():
-                    for j, broadcaster in enumerate(broadcasters):
+                    for j, broadcaster in enumerate(BROADCASTERS):
                         if j + len(chats) not in active_participant_indices:
                             # This broadcaster is not active, skip it.
                             continue
                         await broadcaster.on_chat_message_received(chat_message)
                     response = await process_chat_message(chat_message)
                     if response is not None:
-                        await chats[i].send_response(response)
+                        await chats[i].send_responses(response)
                 case BroadcastMessage():
                     for j, chat in enumerate(chats):
                         if j not in active_participant_indices:
@@ -96,7 +95,7 @@ async def main() -> None:
             channel=CONFIG.twitch_channel,
         ),
     ]
-    await run(chats, BROADCASTERS)
+    await run(chats)
 
 
 if __name__ == "__main__":

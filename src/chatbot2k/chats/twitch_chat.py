@@ -1,6 +1,7 @@
 import asyncio
 import logging
 from collections.abc import AsyncGenerator
+from collections.abc import Sequence
 from typing import Final
 from typing import Self
 from typing import final
@@ -81,9 +82,10 @@ class TwitchChat(Chat):
             yield message
 
     @override
-    async def send_response(self, response: ChatResponse) -> None:
-        logging.info(f"Sending response to Twitch chat: {response.text}")
-        await self._send_message(response.text)
+    async def send_responses(self, responses: Sequence[ChatResponse]) -> None:
+        for response in responses:
+            logging.info(f"Sending response to Twitch chat: {response.text}")
+            await self._send_message(response.text)
 
     @override
     async def send_broadcast(self, message: BroadcastMessage) -> None:

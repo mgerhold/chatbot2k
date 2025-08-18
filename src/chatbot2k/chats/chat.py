@@ -1,6 +1,7 @@
 from abc import ABC
 from abc import abstractmethod
 from collections.abc import AsyncGenerator
+from collections.abc import Sequence
 from typing import final
 
 from chatbot2k.types.broadcast_message import BroadcastMessage
@@ -23,7 +24,7 @@ class Chat(ABC):
         pass
 
     @abstractmethod
-    async def send_response(self, response: ChatResponse) -> None:
+    async def send_responses(self, responses: Sequence[ChatResponse]) -> None:
         pass
 
     @abstractmethod

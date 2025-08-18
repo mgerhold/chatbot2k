@@ -2,6 +2,7 @@ import logging
 import random
 from asyncio import sleep
 from collections.abc import AsyncGenerator
+from collections.abc import Sequence
 from typing import final
 from typing import override
 
@@ -24,8 +25,9 @@ class MockChat(Chat):
             )
 
     @override
-    async def send_response(self, response: ChatResponse) -> None:
-        logging.info(f"Mock response sent: {response.text}")
+    async def send_responses(self, responses: Sequence[ChatResponse]) -> None:
+        for response in responses:
+            logging.info(f"Mock response sent: {response.text}")
 
     @override
     async def send_broadcast(self, message: BroadcastMessage) -> None:

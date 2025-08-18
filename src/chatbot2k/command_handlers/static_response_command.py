@@ -14,13 +14,15 @@ class StaticResponseCommand(CommandHandler):
         self._response = response
 
     @override
-    async def handle_command(self, chat_command: ChatCommand) -> Optional[ChatResponse]:
+    async def handle_command(self, chat_command: ChatCommand) -> Optional[list[ChatResponse]]:
         if chat_command.arguments:
             # Arguments are not allowed for static response commands.
             return None
-        return ChatResponse(
-            text=replace_placeholders_in_message(
-                self._response,
-                chat_command.source_message,
-            ),
-        )
+        return [
+            ChatResponse(
+                text=replace_placeholders_in_message(
+                    self._response,
+                    chat_command.source_message,
+                ),
+            )
+        ]
