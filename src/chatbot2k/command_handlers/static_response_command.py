@@ -6,6 +6,7 @@ from chatbot2k.command_handlers.command_handler import CommandHandler
 from chatbot2k.command_handlers.utils import replace_placeholders_in_message
 from chatbot2k.types.chat_command import ChatCommand
 from chatbot2k.types.chat_response import ChatResponse
+from chatbot2k.types.permission_level import PermissionLevel
 
 
 @final
@@ -26,3 +27,7 @@ class StaticResponseCommand(CommandHandler):
                 ),
             )
         ]
+
+    @property
+    def min_required_permission_level(self) -> PermissionLevel:
+        return PermissionLevel.VIEWER

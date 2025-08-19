@@ -8,6 +8,7 @@ from chatbot2k.command_handlers.command_handler import CommandHandler
 from chatbot2k.command_handlers.utils import replace_placeholders_in_message
 from chatbot2k.types.chat_command import ChatCommand
 from chatbot2k.types.chat_response import ChatResponse
+from chatbot2k.types.permission_level import PermissionLevel
 
 
 @final
@@ -30,6 +31,10 @@ class ParameterizedResponseCommand(CommandHandler):
             )
         ]
 
+    @property
+    def min_required_permission_level(self) -> PermissionLevel:
+        return PermissionLevel.VIEWER
+
     def _inject_arguments(self, chat_command: ChatCommand) -> Optional[str]:
         """
         Injects the arguments from the chat command into the format string.
@@ -39,11 +44,11 @@ class ParameterizedResponseCommand(CommandHandler):
         :return: The formatted string with arguments injected, or `None` if
                  the number of arguments does not match.
         """
-        if len(chat_command.arguments) != len(self._placeholders):
+        if len(chat_command.arguments) < len(self._placeholders):
             return None
         replacements: Final = {
             f"{{{placeholder}}}": argument
-            for placeholder, argument in zip(self._placeholders, chat_command.arguments, strict=True)
+            for placeholder, argument in zip(self._placeholders, chat_command.arguments, strict=False)
         }
         result = self._format_string
         for placeholder, replacement in replacements.items():

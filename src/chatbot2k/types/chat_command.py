@@ -1,3 +1,4 @@
+import shlex
 from typing import Final
 from typing import NamedTuple
 from typing import Optional
@@ -18,14 +19,25 @@ class ChatCommand(NamedTuple):
         text: Final = message.text.strip()
         if not text.startswith("!"):
             return None
-        parts: list[str] = text.split()
-        name: Final = parts.pop(0).removeprefix("!").strip()
+
+        # Use shlex to respect quotes and escapes; disable comment parsing.
+        lexer = shlex.shlex(text, posix=True)
+        lexer.whitespace_split = True
+        lexer.commenters = ""  # treat '#' as normal char, not a comment
+
+        try:
+            parts = list(lexer)
+        except ValueError:
+            # Unbalanced quotes -> not a valid command
+            return None
+
+        if not parts:
+            return None
+
+        # First token is the command; strip the leading '!'
+        name = parts.pop(0).removeprefix("!").strip()
         if not name:
             return None
-        stripped_parts: Final = [part.strip() for part in parts if part.strip()]
-        arguments: Final = [part for part in stripped_parts if part]  # Remove empty strings.
-        return cls(
-            name=name,
-            arguments=arguments,
-            source_message=message,
-        )
+
+        arguments: Final = parts  # already quote-aware tokens
+        return cls(name=name, arguments=arguments, source_message=message)

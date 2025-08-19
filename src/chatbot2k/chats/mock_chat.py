@@ -10,6 +10,7 @@ from chatbot2k.chats.chat import Chat
 from chatbot2k.types.broadcast_message import BroadcastMessage
 from chatbot2k.types.chat_message import ChatMessage
 from chatbot2k.types.chat_response import ChatResponse
+from chatbot2k.types.permission_level import PermissionLevel
 
 
 @final
@@ -21,6 +22,7 @@ class MockChat(Chat):
             yield ChatMessage(
                 text=f"Mock message {i + 1}",
                 sender_name="mock_user",
+                sender_permission_level=PermissionLevel.VIEWER,
                 meta_data=None,
             )
 

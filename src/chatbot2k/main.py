@@ -6,12 +6,10 @@ from typing import Optional
 from typing import final
 
 from chatbot2k.broadcasters.broadcaster import Broadcaster
-from chatbot2k.broadcasters.parser import parse_broadcasters
 from chatbot2k.chats.chat import Chat
 from chatbot2k.chats.twitch_chat import TwitchChat
-from chatbot2k.command_handlers.parser import parse_commands
 from chatbot2k.config import CONFIG
-from chatbot2k.dictionary import Dictionary
+from chatbot2k.globals import Globals
 from chatbot2k.types.broadcast_message import BroadcastMessage
 from chatbot2k.types.chat_command import ChatCommand
 from chatbot2k.types.chat_message import ChatMessage
@@ -25,23 +23,32 @@ class Sentinel:
     pass
 
 
-COMMAND_HANDLERS = parse_commands(CONFIG.commands_file)
-BROADCASTERS = parse_broadcasters(CONFIG.broadcasts_file)
-DICTIONARY = Dictionary(CONFIG.dictionary_file)
-
-
-async def process_chat_message(chat_message: ChatMessage) -> Optional[list[ChatResponse]]:
+async def process_chat_message(
+    chat_message: ChatMessage,
+    globals_: Globals,
+) -> Optional[list[ChatResponse]]:
     command: Final = ChatCommand.from_chat_message(chat_message)
     if command is None:
-        return DICTIONARY.get_explanations(chat_message)  # Maybe `None`.
-    if command.name not in COMMAND_HANDLERS:
+        return globals_.dictionary.get_explanations(chat_message)  # Maybe `None`.
+    if command.name not in globals_.command_handlers:
         return None  # No known command.
-    return await COMMAND_HANDLERS[command.name].handle_command(command)
+    command_handler: Final = globals_.command_handlers[command.name]
+    if command_handler.min_required_permission_level > chat_message.sender_permission_level:
+        logging.info(
+            f"User {chat_message.sender_name} does not have permission to use command {command.name}. "
+            + f"Their permission level is {chat_message.sender_permission_level}"
+        )
+        return None
+    logging.info(
+        f"Processing command {command.name} from user {chat_message.sender_name} "
+        + f"with permission level {chat_message.sender_permission_level}"
+    )
+    return await command_handler.handle_command(command)
 
 
-async def run(chats: Sequence[Chat]) -> None:
+async def run(chats: Sequence[Chat], globals_: Globals) -> None:
     queue: Final[asyncio.Queue[tuple[int, ChatMessage | BroadcastMessage | Sentinel]]] = asyncio.Queue()
-    active_participant_indices: Final[set[int]] = set(range(len(chats) + len(BROADCASTERS)))
+    active_participant_indices: Final[set[int]] = set(range(len(chats) + len(globals_.broadcasters)))
 
     async def _producer(i: int, chat_or_broadcaster: Chat | Broadcaster) -> None:
         try:
@@ -61,7 +68,7 @@ async def run(chats: Sequence[Chat]) -> None:
         for i, chat in enumerate(chats):
             task_group.create_task(_producer(i, chat))
 
-        for i, broadcaster in enumerate(BROADCASTERS):
+        for i, broadcaster in enumerate(globals_.broadcasters):
             task_group.create_task(_producer(i + len(chats), broadcaster))
 
         while active_participant_indices:
@@ -71,12 +78,12 @@ async def run(chats: Sequence[Chat]) -> None:
                 case Sentinel():
                     active_participant_indices.discard(i)
                 case ChatMessage():
-                    for j, broadcaster in enumerate(BROADCASTERS):
+                    for j, broadcaster in enumerate(globals_.broadcasters):
                         if j + len(chats) not in active_participant_indices:
                             # This broadcaster is not active, skip it.
                             continue
                         await broadcaster.on_chat_message_received(chat_message)
-                    response = await process_chat_message(chat_message)
+                    response = await process_chat_message(chat_message, globals_)
                     if response is not None:
                         await chats[i].send_responses(response)
                 case BroadcastMessage():
@@ -95,7 +102,7 @@ async def main() -> None:
             channel=CONFIG.twitch_channel,
         ),
     ]
-    await run(chats)
+    await run(chats, Globals())
 
 
 if __name__ == "__main__":
