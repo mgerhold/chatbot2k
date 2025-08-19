@@ -36,7 +36,8 @@ class ParameterizedResponseCommand(CommandHandler):
                 text=replace_placeholders_in_message(
                     result,
                     chat_command.source_message,
-                )
+                ),
+                chat_message=chat_command.source_message,
             )
         ]
 

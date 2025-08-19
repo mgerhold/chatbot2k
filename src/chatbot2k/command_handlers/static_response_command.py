@@ -33,6 +33,7 @@ class StaticResponseCommand(CommandHandler):
                     self._response,
                     chat_command.source_message,
                 ),
+                chat_message=chat_command.source_message,
             )
         ]
 

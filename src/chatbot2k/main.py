@@ -7,6 +7,7 @@ from typing import final
 
 from chatbot2k.broadcasters.broadcaster import Broadcaster
 from chatbot2k.chats.chat import Chat
+from chatbot2k.chats.discord_chat import DiscordChat
 from chatbot2k.chats.twitch_chat import TwitchChat
 from chatbot2k.config import CONFIG
 from chatbot2k.globals import Globals
@@ -27,6 +28,7 @@ async def process_chat_message(
     chat_message: ChatMessage,
     globals_: Globals,
 ) -> Optional[list[ChatResponse]]:
+    logging.debug(f"Processing chat message from {chat_message.sender_name}: {chat_message.text}")
     command: Final = ChatCommand.from_chat_message(chat_message)
     if command is None:
         return globals_.dictionary.get_explanations(chat_message)  # Maybe `None`.
@@ -44,7 +46,16 @@ async def process_chat_message(
         + f"with permission level {chat_message.sender_permission_level}"
     )
     responses: Final = await command_handler.handle_command(command)
-    return responses if responses is not None else [ChatResponse(text=f"Usage: {command_handler.usage}")]
+    return (
+        responses
+        if responses is not None
+        else [
+            ChatResponse(
+                text=f"Usage: {command_handler.usage}",
+                chat_message=chat_message,
+            )
+        ]
+    )
 
 
 async def run(chats: Sequence[Chat], globals_: Globals) -> None:
@@ -79,11 +90,17 @@ async def run(chats: Sequence[Chat], globals_: Globals) -> None:
                 case Sentinel():
                     active_participant_indices.discard(i)
                 case ChatMessage():
+                    # Notify broadcasters about the chat message so they can react to it,
+                    # e.g. by delaying the next broadcast if it was already triggered by
+                    # a regular chat message.
                     for j, broadcaster in enumerate(globals_.broadcasters):
                         if j + len(chats) not in active_participant_indices:
                             # This broadcaster is not active, skip it.
                             continue
                         await broadcaster.on_chat_message_received(chat_message)
+                    if not chats[i].feature_flags.REGULAR_CHAT:
+                        # This chat is not capable of processing regular chat messages.
+                        continue
                     response = await process_chat_message(chat_message, globals_)
                     if response is not None:
                         await chats[i].send_responses(response)
@@ -91,6 +108,9 @@ async def run(chats: Sequence[Chat], globals_: Globals) -> None:
                     for j, chat in enumerate(chats):
                         if j not in active_participant_indices:
                             # This chat is not active, skip it.
+                            continue
+                        if not chat.feature_flags.BROADCASTING:
+                            # This chat is not capable of broadcasting messages.
                             continue
                         await chat.send_broadcast(chat_message)
 
@@ -102,6 +122,7 @@ async def main() -> None:
             credentials=CONFIG.twitch_credentials,
             channel=CONFIG.twitch_channel,
         ),
+        await DiscordChat.create(),
     ]
     await run(chats, Globals())
 

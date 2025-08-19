@@ -54,7 +54,13 @@ class Dictionary:
         for word, _ in matching_entries:
             self._usage_timestamps[word] = now
 
-        return [ChatResponse(text=f"{word}: {explanation}") for word, explanation in matching_entries]
+        return [
+            ChatResponse(
+                text=f"{word}: {explanation}",
+                chat_message=chat_message,
+            )
+            for word, explanation in matching_entries
+        ]
 
     def _is_in_cooldown(self, word: str) -> bool:
         last_used: Optional[float] = self._usage_timestamps.get(word)

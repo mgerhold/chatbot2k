@@ -50,7 +50,12 @@ class CommandManagementCommand(CommandHandler):
                 return None
         if success:
             self._on_commands_changed()
-        return [ChatResponse(text=response)]
+        return [
+            ChatResponse(
+                text=response,
+                chat_message=chat_command.source_message,
+            )
+        ]
 
     @override
     @property

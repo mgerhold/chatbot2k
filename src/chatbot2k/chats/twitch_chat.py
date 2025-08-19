@@ -19,6 +19,7 @@ from chatbot2k.chats.chat import Chat
 from chatbot2k.config import CONFIG
 from chatbot2k.config import OAuthTokens
 from chatbot2k.config import TwitchClientSecret
+from chatbot2k.models.twitch_chat_message_metadata import TwitchChatMessageMetadata
 from chatbot2k.types.broadcast_message import BroadcastMessage
 from chatbot2k.types.chat_message import ChatMessage
 from chatbot2k.types.chat_response import ChatResponse
@@ -110,7 +111,7 @@ class TwitchChat(Chat):
                     if message.user.name == CONFIG.twitch_channel
                     else (PermissionLevel.MODERATOR if message.user.mod else PermissionLevel.VIEWER)
                 ),
-                meta_data=message,  # We include the platform-native message.
+                meta_data=TwitchChatMessageMetadata(message=message),
             ),
         )
 

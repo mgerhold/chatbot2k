@@ -42,7 +42,7 @@ class SimpleBroadcaster(Broadcaster):
 
     @override
     async def on_chat_message_received(self, message: ChatMessage) -> None:
-        logging.info(f"Simple broadcaster received chat message: {message}")
+        logging.debug(f"Simple broadcaster received chat message: {message}")
         chat_command: Final = ChatCommand.from_chat_message(message)
         if chat_command is None or chat_command.name != self._alias_command or chat_command.arguments:
             return

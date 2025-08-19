@@ -41,6 +41,7 @@ class Config(NamedTuple):
     twitch_client_id: str
     twitch_credentials: TwitchClientSecret | OAuthTokens
     twitch_channel: str
+    discord_token: str
     commands_file: Path
     broadcasts_file: Path
     constants_file: Path
@@ -68,6 +69,7 @@ CONFIG = Config(
     twitch_client_id=get_environment_variable_or_raise("TWITCH_CLIENT_ID"),
     twitch_credentials=_twitch_credentials,
     twitch_channel=get_environment_variable_or_raise("TWITCH_CHANNEL"),
+    discord_token=get_environment_variable_or_raise("DISCORD_BOT_TOKEN"),
     commands_file=Path(get_environment_variable_or_raise("COMMANDS_FILE")),
     broadcasts_file=Path(get_environment_variable_or_raise("BROADCASTS_FILE")),
     constants_file=Path(get_environment_variable_or_raise("CONSTANTS_FILE")),
