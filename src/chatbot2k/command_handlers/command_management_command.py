@@ -62,7 +62,7 @@ class CommandManagementCommand(CommandHandler):
         return "!command [add|update|remove] <command_name> [<response> [<parameters>...]]"
 
     @staticmethod
-    def _load_commands() -> list[StaticResponseCommandModel | ParameterizedResponseCommandModel]:
+    def _load_command_handlers() -> list[StaticResponseCommandModel | ParameterizedResponseCommandModel]:
         file_contents: Final = CONFIG.commands_file.read_text(encoding="utf-8")
         return CommandsModel.model_validate_json(file_contents).commands
 
@@ -81,7 +81,7 @@ class CommandManagementCommand(CommandHandler):
         *,
         is_update: bool,
     ) -> tuple[bool, str]:
-        commands: Final = CommandManagementCommand._load_commands()
+        commands: Final = CommandManagementCommand._load_command_handlers()
         name: Final = chat_command.arguments[1].lstrip("!")
         existing_command: Final = next((command for command in commands if command.name == name), None)
         if existing_command is None and is_update:
@@ -125,7 +125,7 @@ class CommandManagementCommand(CommandHandler):
 
     @staticmethod
     def _remove_command(app_state: AppState, chat_command: ChatCommand) -> tuple[bool, str]:
-        commands: Final = CommandManagementCommand._load_commands()
+        commands: Final = CommandManagementCommand._load_command_handlers()
         name: Final = chat_command.arguments[1].lstrip("!")
         for command in commands:
             if command.name == name:
