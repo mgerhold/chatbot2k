@@ -6,6 +6,6 @@ from pydantic import BaseModel
 
 @final
 class StaticResponseCommandModel(BaseModel):
-    type: Literal["static"]
+    type: Literal["static"] = "static"
     name: str
     response: str

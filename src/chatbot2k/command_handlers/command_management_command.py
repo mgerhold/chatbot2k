@@ -1,3 +1,4 @@
+import logging
 from collections.abc import Callable
 from typing import Final
 from typing import Optional
@@ -62,7 +63,14 @@ class CommandManagementCommand(CommandHandler):
         return "!command [add|update|remove] <command_name> [<response> [<parameters>...]]"
 
     @staticmethod
-    def _load_command_handlers() -> list[StaticResponseCommandModel | ParameterizedResponseCommandModel]:
+    def _load_command_handlers(
+        *,
+        create_if_missing: bool,
+    ) -> list[StaticResponseCommandModel | ParameterizedResponseCommandModel]:
+        if create_if_missing and not CONFIG.commands_file.exists():
+            logging.info(f"Commands file {CONFIG.commands_file} does not exist, creating a new one.")
+            CONFIG.commands_file.parent.mkdir(parents=True, exist_ok=True)
+            CommandManagementCommand._save_commands([])
         file_contents: Final = CONFIG.commands_file.read_text(encoding="utf-8")
         return CommandsModel.model_validate_json(file_contents).commands
 
@@ -81,7 +89,7 @@ class CommandManagementCommand(CommandHandler):
         *,
         is_update: bool,
     ) -> tuple[bool, str]:
-        commands: Final = CommandManagementCommand._load_command_handlers()
+        commands: Final = CommandManagementCommand._load_command_handlers(create_if_missing=False)
         name: Final = chat_command.arguments[1].lstrip("!")
         existing_command: Final = next((command for command in commands if command.name == name), None)
         if existing_command is None and is_update:
@@ -125,7 +133,7 @@ class CommandManagementCommand(CommandHandler):
 
     @staticmethod
     def _remove_command(app_state: AppState, chat_command: ChatCommand) -> tuple[bool, str]:
-        commands: Final = CommandManagementCommand._load_command_handlers()
+        commands: Final = CommandManagementCommand._load_command_handlers(create_if_missing=False)
         name: Final = chat_command.arguments[1].lstrip("!")
         for command in commands:
             if command.name == name:
