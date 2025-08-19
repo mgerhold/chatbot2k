@@ -1,0 +1,8 @@
+{
+  "COMMAND_ALREADY_EXISTS": "Cannot add command: A command with this name already exists.",
+  "COMMAND_TO_UPDATE_NOT_FOUND": "Cannot update command: The command to update was not found.",
+  "COMMAND_TO_DELETE_NOT_FOUND": "Cannot delete command: The command to delete was not found.",
+  "COMMAND_ADDED": "New command has been added successfully.",
+  "COMMAND_UPDATED": "Command has been updated successfully.",
+  "COMMAND_REMOVED": "Command has been removed successfully."
+}

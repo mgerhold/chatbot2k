@@ -4,6 +4,7 @@ from typing import Optional
 from typing import final
 from typing import override
 
+from chatbot2k.app_state import AppState
 from chatbot2k.command_handlers.command_handler import CommandHandler
 from chatbot2k.command_handlers.utils import replace_placeholders_in_message
 from chatbot2k.types.chat_command import ChatCommand
@@ -13,7 +14,15 @@ from chatbot2k.types.permission_level import PermissionLevel
 
 @final
 class ParameterizedResponseCommand(CommandHandler):
-    def __init__(self, parameters: Sequence[str], format_string: str) -> None:
+    def __init__(
+        self,
+        *,
+        app_state: AppState,
+        name: str,
+        parameters: Sequence[str],
+        format_string: str,
+    ) -> None:
+        super().__init__(app_state, name=name)
         self._placeholders: Final = list(parameters)
         self._format_string: Final = format_string
 
@@ -31,9 +40,15 @@ class ParameterizedResponseCommand(CommandHandler):
             )
         ]
 
+    @override
     @property
     def min_required_permission_level(self) -> PermissionLevel:
         return PermissionLevel.VIEWER
+
+    @override
+    @property
+    def usage(self) -> str:
+        return f"!{self._name} {' '.join(f'<{placeholder}>' for placeholder in self._placeholders)}"
 
     def _inject_arguments(self, chat_command: ChatCommand) -> Optional[str]:
         """

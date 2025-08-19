@@ -43,7 +43,8 @@ async def process_chat_message(
         f"Processing command {command.name} from user {chat_message.sender_name} "
         + f"with permission level {chat_message.sender_permission_level}"
     )
-    return await command_handler.handle_command(command)
+    responses: Final = await command_handler.handle_command(command)
+    return responses if responses is not None else [ChatResponse(text=f"Usage: {command_handler.usage}")]
 
 
 async def run(chats: Sequence[Chat], globals_: Globals) -> None:
