@@ -1,5 +1,6 @@
 import logging
 from collections.abc import Callable
+from pathlib import Path
 from typing import Final
 from typing import Optional
 from typing import final
@@ -7,7 +8,6 @@ from typing import override
 
 from chatbot2k.app_state import AppState
 from chatbot2k.command_handlers.command_handler import CommandHandler
-from chatbot2k.config import CONFIG
 from chatbot2k.models.commands import CommandsModel
 from chatbot2k.models.parameterized_response_command import ParameterizedResponseCommandModel
 from chatbot2k.models.static_response_command import StaticResponseCommandModel
@@ -82,19 +82,24 @@ class CommandManagementCommand(CommandHandler):
     @staticmethod
     def _load_command_handlers(
         *,
+        commands_file: Path,
         create_if_missing: bool,
     ) -> list[StaticResponseCommandModel | ParameterizedResponseCommandModel]:
-        if create_if_missing and not CONFIG.commands_file.exists():
-            logging.info(f"Commands file {CONFIG.commands_file} does not exist, creating a new one.")
-            CONFIG.commands_file.parent.mkdir(parents=True, exist_ok=True)
-            CommandManagementCommand._save_commands([])
-        file_contents: Final = CONFIG.commands_file.read_text(encoding="utf-8")
+        if create_if_missing and not commands_file.exists():
+            logging.info(f"Commands file {commands_file} does not exist, creating a new one.")
+            commands_file.parent.mkdir(parents=True, exist_ok=True)
+            CommandManagementCommand._save_commands(commands_file=commands_file, commands=[])
+        file_contents: Final = commands_file.read_text(encoding="utf-8")
         return CommandsModel.model_validate_json(file_contents).commands
 
     @staticmethod
-    def _save_commands(commands: list[StaticResponseCommandModel | ParameterizedResponseCommandModel]) -> None:
+    def _save_commands(
+        *,
+        commands_file: Path,
+        commands: list[StaticResponseCommandModel | ParameterizedResponseCommandModel],
+    ) -> None:
         model: Final = CommandsModel(commands=sorted(commands, key=lambda c: c.name))
-        CONFIG.commands_file.write_text(
+        commands_file.write_text(
             model.model_dump_json(indent=2),
             encoding="utf-8",
         )
@@ -106,7 +111,10 @@ class CommandManagementCommand(CommandHandler):
         *,
         is_update: bool,
     ) -> tuple[bool, str]:
-        commands: Final = CommandManagementCommand._load_command_handlers(create_if_missing=False)
+        commands: Final = CommandManagementCommand._load_command_handlers(
+            commands_file=app_state.config.commands_file,
+            create_if_missing=False,
+        )
         name: Final = chat_command.arguments[1].lstrip("!")
         existing_command: Final = next((command for command in commands if command.name == name), None)
         if existing_command is None and is_update:
@@ -140,7 +148,10 @@ class CommandManagementCommand(CommandHandler):
                     response=chat_command.arguments[2],
                 )
             )
-        CommandManagementCommand._save_commands(commands)
+        CommandManagementCommand._save_commands(
+            commands_file=app_state.config.commands_file,
+            commands=commands,
+        )
         return (
             True,
             app_state.translations_manager.get_translation(
@@ -150,12 +161,18 @@ class CommandManagementCommand(CommandHandler):
 
     @staticmethod
     def _remove_command(app_state: AppState, chat_command: ChatCommand) -> tuple[bool, str]:
-        commands: Final = CommandManagementCommand._load_command_handlers(create_if_missing=False)
+        commands: Final = CommandManagementCommand._load_command_handlers(
+            commands_file=app_state.config.commands_file,
+            create_if_missing=False,
+        )
         name: Final = chat_command.arguments[1].lstrip("!")
         for command in commands:
             if command.name == name:
                 commands.remove(command)
-                CommandManagementCommand._save_commands(commands)
+                CommandManagementCommand._save_commands(
+                    commands_file=app_state.config.commands_file,
+                    commands=commands,
+                )
                 return (
                     True,
                     app_state.translations_manager.get_translation(TranslationKey.COMMAND_REMOVED),

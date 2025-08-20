@@ -3,6 +3,7 @@ from abc import abstractmethod
 from typing import TYPE_CHECKING
 
 from chatbot2k.broadcasters.broadcaster import Broadcaster
+from chatbot2k.config import Config
 from chatbot2k.dictionary import Dictionary
 from chatbot2k.translations_manager import TranslationsManager
 
@@ -12,6 +13,16 @@ if TYPE_CHECKING:
 
 
 class AppState(ABC):
+    @property
+    @abstractmethod
+    def config(self) -> Config:
+        pass
+
+    @property
+    @abstractmethod
+    def constants(self) -> dict[str, str]:
+        pass
+
     @property
     @abstractmethod
     def command_handlers(self) -> dict[str, "CommandHandler"]:

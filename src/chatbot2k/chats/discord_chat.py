@@ -12,8 +12,8 @@ import discord
 from discord import Client
 from discord import Message
 
+from chatbot2k.app_state import AppState
 from chatbot2k.chats.chat import Chat
-from chatbot2k.config import CONFIG
 from chatbot2k.models.discord_chat_message_metadata import DiscordChatMessageMetadata
 from chatbot2k.types.broadcast_message import BroadcastMessage
 from chatbot2k.types.chat_message import ChatMessage
@@ -59,6 +59,7 @@ class DiscordChat(Chat):
         self,
         client: _DiscordClient,
         chat_message_queue: asyncio.Queue[ChatMessage],
+        discord_token: str,
     ) -> None:
         super().__init__(
             ChatFeatures(
@@ -69,10 +70,11 @@ class DiscordChat(Chat):
         self._client: Final = client
         self._chat_message_queue: Final = chat_message_queue
         self._client_task: Optional[asyncio.Task] = None
+        self._discord_token: Final = discord_token
 
     async def _ensure_started(self) -> None:
         if self._client_task is None or self._client_task.done():
-            self._client_task = asyncio.create_task(self._client.start(CONFIG.discord_token))
+            self._client_task = asyncio.create_task(self._client.start(self._discord_token))
 
     @override
     async def get_message_stream(self) -> AsyncGenerator[ChatMessage]:
@@ -95,7 +97,7 @@ class DiscordChat(Chat):
         raise NotImplementedError()
 
     @classmethod
-    async def create(cls) -> Self:
+    async def create(cls, app_state: AppState) -> Self:
         intents: Final = discord.Intents.default()
         intents.message_content = True
         chat_message_queue: Final[asyncio.Queue[ChatMessage]] = asyncio.Queue()
@@ -104,6 +106,6 @@ class DiscordChat(Chat):
             intents=intents,
             chat_message_queue=chat_message_queue,
         )
-        instance = cls(client, chat_message_queue)
+        instance = cls(client, chat_message_queue, app_state.config.discord_token)
         await instance._ensure_started()
         return instance

@@ -56,8 +56,8 @@ async def process_chat_message(
 
 async def run_main_loop(app_state: AppState) -> None:
     chats: Final = [
-        await TwitchChat.create(),
-        await DiscordChat.create(),
+        await TwitchChat.create(app_state),
+        await DiscordChat.create(app_state),
     ]
 
     queue: Final[asyncio.Queue[tuple[int, ChatMessage | BroadcastMessage | Sentinel]]] = asyncio.Queue()

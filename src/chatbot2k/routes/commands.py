@@ -7,7 +7,6 @@ from fastapi.routing import APIRouter
 from starlette.templating import Jinja2Templates
 
 from chatbot2k.app_state import AppState
-from chatbot2k.config import CONFIG
 from chatbot2k.dependencies import get_app_state
 from chatbot2k.dependencies import get_templates
 from chatbot2k.types.permission_level import PermissionLevel
@@ -63,7 +62,7 @@ def show_main_page(
         request=request,
         name="commands.html",
         context={
-            "bot_name": CONFIG.bot_name,
+            "bot_name": app_state.config.bot_name,
             "commands": commands,
             "dictionary_entries": dictionary_entries,
         },

@@ -15,9 +15,8 @@ from twitchAPI.twitch import Twitch
 from twitchAPI.type import AuthScope
 from twitchAPI.type import ChatEvent
 
+from chatbot2k.app_state import AppState
 from chatbot2k.chats.chat import Chat
-from chatbot2k.config import CONFIG
-from chatbot2k.config import OAuthTokens
 from chatbot2k.models.twitch_chat_message_metadata import TwitchChatMessageMetadata
 from chatbot2k.types.broadcast_message import BroadcastMessage
 from chatbot2k.types.chat_message import ChatMessage
@@ -39,7 +38,7 @@ class TwitchChat(Chat):
         )
         self._app_loop: Final = asyncio.get_running_loop()
         self._message_queue: Final[asyncio.Queue[ChatMessage]] = asyncio.Queue()
-        self._channel = channel
+        self._channel: Final = channel
 
         async def _on_ready(ready_event: EventData) -> None:
             await self._on_ready(ready_event)
@@ -54,32 +53,41 @@ class TwitchChat(Chat):
         self._twitch_chat_client.start()
 
     @classmethod
-    async def create(cls) -> Self:
-        match CONFIG.twitch_credentials:
-            case str():
-                client = await Twitch(CONFIG.twitch_client_id, CONFIG.twitch_credentials)
-                auth: Final = UserAuthenticator(client, TwitchChat._SCOPES)
-                auth_response: Final = await auth.authenticate()
-                assert auth_response is not None
-                access_token, refresh_token = auth_response
-                print(f"Obtained tokens: {access_token}, {refresh_token}")
-                await client.set_user_authentication(
-                    access_token,
-                    TwitchChat._SCOPES,
-                    refresh_token,
-                    validate=True,
-                )
-            case OAuthTokens(access_token, refresh_token):
-                client = await Twitch(CONFIG.twitch_client_id, authenticate_app=False)
-                await client.set_user_authentication(
-                    access_token,
-                    TwitchChat._SCOPES,
-                    refresh_token,
-                    validate=True,
-                )
+    async def create(cls, app_state: AppState) -> Self:
+        async def _on_user_refresh(new_access_token: str, new_refresh_token: str) -> None:
+            app_state.config.update_twitch_tokens(new_access_token, new_refresh_token)
+
+        if app_state.config.twitch_credentials is None:
+            # We only have the client secret, so we have to obtain tokens interactively.
+            client = await Twitch(
+                app_state.config.twitch_client_id,
+                app_state.config.twitch_credentials,
+            )
+            client.user_auth_refresh_callback = _on_user_refresh
+            auth: Final = UserAuthenticator(client, TwitchChat._SCOPES)
+            auth_response: Final = await auth.authenticate()
+            assert auth_response is not None
+            access_token, refresh_token = auth_response
+            print(f"Obtained tokens: {access_token}, {refresh_token}")
+        else:
+            # We already have tokens. Maybe the access token is expired, but we should
+            # be able to refresh it.
+            access_token, refresh_token = app_state.config.twitch_credentials
+            client = await Twitch(
+                app_state.config.twitch_client_id,
+                app_state.config.twitch_client_secret,
+                authenticate_app=False,
+            )
+            client.user_auth_refresh_callback = _on_user_refresh
+        await client.set_user_authentication(
+            access_token,
+            TwitchChat._SCOPES,
+            refresh_token,
+            validate=True,
+        )
         chat: Final = await TwitchChatClient(client)
 
-        return cls(chat, CONFIG.twitch_channel)
+        return cls(chat, app_state.config.twitch_channel)
 
     @override
     async def get_message_stream(self) -> AsyncGenerator[ChatMessage]:
@@ -111,7 +119,7 @@ class TwitchChat(Chat):
                 sender_name=message.user.name,
                 sender_permission_level=(
                     PermissionLevel.ADMIN
-                    if message.user.name == CONFIG.twitch_channel
+                    if message.user.name == self._channel
                     else (PermissionLevel.MODERATOR if message.user.mod else PermissionLevel.VIEWER)
                 ),
                 meta_data=TwitchChatMessageMetadata(message=message),

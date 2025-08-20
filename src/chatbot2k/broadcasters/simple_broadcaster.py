@@ -7,6 +7,7 @@ from typing import Optional
 from typing import final
 from typing import override
 
+from chatbot2k.app_state import AppState
 from chatbot2k.broadcasters.broadcaster import Broadcaster
 from chatbot2k.builtins import apply_builtins
 from chatbot2k.constants import replace_constants
@@ -22,6 +23,7 @@ class SimpleBroadcaster(Broadcaster):
         interval_seconds: float,
         message: str,
         phase_offset_seconds: float,
+        app_state: AppState,
         alias_command: Optional[str] = None,
     ):
         self._interval_seconds = interval_seconds
@@ -29,6 +31,7 @@ class SimpleBroadcaster(Broadcaster):
         self._phase_offset_seconds = phase_offset_seconds
         self._alias_command = None if alias_command is None else alias_command.removeprefix("!")
         self._time_of_next_broadcast = time.monotonic() + phase_offset_seconds
+        self._app_state = app_state
 
     @override
     async def get_broadcasts_stream(self) -> AsyncGenerator[BroadcastMessage]:
@@ -38,7 +41,12 @@ class SimpleBroadcaster(Broadcaster):
                 await sleep(remaining_time)
                 continue
             self._time_of_next_broadcast += self._interval_seconds
-            yield BroadcastMessage(text=replace_constants(apply_builtins(self._message)))
+            yield BroadcastMessage(
+                text=replace_constants(
+                    apply_builtins(self._message, self._app_state.config),
+                    self._app_state.constants,
+                )
+            )
 
     @override
     async def on_chat_message_received(self, message: ChatMessage) -> None:
