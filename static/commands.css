@@ -383,3 +383,5 @@ table.dictionary td pre code {
 
 /* Keep long URLs from breaking layout in both tables */
 .table-container a { overflow-wrap: anywhere; word-break: break-word; }
+
+.footer .sep { margin: 0 0.5rem; }

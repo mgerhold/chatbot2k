@@ -49,6 +49,7 @@ class Config:
         self._timezone: Optional[ZoneInfo] = None
         self._locale: Optional[str] = None
         self._bot_name: Optional[str] = None
+        self._author_name: Optional[str] = None
         self._twitch_client_id: Optional[str] = None
         self._twitch_client_secret: Optional[TwitchClientSecret] = None
         self._twitch_credentials: Optional[OAuthTokens] = None
@@ -66,6 +67,7 @@ class Config:
         self._timezone = ZoneInfo(get_environment_variable_or_raise("TIMEZONE"))
         self._locale = get_environment_variable_or_raise("LOCALE")
         self._bot_name = get_environment_variable_or_raise("BOT_NAME")
+        self._author_name = get_environment_variable_or_raise("AUTHOR_NAME")
         self._twitch_client_id = get_environment_variable_or_raise("TWITCH_CLIENT_ID")
         self._twitch_client_secret = get_environment_variable_or_raise("TWITCH_CLIENT_SECRET")
         twitch_access_token: Final = get_environment_variable_or_default("TWITCH_ACCESS_TOKEN", None)
@@ -108,6 +110,10 @@ class Config:
     @property
     def bot_name(self) -> str:
         return cast(str, self._bot_name)
+
+    @property
+    def author_name(self) -> str:
+        return cast(str, self._author_name)
 
     @property
     def twitch_client_id(self) -> str:

@@ -1,9 +1,11 @@
+from datetime import datetime
 from typing import Annotated
 from typing import Final
 
 from fastapi import Depends
 from fastapi import Request
 from fastapi.routing import APIRouter
+from starlette.responses import Response
 from starlette.templating import Jinja2Templates
 
 from chatbot2k.app_state import AppState
@@ -32,7 +34,7 @@ def show_main_page(
     request: Request,
     app_state: Annotated[AppState, Depends(get_app_state)],
     templates: Annotated[Jinja2Templates, Depends(get_templates)],
-):
+) -> Response:
     commands: Final = sorted(
         [
             {
@@ -65,5 +67,7 @@ def show_main_page(
             "bot_name": app_state.config.bot_name,
             "commands": commands,
             "dictionary_entries": dictionary_entries,
+            "author_name": app_state.config.author_name,
+            "copyright_year": datetime.now().year,
         },
     )

@@ -1,0 +1,113 @@
+<!doctype html>
+<html lang="en" data-theme="dark">
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1"/>
+  <meta name="color-scheme" content="dark"/>
+  <title>{{ bot_name }} — Imprint</title>
+
+  <link rel="preload" href="/static/commands.css" as="style"/>
+  <link rel="stylesheet" href="/static/commands.css"/>
+
+  <!-- Favicons (optional to repeat) -->
+  <link rel="icon" type="image/png" sizes="16x16" href="/static/favicon16.png">
+  <link rel="icon" type="image/png" sizes="32x32" href="/static/favicon32.png">
+  <meta name="theme-color" content="#0d1117">
+</head>
+<body>
+<main class="container">
+  <header class="header">
+    <img
+      class="avatar"
+      src="/static/avatar.png"
+      alt="{{ bot_name | e }} avatar"
+      width="96" height="96"
+      loading="eager" decoding="async"
+    />
+    <div class="title-group">
+      <h1>Imprint</h1>
+      <p class="subtitle">Legal disclosure pursuant to §§ 5 TMG and 18 (2) MStV.</p>
+    </div>
+  </header>
+
+  <section>
+    <h2>Service Provider</h2>
+    <address>
+      Michael Gerhold<br/>
+      c/o LEADERLY UG (haftungsbeschränkt)<br/>
+      Amtstraße&nbsp;22<br/>
+      44575 Castrop-Rauxel<br/>
+      Germany
+    </address>
+    <p>
+      Email: <a href="mailto:michael.gerhold@web.de">michael.gerhold@web.de</a>
+    </p>
+  </section>
+
+  <section>
+    <h2>Editorial Responsibility</h2>
+    <p>
+      Responsible for content according to § 18 (2) MStV:
+      Michael Gerhold, at the address stated above.
+    </p>
+  </section>
+
+  <section>
+    <h2>EU Online Dispute Resolution</h2>
+    <p>
+      The European Commission provides a platform for online dispute resolution (ODR):
+      <a href="https://ec.europa.eu/consumers/odr" target="_blank" rel="noopener noreferrer nofollow">
+        https://ec.europa.eu/consumers/odr
+      </a>.
+      We are not obliged and generally not willing to participate in dispute resolution proceedings
+      before a consumer arbitration board.
+    </p>
+  </section>
+
+  <section>
+    <h2>Liability for Content</h2>
+    <p>
+      As a service provider we are responsible for our own content on these pages in accordance with
+      general laws (§ 7 (1) TMG). According to §§ 8 to 10 TMG, we are not obligated to monitor
+      transmitted or stored third-party information or to investigate circumstances indicating
+      illegal activity. Obligations to remove or block the use of information under general laws remain
+      unaffected. However, liability in this regard is only possible from the time of knowledge of a
+      specific infringement. Upon becoming aware of corresponding violations, we will remove such
+      content immediately.
+    </p>
+  </section>
+
+  <section>
+    <h2>Liability for Links</h2>
+    <p>
+      Our content may contain links to external websites of third parties over whose content we have no
+      control. Therefore, we cannot assume any liability for these external contents. The respective
+      provider or operator of the sites is always responsible for the contents of the linked sites. The
+      linked pages were checked for possible legal violations at the time of linking. Illegal contents
+      were not recognizable at the time of linking. A permanent control of the linked pages is not
+      reasonable without concrete indications of a violation. Upon notification of violations, we will
+      remove such links immediately.
+    </p>
+  </section>
+
+  <section>
+    <h2>Copyright</h2>
+    <p>
+      The content and works created by us on these pages are subject to German copyright law. Duplication,
+      processing, distribution, or any form of commercialization of such material beyond the scope of the
+      copyright law shall require the prior written consent of the respective author or creator. Downloads
+      and copies of this site are permitted for private, non-commercial use only. Insofar as the content on
+      this site was not created by us, the copyrights of third parties are respected and such content is
+      identified accordingly. Should you nevertheless become aware of a copyright infringement, please
+      inform us. Upon notification of violations, we will remove such content immediately.
+    </p>
+  </section>
+
+  <footer class="footer" role="contentinfo" aria-label="Site footer">
+    <small>© {{ copyright_year }} {{ bot_name | e }} — All rights reserved.</small>
+    <span class="sep" aria-hidden="true">·</span>
+    <a href="/">Back to overview</a>
+  </footer>
+</main>
+</body>
+</html>

@@ -12,6 +12,7 @@ from starlette.staticfiles import StaticFiles
 from chatbot2k.core import run_main_loop
 from chatbot2k.dependencies import get_app_state
 from chatbot2k.routes import commands
+from chatbot2k.routes import imprint
 
 logging.basicConfig(level=logging.INFO)
 
@@ -28,6 +29,7 @@ if not STATIC_FILES_DIRECTORY.exists():
 
 app: Final = FastAPI(lifespan=lifespan)
 app.include_router(commands.router)
+app.include_router(imprint.router)
 app.mount(
     "/static",
     StaticFiles(directory="static"),
