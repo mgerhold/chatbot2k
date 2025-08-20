@@ -18,7 +18,6 @@ from twitchAPI.type import ChatEvent
 from chatbot2k.chats.chat import Chat
 from chatbot2k.config import CONFIG
 from chatbot2k.config import OAuthTokens
-from chatbot2k.config import TwitchClientSecret
 from chatbot2k.models.twitch_chat_message_metadata import TwitchChatMessageMetadata
 from chatbot2k.types.broadcast_message import BroadcastMessage
 from chatbot2k.types.chat_message import ChatMessage
@@ -55,28 +54,32 @@ class TwitchChat(Chat):
         self._twitch_chat_client.start()
 
     @classmethod
-    async def create(
-        cls,
-        *,
-        app_id: str,
-        credentials: TwitchClientSecret | OAuthTokens,
-        channel: str,
-    ) -> Self:
-        match credentials:
+    async def create(cls) -> Self:
+        match CONFIG.twitch_credentials:
             case str():
-                client = await Twitch(app_id, credentials)
+                client = await Twitch(CONFIG.twitch_client_id, CONFIG.twitch_credentials)
                 auth: Final = UserAuthenticator(client, TwitchChat._SCOPES)
                 auth_response: Final = await auth.authenticate()
                 assert auth_response is not None
                 access_token, refresh_token = auth_response
                 print(f"Obtained tokens: {access_token}, {refresh_token}")
-                await client.set_user_authentication(access_token, TwitchChat._SCOPES, refresh_token, validate=True)
+                await client.set_user_authentication(
+                    access_token,
+                    TwitchChat._SCOPES,
+                    refresh_token,
+                    validate=True,
+                )
             case OAuthTokens(access_token, refresh_token):
-                client = await Twitch(app_id, authenticate_app=False)
-                await client.set_user_authentication(access_token, TwitchChat._SCOPES, refresh_token, validate=True)
+                client = await Twitch(CONFIG.twitch_client_id, authenticate_app=False)
+                await client.set_user_authentication(
+                    access_token,
+                    TwitchChat._SCOPES,
+                    refresh_token,
+                    validate=True,
+                )
         chat: Final = await TwitchChatClient(client)
 
-        return cls(chat, channel)
+        return cls(chat, CONFIG.twitch_channel)
 
     @override
     async def get_message_stream(self) -> AsyncGenerator[ChatMessage]:
