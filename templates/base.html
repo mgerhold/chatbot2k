@@ -1,0 +1,42 @@
+<!doctype html>
+<html lang="en" data-theme="dark">
+<head>
+    <meta charset="utf-8"/>
+    <meta name="viewport" content="width=device-width, initial-scale=1"/>
+    <meta name="color-scheme" content="dark"/>
+    <title>{% block title %}{{ bot_name }}{% endblock %}</title>
+
+    <link rel="preload" href="/static/commands.css" as="style"/>
+    <link rel="stylesheet" href="/static/commands.css"/>
+
+    <!-- Favicons -->
+    <link rel="icon" type="image/png" sizes="16x16" href="/static/favicon16.png">
+    <link rel="icon" type="image/png" sizes="32x32" href="/static/favicon32.png">
+    <link rel="icon" type="image/png" sizes="192x192" href="/static/favicon192.png">
+    <link rel="icon" type="image/png" sizes="256x256" href="/static/favicon256.png">
+    <link rel="apple-touch-icon" sizes="180x180" href="/static/favicon180.png">
+    <link rel="shortcut icon" href="/static/favicon32.png" type="image/png">
+    <meta name="msapplication-TileImage" content="/static/favicon256.png">
+    <meta name="msapplication-TileColor" content="#0d1117">
+    <meta name="theme-color" content="#0d1117">
+
+    <link rel="preload" href="/static/avatar.png" as="image"/>
+
+    {% block head_extra %}{% endblock %}
+</head>
+<body>
+<main class="container">
+    {% block header %}{% endblock %}
+
+    {% block content %}{% endblock %}
+
+    <footer class="footer" role="contentinfo" aria-label="Site footer">
+        <small>© {{ copyright_year or "2025" }} {{ author_name | e }} — All rights reserved.</small>
+        <span class="sep" aria-hidden="true">·</span>
+        {% block footer_links %}
+        <a href="/imprint">Imprint</a>
+        {% endblock %}
+    </footer>
+</main>
+</body>
+</html>

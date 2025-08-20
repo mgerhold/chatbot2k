@@ -222,7 +222,7 @@ a:visited:active {
 }
 
 /* Optional external-link glyph for absolute http(s) links */
-.commands td a[href^="http"]::after {
+td a[href^="http"]::after {
   content: "";
   display: inline-block;
   width: 0.9em;
