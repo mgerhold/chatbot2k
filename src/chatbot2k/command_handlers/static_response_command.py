@@ -1,13 +1,17 @@
+from typing import Final
 from typing import Optional
 from typing import final
 from typing import override
 
 from chatbot2k.app_state import AppState
+from chatbot2k.builtins import Builtin
 from chatbot2k.command_handlers.command_handler import CommandHandler
 from chatbot2k.command_handlers.utils import replace_placeholders_in_message
+from chatbot2k.constants import CONSTANTS
 from chatbot2k.types.chat_command import ChatCommand
 from chatbot2k.types.chat_response import ChatResponse
 from chatbot2k.types.permission_level import PermissionLevel
+from chatbot2k.utils.markdown import quote_braced_with_backticks
 
 
 @final
@@ -46,3 +50,9 @@ class StaticResponseCommand(CommandHandler):
     @property
     def usage(self) -> str:
         return f"!{self._name}"
+
+    @override
+    @property
+    def description(self) -> str:
+        names_to_quote: Final = {builtin.name for builtin in Builtin} | set(CONSTANTS)  # type: ignore[not-iterable]
+        return f"{quote_braced_with_backticks(self._response, only_these=names_to_quote)}"

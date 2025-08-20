@@ -4,11 +4,11 @@ from typing import Final
 from typing import Optional
 from typing import final
 
+from chatbot2k.app_state import AppState
 from chatbot2k.broadcasters.broadcaster import Broadcaster
 from chatbot2k.chats.chat import Chat
 from chatbot2k.chats.discord_chat import DiscordChat
 from chatbot2k.chats.twitch_chat import TwitchChat
-from chatbot2k.globals import Globals
 from chatbot2k.types.broadcast_message import BroadcastMessage
 from chatbot2k.types.chat_command import ChatCommand
 from chatbot2k.types.chat_message import ChatMessage
@@ -22,15 +22,15 @@ class Sentinel:
 
 async def process_chat_message(
     chat_message: ChatMessage,
-    globals_: Globals,
+    app_state: AppState,
 ) -> Optional[list[ChatResponse]]:
     logging.debug(f"Processing chat message from {chat_message.sender_name}: {chat_message.text}")
     command: Final = ChatCommand.from_chat_message(chat_message)
     if command is None:
-        return globals_.dictionary.get_explanations(chat_message)  # Maybe `None`.
-    if command.name not in globals_.command_handlers:
+        return app_state.dictionary.get_explanations(chat_message)  # Maybe `None`.
+    if command.name not in app_state.command_handlers:
         return None  # No known command.
-    command_handler: Final = globals_.command_handlers[command.name]
+    command_handler: Final = app_state.command_handlers[command.name]
     if command_handler.min_required_permission_level > chat_message.sender_permission_level:
         logging.info(
             f"User {chat_message.sender_name} does not have permission to use command {command.name}. "
@@ -54,15 +54,14 @@ async def process_chat_message(
     )
 
 
-async def run_main_loop() -> None:
+async def run_main_loop(app_state: AppState) -> None:
     chats: Final = [
         await TwitchChat.create(),
         await DiscordChat.create(),
     ]
-    globals_: Final = Globals()
 
     queue: Final[asyncio.Queue[tuple[int, ChatMessage | BroadcastMessage | Sentinel]]] = asyncio.Queue()
-    active_participant_indices: Final[set[int]] = set(range(len(chats) + len(globals_.broadcasters)))
+    active_participant_indices: Final[set[int]] = set(range(len(chats) + len(app_state.broadcasters)))
 
     async def _producer(i: int, chat_or_broadcaster: Chat | Broadcaster) -> None:
         try:
@@ -82,7 +81,7 @@ async def run_main_loop() -> None:
         for i, chat in enumerate(chats):
             task_group.create_task(_producer(i, chat))
 
-        for i, broadcaster in enumerate(globals_.broadcasters):
+        for i, broadcaster in enumerate(app_state.broadcasters):
             task_group.create_task(_producer(i + len(chats), broadcaster))
 
         while active_participant_indices:
@@ -95,7 +94,7 @@ async def run_main_loop() -> None:
                     # Notify broadcasters about the chat message so they can react to it,
                     # e.g. by delaying the next broadcast if it was already triggered by
                     # a regular chat message.
-                    for j, broadcaster in enumerate(globals_.broadcasters):
+                    for j, broadcaster in enumerate(app_state.broadcasters):
                         if j + len(chats) not in active_participant_indices:
                             # This broadcaster is not active, skip it.
                             continue
@@ -103,7 +102,7 @@ async def run_main_loop() -> None:
                     if not chats[i].feature_flags.REGULAR_CHAT:
                         # This chat is not capable of processing regular chat messages.
                         continue
-                    response = await process_chat_message(chat_message, globals_)
+                    response = await process_chat_message(chat_message, app_state)
                     if response is not None:
                         await chats[i].send_responses(response)
                 case BroadcastMessage():

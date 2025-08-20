@@ -2,6 +2,7 @@ from abc import ABC
 from abc import abstractmethod
 from typing import Final
 from typing import Optional
+from typing import final
 
 from chatbot2k.app_state import AppState
 from chatbot2k.types.chat_command import ChatCommand
@@ -13,6 +14,11 @@ class CommandHandler(ABC):
     def __init__(self, app_state: AppState, *, name: str) -> None:
         self._app_state: Final = app_state
         self._name: Final = name
+
+    @final
+    @property
+    def name(self) -> str:
+        return self._name
 
     @abstractmethod
     async def handle_command(self, chat_command: ChatCommand) -> Optional[list[ChatResponse]]:
@@ -33,4 +39,9 @@ class CommandHandler(ABC):
     @property
     @abstractmethod
     def usage(self) -> str:
+        pass
+
+    @property
+    @abstractmethod
+    def description(self) -> str:
         pass

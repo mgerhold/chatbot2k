@@ -45,7 +45,10 @@ class CommandManagementCommand(CommandHandler):
                     is_update=True,
                 )
             case CommandManagementCommand._REMOVE_SUBCOMMAND if argc >= 2:
-                success, response = CommandManagementCommand._remove_command(self._app_state, chat_command)
+                success, response = CommandManagementCommand._remove_command(
+                    self._app_state,
+                    chat_command,
+                )
             case _:
                 return None
         if success:
@@ -65,7 +68,16 @@ class CommandManagementCommand(CommandHandler):
     @override
     @property
     def usage(self) -> str:
-        return "!command [add|update|remove] <command_name> [<response> [<parameters>...]]"
+        return "!command [add|update|remove] <parameters>..."
+
+    @override
+    @property
+    def description(self) -> str:
+        return (
+            "Manage custom commands. Use `!command add` to add a new command, "
+            + "`!command update` to update an existing command, and `!command remove` "
+            + "to delete a command."
+        )
 
     @staticmethod
     def _load_command_handlers(

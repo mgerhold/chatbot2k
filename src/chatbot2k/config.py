@@ -38,10 +38,6 @@ type TwitchClientSecret = str
 
 @final
 class Config(NamedTuple):
-    twitch_client_id: str
-    twitch_credentials: TwitchClientSecret | OAuthTokens
-    twitch_channel: str
-    discord_token: str
     commands_file: Path
     broadcasts_file: Path
     constants_file: Path
@@ -49,6 +45,12 @@ class Config(NamedTuple):
     translations_file: Path
     timezone: ZoneInfo
     locale: str
+    bot_name: str
+
+    twitch_client_id: str
+    twitch_credentials: TwitchClientSecret | OAuthTokens
+    twitch_channel: str
+    discord_token: str
 
 
 _twitch_client_secret: Final = get_environment_variable_or_default("TWITCH_CLIENT_SECRET", None)
@@ -66,15 +68,16 @@ if _twitch_credentials is None:
     raise ValueError("Either TWITCH_CLIENT_SECRET or both TWITCH_ACCESS_TOKEN and TWITCH_REFRESH_TOKEN must be set.")
 
 CONFIG = Config(
-    twitch_client_id=get_environment_variable_or_raise("TWITCH_CLIENT_ID"),
-    twitch_credentials=_twitch_credentials,
-    twitch_channel=get_environment_variable_or_raise("TWITCH_CHANNEL"),
-    discord_token=get_environment_variable_or_raise("DISCORD_BOT_TOKEN"),
-    commands_file=Path(get_environment_variable_or_raise("COMMANDS_FILE")),
     broadcasts_file=Path(get_environment_variable_or_raise("BROADCASTS_FILE")),
     constants_file=Path(get_environment_variable_or_raise("CONSTANTS_FILE")),
     dictionary_file=Path(get_environment_variable_or_raise("DICTIONARY_FILE")),
     translations_file=Path(get_environment_variable_or_raise("TRANSLATIONS_FILE")),
     timezone=ZoneInfo(get_environment_variable_or_raise("TIMEZONE")),
     locale=get_environment_variable_or_raise("LOCALE"),
+    bot_name=get_environment_variable_or_raise("BOT_NAME"),
+    twitch_client_id=get_environment_variable_or_raise("TWITCH_CLIENT_ID"),
+    twitch_credentials=_twitch_credentials,
+    twitch_channel=get_environment_variable_or_raise("TWITCH_CHANNEL"),
+    discord_token=get_environment_variable_or_raise("DISCORD_BOT_TOKEN"),
+    commands_file=Path(get_environment_variable_or_raise("COMMANDS_FILE")),
 )
