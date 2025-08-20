@@ -267,3 +267,119 @@ a:visited:active {
   background: transparent;
   padding: 0;
 }
+
+/* --- Tabs (CSS-only) --- */
+.tabs {
+  margin-top: 1rem;
+}
+
+.tab-radio {
+  position: absolute;
+  left: -9999px;
+}
+
+.tablist {
+  display: inline-flex;
+  gap: 0.5rem;
+  border-bottom: 1px solid var(--border);
+  margin-bottom: 1rem;
+}
+
+.tab {
+  cursor: pointer;
+  user-select: none;
+  padding: 0.5rem 0.9rem;
+  border: 1px solid var(--border);
+  border-bottom: none;
+  border-top-left-radius: 12px;
+  border-top-right-radius: 12px;
+  background: linear-gradient(180deg, #0f172a, #0b1322);
+  color: var(--text);
+  opacity: 0.85;
+  transition: opacity 0.15s ease, box-shadow 0.2s ease, background 0.2s ease;
+}
+
+.tab:hover { opacity: 1; }
+
+#tab-commands:checked ~ .tablist #label-commands,
+#tab-dictionary:checked ~ .tablist #label-dictionary {
+  opacity: 1;
+  box-shadow: 0 -1px 0 var(--accent) inset, 0 2px 12px rgba(0,0,0,0.35);
+  background: linear-gradient(180deg, #101a33, #0b1322);
+}
+
+.tab-panels .tab-panel { display: none; }
+#tab-commands:checked ~ .tab-panels #panel-commands { display: block; }
+#tab-dictionary:checked ~ .tab-panels #panel-dictionary { display: block; }
+
+/* --- Share table styling between both tables --- */
+/* (Your previous CSS targeted only table.commands; broaden it) */
+table.commands,
+table.dictionary {
+  width: 100%;
+  border-collapse: collapse;
+  min-width: 640px;
+}
+
+table.commands thead th,
+table.dictionary thead th {
+  text-align: left;
+  font-weight: 600;
+  padding: 0.9rem 1rem;
+  background: linear-gradient(180deg, #0f172a, #0b1322);
+  border-bottom: 1px solid var(--border);
+  position: sticky;
+  top: 0;
+  z-index: 1;
+}
+
+table.commands tbody td,
+table.dictionary tbody td {
+  padding: 0.85rem 1rem;
+  border-bottom: 1px solid var(--border);
+  vertical-align: top;
+}
+
+table.commands tbody tr:nth-child(even),
+table.dictionary tbody tr:nth-child(even) {
+  background: rgba(255, 255, 255, 0.015);
+}
+
+table.commands tbody tr:hover,
+table.dictionary tbody tr:hover {
+  background: rgba(96, 165, 250, 0.08);
+}
+
+/* Reuse code styling in both tables */
+table.commands td code,
+table.dictionary td code {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+  font-size: 0.95rem;
+  padding: 0.12rem 0.4rem;
+  border-radius: 8px;
+  background: var(--code-bg);
+  border: 1px solid var(--code-border);
+  display: inline-block;
+}
+
+table.commands td pre,
+table.dictionary td pre {
+  margin: 0.75rem 0;
+  padding: 0.9rem 1rem;
+  background: var(--code-bg);
+  border: 1px solid var(--code-border);
+  border-radius: 12px;
+  overflow-x: auto;
+  box-shadow: var(--shadow);
+}
+
+table.commands td pre code,
+table.dictionary td pre code {
+  font-size: 0.92rem;
+  border: 0;
+  background: transparent;
+  padding: 0;
+}
+
+/* Keep long URLs from breaking layout in both tables */
+.table-container a { overflow-wrap: anywhere; word-break: break-word; }

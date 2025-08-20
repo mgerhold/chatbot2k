@@ -1,74 +1,116 @@
 <!doctype html>
 <html lang="en" data-theme="dark">
 <head>
-    <meta charset="utf-8"/>
-    <meta name="viewport" content="width=device-width, initial-scale=1"/>
-    <meta name="color-scheme" content="dark"/>
-    <title>{{ bot_name }} Commands</title>
-    <link rel="preload" href="static/commands.css" as="style"/>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1"/>
+  <meta name="color-scheme" content="dark"/>
+  <title>{{ bot_name }} Commands & Dictionary</title>
 
-    <link rel="stylesheet" href="static/commands.css"/>
+  <link rel="preload" href="static/commands.css" as="style"/>
+  <link rel="stylesheet" href="static/commands.css"/>
 
-    <!-- Favicons -->
-    <link rel="icon" type="image/png" sizes="16x16" href="/static/favicon16.png">
-    <link rel="icon" type="image/png" sizes="32x32" href="/static/favicon32.png">
-    <link rel="icon" type="image/png" sizes="192x192" href="/static/favicon192.png">
-    <link rel="icon" type="image/png" sizes="256x256" href="/static/favicon256.png">
+  <!-- Favicons -->
+  <link rel="icon" type="image/png" sizes="16x16" href="/static/favicon16.png">
+  <link rel="icon" type="image/png" sizes="32x32" href="/static/favicon32.png">
+  <link rel="icon" type="image/png" sizes="192x192" href="/static/favicon192.png">
+  <link rel="icon" type="image/png" sizes="256x256" href="/static/favicon256.png">
+  <link rel="apple-touch-icon" sizes="180x180" href="/static/favicon180.png">
+  <link rel="shortcut icon" href="/static/favicon32.png" type="image/png">
+  <meta name="msapplication-TileImage" content="/static/favicon256.png">
+  <meta name="msapplication-TileColor" content="#0d1117">
+  <meta name="theme-color" content="#0d1117">
 
-    <!-- iOS home screen icon -->
-    <link rel="apple-touch-icon" sizes="180x180" href="/static/favicon180.png">
-
-    <!-- Fallback (older browsers) -->
-    <link rel="shortcut icon" href="/static/favicon32.png" type="image/png">
-
-    <!-- Windows tiles & browser UI color -->
-    <meta name="msapplication-TileImage" content="/static/favicon256.png">
-    <meta name="msapplication-TileColor" content="#0d1117">
-    <meta name="theme-color" content="#0d1117">
-
-    <link rel="preload" href="/static/avatar.png" as="image"/>
+  <link rel="preload" href="/static/avatar.png" as="image"/>
 </head>
 <body>
 <main class="container">
-    <header class="header">
-        <img
-          class="avatar"
-          src="/static/avatar.png"
-          alt="{{ bot_name | e }} avatar"
-          width="96" height="96"
-          loading="eager" decoding="async" fetchpriority="high"
-        />
-        <div class="title-group">
-          <h1 id="commands-heading">{{ bot_name | e }} Commands</h1>
-          <p class="subtitle">Overview of all available commands.</p>
-        </div>
-      </header>
+  <header class="header">
+    <img
+      class="avatar"
+      src="/static/avatar.png"
+      alt="{{ bot_name | e }} avatar"
+      width="96" height="96"
+      loading="eager" decoding="async" fetchpriority="high"
+    />
+    <div class="title-group">
+      <h1>{{ bot_name | e }} — Overview</h1>
+      <p class="subtitle">All available commands and the built-in dictionary.</p>
+    </div>
+  </header>
 
-    <div class="table-container" role="region" aria-labelledby="commands-heading" tabindex="0">
-        <table class="commands">
+  <!-- Tabs (CSS-only radios) -->
+  <section class="tabs" aria-label="Sections">
+    <!-- Radios (hidden) -->
+    <input class="tab-radio" type="radio" name="section" id="tab-commands" checked>
+    <input class="tab-radio" type="radio" name="section" id="tab-dictionary">
+
+    <!-- Tab labels -->
+    <div class="tablist" role="tablist" aria-label="Sections">
+      <label class="tab" for="tab-commands" id="label-commands" role="tab" aria-controls="panel-commands">Commands</label>
+      <label class="tab" for="tab-dictionary" id="label-dictionary" role="tab" aria-controls="panel-dictionary">Dictionary</label>
+    </div>
+
+    <!-- Panels -->
+    <div class="tab-panels">
+      <!-- Commands panel -->
+      <section id="panel-commands" class="tab-panel" role="tabpanel" aria-labelledby="label-commands">
+        <h2 id="commands-heading" class="sr-only">Commands</h2>
+        <div class="table-container" role="region" aria-labelledby="commands-heading" tabindex="0">
+          <table class="commands data-table">
             <caption class="sr-only">List of chatbot commands</caption>
             <thead>
             <tr>
-                <th scope="col">Command</th>
-                <th scope="col">Description</th>
-                <th scope="col">Required Permission Level</th>
+              <th scope="col">Command</th>
+              <th scope="col">Description</th>
+              <th scope="col">Required Permission Level</th>
             </tr>
             </thead>
             <tbody>
             {% for c in commands %}
             <tr>
-                <td class="mono"><code>{{ c.command | e }}</code></td>
-                <td>{{ c.description | e }}</td>
-                <td><span class="badge">{{ c.required_permission_level | e }}</span></td>
+              <td class="mono"><code>{{ c.command | e }}</code></td>
+              <td>{{ c.description }}</td>
+              <td><span class="badge">{{ c.required_permission_level | e }}</span></td>
             </tr>
             {% else %}
             <tr>
-                <td colspan="3" class="empty">No commands available.</td>
+              <td colspan="3" class="empty">No commands available.</td>
             </tr>
             {% endfor %}
             </tbody>
-        </table>
+          </table>
+        </div>
+      </section>
+
+      <!-- Dictionary panel -->
+      <section id="panel-dictionary" class="tab-panel" role="tabpanel" aria-labelledby="label-dictionary">
+        <h2 id="dictionary-heading" class="sr-only">Dictionary</h2>
+        <div class="table-container" role="region" aria-labelledby="dictionary-heading" tabindex="0">
+          <table class="dictionary data-table">
+            <caption class="sr-only">Built-in dictionary entries</caption>
+            <thead>
+            <tr>
+              <th scope="col">Word/Abbreviation</th>
+              <th scope="col">Explanation/Description</th>
+            </tr>
+            </thead>
+            <tbody>
+            {% for entry in dictionary_entries %}
+            <tr>
+              <td class="mono"><code>{{ entry.word | e }}</code></td>
+              <td>{{ entry.explanation }}</td>
+            </tr>
+            {% else %}
+            <tr>
+              <td colspan="2" class="empty">No dictionary entries available.</td>
+            </tr>
+            {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </section>
     </div>
+  </section>
 </main>
 </body>
 </html>

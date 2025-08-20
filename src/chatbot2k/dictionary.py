@@ -62,6 +62,9 @@ class Dictionary:
             for word, explanation in matching_entries
         ]
 
+    def as_dict(self) -> dict[str, str]:
+        return {entry.word: entry.explanation for entry in self._entries}
+
     def _is_in_cooldown(self, word: str) -> bool:
         last_used: Optional[float] = self._usage_timestamps.get(word)
         if last_used is None:

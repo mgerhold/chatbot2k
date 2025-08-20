@@ -34,7 +34,7 @@ def show_main_page(
     app_state: Annotated[AppState, Depends(get_app_state)],
     templates: Annotated[Jinja2Templates, Depends(get_templates)],
 ):
-    commands = sorted(
+    commands: Final = sorted(
         [
             {
                 "command": handler.usage,
@@ -45,11 +45,26 @@ def show_main_page(
         ],
         key=lambda x: x["command"],
     )
+
+    # Turn dictionary mapping into rows and sanitize description as Markdown
+    raw_dict: Final = app_state.dictionary.as_dict()  # {word: explanation}
+    dictionary_entries: Final = sorted(
+        (
+            {
+                "word": word,
+                "explanation": markdown_to_sanitized_html(expl),
+            }
+            for word, expl in raw_dict.items()
+        ),
+        key=lambda x: x["word"].lower(),
+    )
+
     return templates.TemplateResponse(
         request=request,
         name="commands.html",
         context={
             "bot_name": CONFIG.bot_name,
             "commands": commands,
+            "dictionary_entries": dictionary_entries,
         },
     )
