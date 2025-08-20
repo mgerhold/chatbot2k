@@ -1,5 +1,6 @@
 import os
 from pathlib import Path
+from tempfile import NamedTemporaryFile
 from typing import Final
 from typing import NamedTuple
 from typing import Optional
@@ -135,27 +136,65 @@ class Config:
     def discord_token(self) -> str:
         return cast(str, self._discord_token)
 
+    @staticmethod
+    def _update_env_file(path: Path, updates: dict[str, str]) -> None:
+        """
+        Update or insert KEY=VALUE pairs in a .env file, preserving comments/blank lines.
+        - Handles lines like 'KEY=...', '   KEY=...', or 'export KEY=...'
+        - Appends missing keys at the end.
+        - Atomic write (temp file + os.replace).
+        """
+        p: Final = Path(path)
+        try:
+            original = p.read_text(encoding="utf-8")
+        except FileNotFoundError:
+            original = ""
+
+        lines: Final = original.splitlines(keepends=True)
+        found: Final = dict.fromkeys(updates, False)
+        new_lines: Final[list[str]] = []
+
+        for line in lines:
+            stripped = line.lstrip()
+            replaced = False
+            for key, value in updates.items():
+                # Match 'KEY=' or 'export KEY=' at start of the stripped line
+                if stripped.startswith(f"{key}=") or stripped.startswith(f"export {key}="):
+                    leading_ws = line[: len(line) - len(stripped)]
+                    export_prefix = "export " if stripped.startswith("export ") else ""
+                    newline = "\n" if line.endswith(("\r\n", "\n")) else ""
+                    new_lines.append(f"{leading_ws}{export_prefix}{key}={value}{newline}")
+                    found[key] = True
+                    replaced = True
+                    break
+            if not replaced:
+                new_lines.append(line)
+
+        # Append any keys not found
+        if new_lines and not new_lines[-1].endswith(("\n", "\r\n")):
+            new_lines[-1] = new_lines[-1] + "\n"
+        for key, value in updates.items():
+            if not found[key]:
+                new_lines.append(f"{key}={value}\n")
+
+        new_content = "".join(new_lines)
+
+        # Atomic write
+        p.parent.mkdir(parents=True, exist_ok=True)
+        with NamedTemporaryFile("w", encoding="utf-8", dir=str(p.parent), delete=False) as tmp:
+            tmp.write(new_content)
+            tmp.flush()
+            os.fsync(tmp.fileno())
+            tmp_path = tmp.name
+        os.replace(tmp_path, p)
+
+    # Your original method, now using the helper
     def update_twitch_tokens(self, new_access_token: str, new_refresh_token: str) -> None:
         self._twitch_credentials = OAuthTokens(new_access_token, new_refresh_token)
-        # Persist to the `.env` file:
-        # - Check whether the entries exist already. If yes, replace them
-        # - Otherwise, append them to the end of the file.
-        with open(self._ENV_FILE_PATH, "a+") as env_file:
-            env_file.seek(0)
-            lines = env_file.readlines()
-            env_file.seek(0)
-            found_access_token = False
-            found_refresh_token = False
-            for line in lines:
-                if line.startswith("TWITCH_ACCESS_TOKEN="):
-                    env_file.write(f"TWITCH_ACCESS_TOKEN={new_access_token}\n")
-                    found_access_token = True
-                elif line.startswith("TWITCH_REFRESH_TOKEN="):
-                    env_file.write(f"TWITCH_REFRESH_TOKEN={new_refresh_token}\n")
-                    found_refresh_token = True
-                else:
-                    env_file.write(line)
-            if not found_access_token:
-                env_file.write(f"TWITCH_ACCESS_TOKEN={new_access_token}\n")
-            if not found_refresh_token:
-                env_file.write(f"TWITCH_REFRESH_TOKEN={new_refresh_token}\n")
+        Config._update_env_file(
+            self._ENV_FILE_PATH,
+            {
+                "TWITCH_ACCESS_TOKEN": new_access_token,
+                "TWITCH_REFRESH_TOKEN": new_refresh_token,
+            },
+        )
