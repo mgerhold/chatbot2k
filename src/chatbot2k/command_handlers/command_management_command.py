@@ -19,13 +19,13 @@ from chatbot2k.types.permission_level import PermissionLevel
 
 @final
 class CommandManagementCommand(CommandHandler):
-    _COMMAND_NAME = "command"
+    COMMAND_NAME = "command"
     _ADD_SUBCOMMAND = "add"
     _UPDATE_SUBCOMMAND = "update"
     _REMOVE_SUBCOMMAND = "remove"
 
     def __init__(self, app_state: AppState, on_commands_changed: Callable[[], None]) -> None:
-        super().__init__(app_state, name=CommandManagementCommand._COMMAND_NAME)
+        super().__init__(app_state, name=CommandManagementCommand.COMMAND_NAME)
         self._on_commands_changed: Final = on_commands_changed
 
     @override

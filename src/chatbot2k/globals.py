@@ -10,6 +10,7 @@ from chatbot2k.broadcasters.broadcaster import Broadcaster
 from chatbot2k.broadcasters.parser import parse_broadcasters
 from chatbot2k.command_handlers.command_handler import CommandHandler
 from chatbot2k.command_handlers.command_management_command import CommandManagementCommand
+from chatbot2k.command_handlers.dictionary_handler import DictionaryHandler
 from chatbot2k.command_handlers.parser import parse_commands
 from chatbot2k.config import Config
 from chatbot2k.constants import load_constants
@@ -93,10 +94,11 @@ class Globals(AppState):
                 encoding="utf-8",
             )
         command_handlers: Final = parse_commands(self, self.config.commands_file)
-        command_handlers["command"] = CommandManagementCommand(
+        command_handlers[CommandManagementCommand.COMMAND_NAME] = CommandManagementCommand(
             self,
             lambda: self._on_commands_changed(),
         )
+        command_handlers[DictionaryHandler.COMMAND_NAME] = DictionaryHandler(self)
         return command_handlers
 
     @staticmethod
