@@ -29,7 +29,7 @@ def _permission_level_to_string(permission_level: PermissionLevel) -> str:
 
 
 @router.get("/")
-def show_commands(
+def show_main_page(
     request: Request,
     app_state: Annotated[AppState, Depends(get_app_state)],
     templates: Annotated[Jinja2Templates, Depends(get_templates)],
