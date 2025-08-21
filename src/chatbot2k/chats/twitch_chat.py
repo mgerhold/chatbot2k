@@ -10,6 +10,7 @@ from typing import override
 from twitchAPI.chat import Chat as TwitchChatClient
 from twitchAPI.chat import ChatMessage as TwitchChatMessage
 from twitchAPI.chat import EventData
+from twitchAPI.helper import first
 from twitchAPI.oauth import UserAuthenticator
 from twitchAPI.twitch import Twitch
 from twitchAPI.type import AuthScope
@@ -105,6 +106,12 @@ class TwitchChat(Chat):
 
     @override
     async def send_broadcast(self, message: BroadcastMessage) -> None:
+        if not self._twitch_chat_client.is_ready():
+            logging.warning("Twitch chat client is not ready. Cannot send broadcast message.")
+            return
+        if not await self._is_channel_live():
+            logging.warning(f"Channel '{self._channel}' is not live. Will not send broadcast message.")
+            return
         logging.info(f"Sending broadcast message to Twitch chat: {message.text}")
         await self._send_message(message.text)
 
@@ -135,3 +142,9 @@ class TwitchChat(Chat):
             return
         logging.info(f"Sending message to Twitch chat: {message}")
         await self._twitch_chat_client.send_message(self._channel, message)
+
+    async def _is_channel_live(self) -> bool:
+        # TODO: We should use the streamer's ID here instead of the login, since they could differ.
+        login: Final = self._channel.lower()
+        stream: Final = await first(self._twitch_chat_client.twitch.get_streams(user_login=[login]))
+        return stream is not None  # Any item => channel is live.

@@ -16,3 +16,5 @@ broadcasts.json
 commands.json
 constants.json
 dictionary.json
+static/soundboard/*
+!static/soundboard/.gitkeep
