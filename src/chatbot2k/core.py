@@ -94,10 +94,13 @@ async def _process_chat_message(
 ) -> Optional[list[ChatResponse]]:
     logging.debug(f"Processing chat message from {chat_message.sender_name}: {chat_message.text}")
     command: Final = ChatCommand.from_chat_message(chat_message)
+    dictionary_entries: Final = app_state.dictionary.get_explanations(chat_message)  # Maybe `None`.
     if command is None:
-        return app_state.dictionary.get_explanations(chat_message)  # Maybe `None`.
+        return dictionary_entries
+
     if command.name not in app_state.command_handlers:
         return None  # No known command.
+
     command_handler: Final = app_state.command_handlers[command.name]
     if command_handler.min_required_permission_level > chat_message.sender_permission_level:
         logging.info(
@@ -110,6 +113,8 @@ async def _process_chat_message(
         + f"with permission level {chat_message.sender_permission_level}"
     )
     responses: Final = await command_handler.handle_command(command)
+    if dictionary_entries is not None and responses is not None:
+        responses.extend(dictionary_entries)
     return (
         responses
         if responses is not None
