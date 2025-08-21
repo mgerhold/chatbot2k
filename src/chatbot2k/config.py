@@ -158,7 +158,7 @@ class Config:
             stripped = line.lstrip()
             replaced = False
             for key, value in updates.items():
-                # Match 'KEY=' or 'export KEY=' at start of the stripped line
+                # Match 'KEY=' or 'export KEY=' at start of the stripped line.
                 if stripped.startswith(f"{key}=") or stripped.startswith(f"export {key}="):
                     leading_ws = line[: len(line) - len(stripped)]
                     export_prefix = "export " if stripped.startswith("export ") else ""
@@ -170,7 +170,7 @@ class Config:
             if not replaced:
                 new_lines.append(line)
 
-        # Append any keys not found
+        # Append any keys not found.
         if new_lines and not new_lines[-1].endswith(("\n", "\r\n")):
             new_lines[-1] = new_lines[-1] + "\n"
         for key, value in updates.items():
@@ -188,7 +188,6 @@ class Config:
             tmp_path = tmp.name
         os.replace(tmp_path, p)
 
-    # Your original method, now using the helper
     def update_twitch_tokens(self, new_access_token: str, new_refresh_token: str) -> None:
         self._twitch_credentials = OAuthTokens(new_access_token, new_refresh_token)
         Config._update_env_file(

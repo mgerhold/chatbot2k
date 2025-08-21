@@ -385,3 +385,36 @@ table.dictionary td pre code {
 .table-container a { overflow-wrap: anywhere; word-break: break-word; }
 
 .footer .sep { margin: 0 0.5rem; }
+
+/* Soundboard: column sizing & centering */
+table.soundboard {
+  table-layout: fixed;                 /* lets us control column widths */
+  width: 100%;
+}
+
+/* Column 1: just big enough for the command, no wrapping */
+table.soundboard th:first-child,
+table.soundboard td:first-child {
+  width: 1%;
+  white-space: nowrap;
+}
+
+/* Column 2: take the rest, center its contents */
+table.soundboard th:nth-child(2),
+table.soundboard td:nth-child(2) {
+  width: 99%;
+  text-align: center;
+}
+
+/* Make players responsive & centered within the cell */
+table.soundboard td:nth-child(2) video,
+table.soundboard td:nth-child(2) audio {
+  display: inline-block;               /* so text-align:center can center them */
+  max-width: 100%;
+}
+
+/* If your <video> had width/height attributes, override them */
+table.soundboard td:nth-child(2) video {
+  width: min(560px, 100%) !important;  /* choose a max you like */
+  height: auto !important;
+}

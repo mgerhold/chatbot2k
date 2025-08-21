@@ -9,6 +9,7 @@ from starlette.responses import Response
 from starlette.templating import Jinja2Templates
 
 from chatbot2k.app_state import AppState
+from chatbot2k.command_handlers.clip_handler import ClipHandler
 from chatbot2k.dependencies import get_app_state
 from chatbot2k.dependencies import get_templates
 from chatbot2k.types.permission_level import PermissionLevel
@@ -36,14 +37,26 @@ def show_main_page(
     templates: Annotated[Jinja2Templates, Depends(get_templates)],
 ) -> Response:
     commands: Final = sorted(
-        [
+        (
             {
                 "command": handler.usage,
                 "description": markdown_to_sanitized_html(handler.description),
                 "required_permission_level": _permission_level_to_string(handler.min_required_permission_level),
             }
             for handler in app_state.command_handlers.values()
-        ],
+            if not isinstance(handler, ClipHandler)  # Ignore the soundboard on the main page.
+        ),
+        key=lambda x: x["command"],
+    )
+    soundboard_commands: Final = sorted(
+        (
+            {
+                "command": handler.usage,
+                "clip_url": handler.clip_url,
+            }
+            for handler in app_state.command_handlers.values()
+            if isinstance(handler, ClipHandler)
+        ),
         key=lambda x: x["command"],
     )
 
@@ -66,6 +79,7 @@ def show_main_page(
         context={
             "bot_name": app_state.config.bot_name,
             "commands": commands,
+            "soundboard_commands": soundboard_commands,
             "dictionary_entries": dictionary_entries,
             "author_name": app_state.config.author_name,
             "copyright_year": datetime.now().year,

@@ -22,6 +22,7 @@ class MockChat(Chat):
             yield ChatMessage(
                 text=f"Mock message {i + 1}",
                 sender_name="mock_user",
+                sender_chat=self,
                 sender_permission_level=PermissionLevel.VIEWER,
                 meta_data=None,
             )

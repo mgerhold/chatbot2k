@@ -12,7 +12,8 @@ class FormattingSupport(Enum):
 
 
 @final
-class ChatFeatures(NamedTuple):
+class FeatureFlags(NamedTuple):
     regular_chat: bool  # Can this chat be used for regular conversations?
     broadcasting: bool  # Is this chat capable of broadcasting messages?
     formatting_support: FormattingSupport
+    can_trigger_soundboard: bool

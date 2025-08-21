@@ -1,0 +1,5 @@
+from chatbot2k.models.parameterized_response_command import ParameterizedResponseCommandModel
+from chatbot2k.models.soundboard_command import SoundboardCommandModel
+from chatbot2k.models.static_response_command import StaticResponseCommandModel
+
+type CommandModel = StaticResponseCommandModel | ParameterizedResponseCommandModel | SoundboardCommandModel

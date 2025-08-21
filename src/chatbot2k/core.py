@@ -24,40 +24,6 @@ class Sentinel:
     pass
 
 
-async def process_chat_message(
-    chat_message: ChatMessage,
-    app_state: AppState,
-) -> Optional[list[ChatResponse]]:
-    logging.debug(f"Processing chat message from {chat_message.sender_name}: {chat_message.text}")
-    command: Final = ChatCommand.from_chat_message(chat_message)
-    if command is None:
-        return app_state.dictionary.get_explanations(chat_message)  # Maybe `None`.
-    if command.name not in app_state.command_handlers:
-        return None  # No known command.
-    command_handler: Final = app_state.command_handlers[command.name]
-    if command_handler.min_required_permission_level > chat_message.sender_permission_level:
-        logging.info(
-            f"User {chat_message.sender_name} does not have permission to use command {command.name}. "
-            + f"Their permission level is {chat_message.sender_permission_level}"
-        )
-        return None
-    logging.info(
-        f"Processing command {command.name} from user {chat_message.sender_name} "
-        + f"with permission level {chat_message.sender_permission_level}"
-    )
-    responses: Final = await command_handler.handle_command(command)
-    return (
-        responses
-        if responses is not None
-        else [
-            ChatResponse(
-                text=f"Usage: {command_handler.usage}",
-                chat_message=chat_message,
-            )
-        ]
-    )
-
-
 async def run_main_loop(app_state: AppState) -> None:
     chats: Final = [
         await TwitchChat.create(app_state),
@@ -106,7 +72,7 @@ async def run_main_loop(app_state: AppState) -> None:
                     if not chats[i].feature_flags.regular_chat:
                         # This chat is not capable of processing regular chat messages.
                         continue
-                    responses = await process_chat_message(chat_message, app_state)
+                    responses = await _process_chat_message(chat_message, app_state)
                     if responses is not None:
                         responses = _preprocess_outbound_messages_for_chat(responses, chats[i])
                         await chats[i].send_responses(responses)
@@ -120,6 +86,40 @@ async def run_main_loop(app_state: AppState) -> None:
                             continue
                         preprocessed = _preprocess_outbound_messages_for_chat([chat_message], chat)[0]
                         await chat.send_broadcast(preprocessed)
+
+
+async def _process_chat_message(
+    chat_message: ChatMessage,
+    app_state: AppState,
+) -> Optional[list[ChatResponse]]:
+    logging.debug(f"Processing chat message from {chat_message.sender_name}: {chat_message.text}")
+    command: Final = ChatCommand.from_chat_message(chat_message)
+    if command is None:
+        return app_state.dictionary.get_explanations(chat_message)  # Maybe `None`.
+    if command.name not in app_state.command_handlers:
+        return None  # No known command.
+    command_handler: Final = app_state.command_handlers[command.name]
+    if command_handler.min_required_permission_level > chat_message.sender_permission_level:
+        logging.info(
+            f"User {chat_message.sender_name} does not have permission to use command {command.name}. "
+            + f"Their permission level is {chat_message.sender_permission_level}"
+        )
+        return None
+    logging.info(
+        f"Processing command {command.name} from user {chat_message.sender_name} "
+        + f"with permission level {chat_message.sender_permission_level}"
+    )
+    responses: Final = await command_handler.handle_command(command)
+    return (
+        responses
+        if responses is not None
+        else [
+            ChatResponse(
+                text=f"Usage: {command_handler.usage}",
+                chat_message=chat_message,
+            )
+        ]
+    )
 
 
 def _preprocess_outbound_messages_for_chat[T: ChatMessage | BroadcastMessage](

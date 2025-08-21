@@ -1,3 +1,4 @@
+import asyncio
 import json
 import logging
 from pathlib import Path
@@ -25,6 +26,7 @@ from chatbot2k.translations_manager import TranslationsManager
 class Globals(AppState):
     def __init__(self) -> None:
         self._config: Final = Config()
+        self._soundboard_clips_url_queue: Final[asyncio.Queue[str]] = asyncio.Queue()
         self._constants: Final = load_constants(
             constants_file=self.config.constants_file,
             create_if_missing=True,
@@ -39,7 +41,10 @@ class Globals(AppState):
             dictionary_file=self.config.dictionary_file,
             create_if_missing=True,
         )
-        self._translations_manager = TranslationsManager(config=self.config, create_if_missing=True)
+        self._translations_manager = TranslationsManager(
+            config=self.config,
+            create_if_missing=True,
+        )
 
     @override
     @property
@@ -71,6 +76,10 @@ class Globals(AppState):
     def translations_manager(self) -> TranslationsManager:
         return self._translations_manager
 
+    @property
+    def soundboard_clips_url_queue(self) -> asyncio.Queue[str]:
+        return self._soundboard_clips_url_queue
+
     def _on_commands_changed(self) -> None:
         self._command_handlers = self._reload_command_handlers(create_if_missing=False)
 
@@ -93,7 +102,7 @@ class Globals(AppState):
                 ).model_dump_json(indent=2),
                 encoding="utf-8",
             )
-        command_handlers: Final = parse_commands(self, self.config.commands_file)
+        command_handlers: Final = parse_commands(self)
         command_handlers[CommandManagementCommand.COMMAND_NAME] = CommandManagementCommand(
             self,
             lambda: self._on_commands_changed(),

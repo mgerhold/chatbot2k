@@ -7,16 +7,16 @@ from typing import final
 from chatbot2k.types.broadcast_message import BroadcastMessage
 from chatbot2k.types.chat_message import ChatMessage
 from chatbot2k.types.chat_response import ChatResponse
-from chatbot2k.types.feature_flags import ChatFeatures
+from chatbot2k.types.feature_flags import FeatureFlags
 
 
 class Chat(ABC):
-    def __init__(self, features: ChatFeatures) -> None:
+    def __init__(self, features: FeatureFlags) -> None:
         self._feature_flags = features
 
     @final
     @property
-    def feature_flags(self) -> ChatFeatures:
+    def feature_flags(self) -> FeatureFlags:
         return self._feature_flags
 
     @abstractmethod

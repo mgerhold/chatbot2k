@@ -3,30 +3,94 @@
 
 {% block title %}{{ bot_name }} Commands & Dictionary{% endblock %}
 
+{# Enable the 3rd tab with the same selected styling/behavior as the others #}
+{% block head_extra %}
+<style>
+    /* Show the Soundboard panel when its radio is checked */
+    #tab-soundboard:checked ~ .tab-panels #panel-soundboard { display: block; }
+    /* Apply the “selected” look to the Soundboard tab label */
+    #tab-soundboard:checked ~ .tablist #label-soundboard {
+      opacity: 1;
+      box-shadow: 0 -1px 0 var(--accent) inset, 0 2px 12px rgba(0,0,0,0.35);
+      background: linear-gradient(180deg, #101a33, #0b1322);
+    }
+</style>
+{% endblock %}
+
 {% block header %}
-  {{ avatar_header(bot_name, bot_name ~ " — Overview", "All available commands and the built-in dictionary.") }}
+{{ avatar_header(bot_name, bot_name ~ " — Overview", "All available commands and the built-in dictionary.") }}
 {% endblock %}
 
 {% block content %}
-  <section class="tabs" aria-label="Sections">
+<section class="tabs" aria-label="Sections">
     <input class="tab-radio" type="radio" name="section" id="tab-commands" checked>
     <input class="tab-radio" type="radio" name="section" id="tab-dictionary">
+    <input class="tab-radio" type="radio" name="section" id="tab-soundboard">
 
     <div class="tablist" role="tablist" aria-label="Sections">
-      <label class="tab" for="tab-commands" id="label-commands" role="tab" aria-controls="panel-commands">Commands</label>
-      <label class="tab" for="tab-dictionary" id="label-dictionary" role="tab" aria-controls="panel-dictionary">Dictionary</label>
+        <label class="tab" for="tab-commands" id="label-commands" role="tab"
+               aria-controls="panel-commands">Commands</label>
+        <label class="tab" for="tab-dictionary" id="label-dictionary" role="tab" aria-controls="panel-dictionary">Dictionary</label>
+        <label class="tab" for="tab-soundboard" id="label-soundboard" role="tab" aria-controls="panel-soundboard">Soundboard</label>
     </div>
 
     <div class="tab-panels">
-      <section id="panel-commands" class="tab-panel" role="tabpanel" aria-labelledby="label-commands">
-        <h2 id="commands-heading" class="sr-only">Commands</h2>
-        {{ commands_table(commands) }}
-      </section>
+        <!-- Commands panel -->
+        <section id="panel-commands" class="tab-panel" role="tabpanel" aria-labelledby="label-commands">
+            <h2 id="commands-heading" class="sr-only">Commands</h2>
+            {{ commands_table(commands) }}
+        </section>
 
-      <section id="panel-dictionary" class="tab-panel" role="tabpanel" aria-labelledby="label-dictionary">
-        <h2 id="dictionary-heading" class="sr-only">Dictionary</h2>
-        {{ dictionary_table(dictionary_entries) }}
-      </section>
+        <!-- Dictionary panel -->
+        <section id="panel-dictionary" class="tab-panel" role="tabpanel" aria-labelledby="label-dictionary">
+            <h2 id="dictionary-heading" class="sr-only">Dictionary</h2>
+            {{ dictionary_table(dictionary_entries) }}
+        </section>
+
+        <!-- Soundboard panel -->
+        <section id="panel-soundboard" class="tab-panel" role="tabpanel" aria-labelledby="label-soundboard">
+            <h2 id="soundboard-heading" class="sr-only">Soundboard</h2>
+            <div class="table-container" role="region" aria-labelledby="soundboard-heading" tabindex="0">
+                <table class="soundboard data-table">
+                    <caption class="sr-only">Soundboard commands</caption>
+                    <thead>
+                    <tr>
+                        <th scope="col">Command</th>
+                        <th scope="col">Clip</th>
+                    </tr>
+                    </thead>
+                    <tbody>
+                    {% for sb in soundboard_commands %}
+                    {% set lower = (sb.clip_url|lower) %}
+                    {% set base = lower.split('?')[0] %}
+                    <tr>
+                        <td class="mono"><code>{{ sb.command | e }}</code></td>
+                        <td>
+                            {% if base.endswith('.mp3') or base.endswith('.wav') or base.endswith('.ogg') or
+                            base.endswith('.flac') or base.endswith('.aac') or base.endswith('.m4a') or
+                            base.endswith('.opus') %}
+                            <audio controls preload="none" src="{{ sb.clip_url }}"></audio>
+                            {% elif base.endswith('.mp4') or base.endswith('.webm') or base.endswith('.mov') or
+                            base.endswith('.mkv') or base.endswith('.m4v') %}
+                            <video controls preload="none" playsinline class="sb-preview">
+                                <source src="{{ sb.clip_url }}">
+                                Your browser can’t play this clip. <a href="{{ sb.clip_url }}" target="_blank"
+                                                                      rel="noopener noreferrer">Open</a>.
+                            </video>
+                            {% else %}
+                            <a href="{{ sb.clip_url }}" target="_blank" rel="noopener noreferrer">Open clip</a>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% else %}
+                    <tr>
+                        <td colspan="2" class="empty">No soundboard commands available.</td>
+                    </tr>
+                    {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </section>
     </div>
-  </section>
+</section>
 {% endblock %}

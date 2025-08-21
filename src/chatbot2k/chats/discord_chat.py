@@ -2,7 +2,9 @@ import asyncio
 import logging
 from collections.abc import AsyncGenerator
 from collections.abc import Sequence
+from typing import Any
 from typing import Final
+from typing import NamedTuple
 from typing import Optional
 from typing import Self
 from typing import final
@@ -18,9 +20,30 @@ from chatbot2k.models.discord_chat_message_metadata import DiscordChatMessageMet
 from chatbot2k.types.broadcast_message import BroadcastMessage
 from chatbot2k.types.chat_message import ChatMessage
 from chatbot2k.types.chat_response import ChatResponse
-from chatbot2k.types.feature_flags import ChatFeatures
+from chatbot2k.types.feature_flags import FeatureFlags
 from chatbot2k.types.feature_flags import FormattingSupport
 from chatbot2k.types.permission_level import PermissionLevel
+
+
+# This is just a helper type because of how this module is structured. It is
+# almost identical to the `ChatMessage` type, but it's only missing the
+# `sender_chat` field, because this cannot be known inside the
+# `_DiscordClient` class.
+@final
+class DiscordChatMessage(NamedTuple):
+    text: str
+    sender_name: str
+    sender_permission_level: PermissionLevel
+    meta_data: Any  # Platform-specific metadata.
+
+    def to_chat_message(self, sender_chat: Chat) -> ChatMessage:
+        return ChatMessage(
+            text=self.text,
+            sender_name=self.sender_name,
+            sender_chat=sender_chat,
+            sender_permission_level=self.sender_permission_level,
+            meta_data=self.meta_data,
+        )
 
 
 @final
@@ -29,7 +52,7 @@ class _DiscordClient(Client):
         self,
         *,
         intents: discord.Intents,
-        chat_message_queue: asyncio.Queue[ChatMessage],
+        chat_message_queue: asyncio.Queue[DiscordChatMessage],
     ) -> None:
         super().__init__(intents=intents)
         self._chat_message_queue: Final = chat_message_queue
@@ -45,7 +68,7 @@ class _DiscordClient(Client):
             if message.author.guild_permissions.administrator:
                 permissions_level = PermissionLevel.ADMIN
         await self._chat_message_queue.put(
-            ChatMessage(
+            DiscordChatMessage(
                 text=message.content,
                 sender_name=message.author.name,
                 sender_permission_level=permissions_level,
@@ -59,14 +82,15 @@ class DiscordChat(Chat):
     def __init__(
         self,
         client: _DiscordClient,
-        chat_message_queue: asyncio.Queue[ChatMessage],
+        chat_message_queue: asyncio.Queue[DiscordChatMessage],
         discord_token: str,
     ) -> None:
         super().__init__(
-            ChatFeatures(
+            FeatureFlags(
                 regular_chat=True,
                 broadcasting=False,
                 formatting_support=FormattingSupport.MARKDOWN,
+                can_trigger_soundboard=False,
             )
         )
         self._client: Final = client
@@ -82,8 +106,7 @@ class DiscordChat(Chat):
     async def get_message_stream(self) -> AsyncGenerator[ChatMessage]:
         await self._ensure_started()
         while True:
-            message: ChatMessage = await self._chat_message_queue.get()
-            yield message
+            yield (await self._chat_message_queue.get()).to_chat_message(self)
 
     @override
     async def send_responses(self, responses: Sequence[ChatResponse]) -> None:
@@ -102,7 +125,7 @@ class DiscordChat(Chat):
     async def create(cls, app_state: AppState) -> Self:
         intents: Final = discord.Intents.default()
         intents.message_content = True
-        chat_message_queue: Final[asyncio.Queue[ChatMessage]] = asyncio.Queue()
+        chat_message_queue: Final[asyncio.Queue[DiscordChatMessage]] = asyncio.Queue()
 
         client: Final = _DiscordClient(
             intents=intents,

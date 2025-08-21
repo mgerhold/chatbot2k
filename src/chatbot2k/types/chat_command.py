@@ -5,6 +5,7 @@ from typing import Optional
 from typing import Self
 from typing import final
 
+from chatbot2k.chats.chat import Chat
 from chatbot2k.types.chat_message import ChatMessage
 
 
@@ -13,6 +14,7 @@ class ChatCommand(NamedTuple):
     name: str
     arguments: list[str]
     source_message: ChatMessage
+    source_chat: Chat
 
     @classmethod
     def from_chat_message(cls, message: ChatMessage) -> Optional[Self]:
@@ -40,4 +42,9 @@ class ChatCommand(NamedTuple):
             return None
 
         arguments: Final = parts  # already quote-aware tokens
-        return cls(name=name, arguments=arguments, source_message=message)
+        return cls(
+            name=name,
+            arguments=arguments,
+            source_message=message,
+            source_chat=message.sender_chat,
+        )

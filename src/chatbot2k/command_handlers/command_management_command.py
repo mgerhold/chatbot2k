@@ -8,6 +8,7 @@ from typing import override
 
 from chatbot2k.app_state import AppState
 from chatbot2k.command_handlers.command_handler import CommandHandler
+from chatbot2k.models.command_model import CommandModel
 from chatbot2k.models.commands import CommandsModel
 from chatbot2k.models.parameterized_response_command import ParameterizedResponseCommandModel
 from chatbot2k.models.static_response_command import StaticResponseCommandModel
@@ -84,7 +85,7 @@ class CommandManagementCommand(CommandHandler):
         *,
         commands_file: Path,
         create_if_missing: bool,
-    ) -> list[StaticResponseCommandModel | ParameterizedResponseCommandModel]:
+    ) -> list[CommandModel]:
         if create_if_missing and not commands_file.exists():
             logging.info(f"Commands file {commands_file} does not exist, creating a new one.")
             commands_file.parent.mkdir(parents=True, exist_ok=True)
@@ -96,7 +97,7 @@ class CommandManagementCommand(CommandHandler):
     def _save_commands(
         *,
         commands_file: Path,
-        commands: list[StaticResponseCommandModel | ParameterizedResponseCommandModel],
+        commands: list[CommandModel],
     ) -> None:
         model: Final = CommandsModel(commands=sorted(commands, key=lambda c: c.name))
         commands_file.write_text(

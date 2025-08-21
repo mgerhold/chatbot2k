@@ -21,7 +21,7 @@ from chatbot2k.models.twitch_chat_message_metadata import TwitchChatMessageMetad
 from chatbot2k.types.broadcast_message import BroadcastMessage
 from chatbot2k.types.chat_message import ChatMessage
 from chatbot2k.types.chat_response import ChatResponse
-from chatbot2k.types.feature_flags import ChatFeatures
+from chatbot2k.types.feature_flags import FeatureFlags
 from chatbot2k.types.feature_flags import FormattingSupport
 from chatbot2k.types.permission_level import PermissionLevel
 
@@ -32,10 +32,11 @@ class TwitchChat(Chat):
 
     def __init__(self, client: TwitchChatClient, channel: str) -> None:
         super().__init__(
-            ChatFeatures(
+            FeatureFlags(
                 regular_chat=True,
                 broadcasting=True,
                 formatting_support=FormattingSupport.NONE,
+                can_trigger_soundboard=True,
             ),
         )
         self._app_loop: Final = asyncio.get_running_loop()
@@ -118,6 +119,7 @@ class TwitchChat(Chat):
             ChatMessage(
                 text=message.text,
                 sender_name=message.user.name,
+                sender_chat=self,
                 sender_permission_level=(
                     PermissionLevel.ADMIN
                     if message.user.name == self._channel

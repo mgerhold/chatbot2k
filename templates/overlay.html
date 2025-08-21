@@ -1,0 +1,157 @@
+<!doctype html>
+<html lang="en" data-theme="dark">
+<head>
+    <meta charset="utf-8"/>
+    <meta name="viewport" content="width=device-width, initial-scale=1"/>
+    <meta name="color-scheme" content="dark"/>
+    <title>Overlay</title>
+    <style>
+        html, body { margin:0; height:100%; background:transparent; }
+        /* optional visual status */
+        #status { position: fixed; left: 8px; bottom: 8px; font: 12px ui-sans-serif,system-ui; color:#9ca3af; }
+        #status .dot { display:inline-block; width:8px; height:8px; border-radius:999px; background:#b91c1c; margin-right:6px; vertical-align:middle; }
+        #status.ok .dot { background:#10b981; }
+        /* user gesture button (only appears in regular browsers if autoplay is blocked) */
+        #enable-audio { position: fixed; inset: 0; display:none; align-items:center; justify-content:center; background:rgba(0,0,0,0.6); z-index:9999; }
+        #enable-audio button { padding:0.75rem 1rem; border-radius:10px; border:1px solid #1f2937; background:#111827; color:#e5e7eb; cursor:pointer; }
+        .overlay-video {
+          position: fixed;
+          inset: 0;                 /* top:0; right:0; bottom:0; left:0 */
+          width: 100vw;
+          height: 100vh;
+          background: #000;         /* letterbox background */
+          pointer-events: none;     /* click-through overlay */
+          z-index: 9999;
+          object-fit: contain;      /* keep entire frame visible with letterboxing */
+        }
+        .hidden { display:none; }
+    </style>
+</head>
+<body>
+<!-- Only for human preview; OBS browser source will ignore this -->
+<div id="enable-audio">
+    <button>Click to enable sound</button>
+</div>
+
+<script>
+    (() => {
+      const ES_URL = "{{ request.url_for('overlay_events') }}";
+
+      const AUDIO_EXT = /\.(mp3|wav|ogg|flac|aac|m4a)(\?|$)/i;
+      const VIDEO_EXT = /\.(mp4|webm|mov|mkv|m4v)(\?|$)/i;
+
+      // --- NEW: keep track of currently playing elements by key (URL) ---
+      const playing = new Map(); // key -> HTMLMediaElement
+
+      // If you want to treat URLs with cache-busters as the same clip, normalize here.
+      function canonicalKey(url) {
+        try {
+          const u = new URL(url, location.href);
+          // Example: ignore a known cache-buster param:
+          // u.searchParams.delete("t");
+          // u.searchParams.delete("_");
+          return u.toString();
+        } catch {
+          return url; // fallback for relative/invalid URLs
+        }
+      }
+
+      async function primeAudio() {
+        try {
+          const Ctx = window.AudioContext || window.webkitAudioContext;
+          if (Ctx) await new Ctx().resume();
+        } catch {}
+      }
+      function showGate() {
+        const gate = document.getElementById("enable-audio");
+        if (gate) gate.style.display = "flex";
+      }
+
+      function restartMedia(el) {
+        // Ensure we jump to start once metadata is known
+        if (el.readyState >= 1 /* HAVE_METADATA */) {
+          try { typeof el.fastSeek === "function" ? el.fastSeek(0) : (el.currentTime = 0); } catch {}
+        } else {
+          const onMeta = () => {
+            try { typeof el.fastSeek === "function" ? el.fastSeek(0) : (el.currentTime = 0); } catch {}
+            el.removeEventListener("loadedmetadata", onMeta);
+          };
+          el.addEventListener("loadedmetadata", onMeta);
+        }
+        const p = el.play();
+        if (p && typeof p.then === "function") p.catch(() => showGate());
+      }
+
+      function playClip(url) {
+        const key = canonicalKey(url);
+        const existing = playing.get(key);
+
+        if (existing && !existing.ended && !existing._disposed) {
+          // Same clip already playing -> restart it (no overlap)
+          restartMedia(existing);
+          return;
+        } else if (existing) {
+          // It ended or was disposed; clean mapping
+          playing.delete(key);
+        }
+
+        // Create a fresh media element
+        const isAudio = AUDIO_EXT.test(url) && !VIDEO_EXT.test(url);
+        const el = document.createElement(isAudio ? "audio" : "video");
+        el.src = url;
+        el.preload = "auto";
+        el.autoplay = true;
+        el.crossOrigin = "anonymous";
+        if (!isAudio) {
+          el.className = "overlay-video";
+          el.playsInline = true;
+          el.muted = false;
+          el.controls = false;
+        } else {
+          el.className = "overlay-audio";
+          el.style.display = "none"; // audio is invisible
+        }
+
+        document.body.appendChild(el);
+        playing.set(key, el);
+
+        const playPromise = el.play();
+        if (playPromise && typeof playPromise.then === "function") {
+          playPromise.catch(() => {
+            // Likely autoplay policy; ask for a user gesture (OBS won’t need this)
+            showGate();
+            dispose();
+          });
+        }
+
+        function dispose() {
+          if (el._disposed) return;
+          el._disposed = true;
+          try { el.pause(); } catch {}
+          try { el.removeAttribute("src"); el.load?.(); } catch {}
+          try { el.remove(); } catch {}
+          if (playing.get(key) === el) playing.delete(key);
+        }
+
+        el.addEventListener("ended", dispose);
+        el.addEventListener("error", dispose);
+        // Optional: force cleanup if it somehow hangs paused at end
+        el.addEventListener("pause", () => { if (el.ended) dispose(); });
+      }
+
+      // ---- SSE hookup (unchanged) ----
+      const es = new EventSource(ES_URL);
+      es.onmessage = (ev) => {
+        try {
+          const data = JSON.parse(ev.data);
+          if (data && typeof data.clip_url === "string" && data.clip_url.length) {
+            playClip(data.clip_url);
+          }
+        } catch {}
+      };
+
+      primeAudio();
+    })();
+</script>
+</body>
+</html>

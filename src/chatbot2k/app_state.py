@@ -1,3 +1,4 @@
+import asyncio
 from abc import ABC
 from abc import abstractmethod
 from typing import TYPE_CHECKING
@@ -41,4 +42,9 @@ class AppState(ABC):
     @property
     @abstractmethod
     def translations_manager(self) -> TranslationsManager:
+        pass
+
+    @property
+    @abstractmethod
+    def soundboard_clips_url_queue(self) -> asyncio.Queue:
         pass
