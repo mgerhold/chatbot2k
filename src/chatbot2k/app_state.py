@@ -48,3 +48,13 @@ class AppState(ABC):
     @abstractmethod
     def soundboard_clips_url_queue(self) -> asyncio.Queue:
         pass
+
+    @property
+    @abstractmethod
+    def is_soundboard_enabled(self) -> bool:
+        pass
+
+    @is_soundboard_enabled.setter
+    @abstractmethod
+    def is_soundboard_enabled(self, value: bool) -> None:
+        pass

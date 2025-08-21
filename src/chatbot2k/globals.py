@@ -13,6 +13,7 @@ from chatbot2k.command_handlers.command_handler import CommandHandler
 from chatbot2k.command_handlers.command_management_command import CommandManagementCommand
 from chatbot2k.command_handlers.dictionary_handler import DictionaryHandler
 from chatbot2k.command_handlers.parser import parse_commands
+from chatbot2k.command_handlers.soundboard_handlers import SoundboardHandler
 from chatbot2k.config import Config
 from chatbot2k.constants import load_constants
 from chatbot2k.dictionary import Dictionary
@@ -25,6 +26,7 @@ from chatbot2k.translations_manager import TranslationsManager
 @final
 class Globals(AppState):
     def __init__(self) -> None:
+        self._is_soundboard_enabled = True
         self._config: Final = Config()
         self._soundboard_clips_url_queue: Final[asyncio.Queue[str]] = asyncio.Queue()
         self._constants: Final = load_constants(
@@ -76,9 +78,20 @@ class Globals(AppState):
     def translations_manager(self) -> TranslationsManager:
         return self._translations_manager
 
+    @override
     @property
     def soundboard_clips_url_queue(self) -> asyncio.Queue[str]:
         return self._soundboard_clips_url_queue
+
+    @override
+    @property
+    def is_soundboard_enabled(self) -> bool:
+        return self._is_soundboard_enabled
+
+    @override
+    @is_soundboard_enabled.setter
+    def is_soundboard_enabled(self, value: bool) -> None:
+        self._is_soundboard_enabled = value
 
     def _on_commands_changed(self) -> None:
         self._command_handlers = self._reload_command_handlers(create_if_missing=False)
@@ -108,6 +121,7 @@ class Globals(AppState):
             lambda: self._on_commands_changed(),
         )
         command_handlers[DictionaryHandler.COMMAND_NAME] = DictionaryHandler(self)
+        command_handlers[SoundboardHandler.COMMAND_NAME] = SoundboardHandler(self)
         return command_handlers
 
     @staticmethod
