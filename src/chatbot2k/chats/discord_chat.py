@@ -19,6 +19,7 @@ from chatbot2k.types.broadcast_message import BroadcastMessage
 from chatbot2k.types.chat_message import ChatMessage
 from chatbot2k.types.chat_response import ChatResponse
 from chatbot2k.types.feature_flags import ChatFeatures
+from chatbot2k.types.feature_flags import FormattingSupport
 from chatbot2k.types.permission_level import PermissionLevel
 
 
@@ -65,6 +66,7 @@ class DiscordChat(Chat):
             ChatFeatures(
                 regular_chat=True,
                 broadcasting=False,
+                formatting_support=FormattingSupport.MARKDOWN,
             )
         )
         self._client: Final = client

@@ -1,5 +1,6 @@
 import asyncio
 import logging
+from collections.abc import Sequence
 from typing import Final
 from typing import Optional
 from typing import final
@@ -13,6 +14,9 @@ from chatbot2k.types.broadcast_message import BroadcastMessage
 from chatbot2k.types.chat_command import ChatCommand
 from chatbot2k.types.chat_message import ChatMessage
 from chatbot2k.types.chat_response import ChatResponse
+from chatbot2k.types.feature_flags import FormattingSupport
+from chatbot2k.utils.markdown import markdown_to_sanitized_html
+from chatbot2k.utils.markdown import markdown_to_text
 
 
 @final
@@ -102,9 +106,10 @@ async def run_main_loop(app_state: AppState) -> None:
                     if not chats[i].feature_flags.regular_chat:
                         # This chat is not capable of processing regular chat messages.
                         continue
-                    response = await process_chat_message(chat_message, app_state)
-                    if response is not None:
-                        await chats[i].send_responses(response)
+                    responses = await process_chat_message(chat_message, app_state)
+                    if responses is not None:
+                        responses = _preprocess_outbound_messages_for_chat(responses, chats[i])
+                        await chats[i].send_responses(responses)
                 case BroadcastMessage():
                     for j, chat in enumerate(chats):
                         if j not in active_participant_indices:
@@ -113,4 +118,21 @@ async def run_main_loop(app_state: AppState) -> None:
                         if not chat.feature_flags.broadcasting:
                             # This chat is not capable of broadcasting messages.
                             continue
-                        await chat.send_broadcast(chat_message)
+                        preprocessed = _preprocess_outbound_messages_for_chat([chat_message], chat)[0]
+                        await chat.send_broadcast(preprocessed)
+
+
+def _preprocess_outbound_messages_for_chat[T: ChatMessage | BroadcastMessage](
+    messages: Sequence[T],
+    chat: Chat,
+) -> list[T]:
+    result: list[T] = []
+    for message in messages:
+        match chat.feature_flags.formatting_support:
+            case FormattingSupport.NONE:
+                result.append(message._replace(text=markdown_to_text(message.text)))
+            case FormattingSupport.HTML:
+                result.append(message._replace(text=markdown_to_sanitized_html(message.text)))
+            case FormattingSupport.MARKDOWN:
+                result.append(message)
+    return result

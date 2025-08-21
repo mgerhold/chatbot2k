@@ -12,7 +12,6 @@ from pydantic.type_adapter import TypeAdapter
 from chatbot2k.models.dictionary_entry import DictionaryEntry
 from chatbot2k.types.chat_message import ChatMessage
 from chatbot2k.types.chat_response import ChatResponse
-from chatbot2k.utils.markdown import markdown_to_text
 
 
 @final
@@ -69,7 +68,7 @@ class Dictionary:
 
         responses = [
             ChatResponse(
-                text=f"{markdown_to_text(f'{word}: {explanation}')}",
+                text=f"{f'{word}: {explanation}'}",
                 chat_message=chat_message,
             )
             for word, explanation in matching_entries

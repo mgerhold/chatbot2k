@@ -22,6 +22,7 @@ from chatbot2k.types.broadcast_message import BroadcastMessage
 from chatbot2k.types.chat_message import ChatMessage
 from chatbot2k.types.chat_response import ChatResponse
 from chatbot2k.types.feature_flags import ChatFeatures
+from chatbot2k.types.feature_flags import FormattingSupport
 from chatbot2k.types.permission_level import PermissionLevel
 
 
@@ -34,6 +35,7 @@ class TwitchChat(Chat):
             ChatFeatures(
                 regular_chat=True,
                 broadcasting=True,
+                formatting_support=FormattingSupport.NONE,
             ),
         )
         self._app_loop: Final = asyncio.get_running_loop()
@@ -98,7 +100,6 @@ class TwitchChat(Chat):
     @override
     async def send_responses(self, responses: Sequence[ChatResponse]) -> None:
         for response in responses:
-            logging.info(f"Sending response to Twitch chat: {response.text}")
             await self._send_message(response.text)
 
     @override
