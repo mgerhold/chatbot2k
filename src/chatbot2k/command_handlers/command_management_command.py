@@ -11,6 +11,7 @@ from chatbot2k.command_handlers.command_handler import CommandHandler
 from chatbot2k.models.command_model import CommandModel
 from chatbot2k.models.commands import CommandsModel
 from chatbot2k.models.parameterized_response_command import ParameterizedResponseCommandModel
+from chatbot2k.models.soundboard_command import SoundboardCommandModel
 from chatbot2k.models.static_response_command import StaticResponseCommandModel
 from chatbot2k.translations_manager import TranslationKey
 from chatbot2k.types.chat_command import ChatCommand
@@ -22,6 +23,7 @@ from chatbot2k.types.permission_level import PermissionLevel
 class CommandManagementCommand(CommandHandler):
     COMMAND_NAME = "command"
     _ADD_SUBCOMMAND = "add"
+    _ADD_CLIP_SUBCOMMAND = "add-clip"
     _UPDATE_SUBCOMMAND = "update"
     _REMOVE_SUBCOMMAND = "remove"
 
@@ -38,6 +40,11 @@ class CommandManagementCommand(CommandHandler):
                     self._app_state,
                     chat_command,
                     is_update=False,
+                )
+            case CommandManagementCommand._ADD_CLIP_SUBCOMMAND if argc >= 3:
+                success, response = CommandManagementCommand._add_clip_command(
+                    self._app_state,
+                    chat_command,
                 )
             case CommandManagementCommand._UPDATE_SUBCOMMAND if argc >= 3:
                 success, response = CommandManagementCommand._add_or_update_command(
@@ -69,14 +76,14 @@ class CommandManagementCommand(CommandHandler):
     @override
     @property
     def usage(self) -> str:
-        return "!command [add|update|remove] <parameters>..."
+        return "!command [add|add-clip|update|remove] <parameters>..."
 
     @override
     @property
     def description(self) -> str:
         return (
-            "Manage custom commands. Use `!command add` to add a new command, "
-            + "`!command update` to update an existing command, and `!command remove` "
+            "Manage custom commands. Use `!command add` to add a new command, `!command add-clip` to add "
+            + "a soundboard command, `!command update` to update an existing command, and `!command remove` "
             + "to delete a command."
         )
 
@@ -112,11 +119,21 @@ class CommandManagementCommand(CommandHandler):
         *,
         is_update: bool,
     ) -> tuple[bool, str]:
+        name: Final = chat_command.arguments[1].lstrip("!")
+
+        # We need a special check for *all* registered command handlers, because there are
+        # also builtin ones that are not included in the commands file. Those can neither be
+        # added nor updated, so we return an error message.
+        if name in app_state.command_handlers:
+            return (
+                False,
+                app_state.translations_manager.get_translation(TranslationKey.COMMAND_ALREADY_EXISTS),
+            )
+
         commands: Final = CommandManagementCommand._load_command_handlers(
             commands_file=app_state.config.commands_file,
             create_if_missing=False,
         )
-        name: Final = chat_command.arguments[1].lstrip("!")
         existing_command: Final = next((command for command in commands if command.name == name), None)
         if existing_command is None and is_update:
             return (
@@ -161,6 +178,39 @@ class CommandManagementCommand(CommandHandler):
         )
 
     @staticmethod
+    def _add_clip_command(
+        app_state: AppState,
+        chat_command: ChatCommand,
+    ) -> tuple[bool, str]:
+        name: Final = chat_command.arguments[1].lstrip("!")
+
+        if name in app_state.command_handlers:
+            return (
+                False,
+                app_state.translations_manager.get_translation(TranslationKey.COMMAND_ALREADY_EXISTS),
+            )
+
+        commands: Final = CommandManagementCommand._load_command_handlers(
+            commands_file=app_state.config.commands_file,
+            create_if_missing=False,
+        )
+        commands.append(
+            SoundboardCommandModel(
+                type="soundboard",
+                name=name.lstrip("!"),
+                clip_url=chat_command.arguments[2],
+            )
+        )
+        CommandManagementCommand._save_commands(
+            commands_file=app_state.config.commands_file,
+            commands=commands,
+        )
+        return (
+            True,
+            app_state.translations_manager.get_translation(TranslationKey.COMMAND_ADDED),
+        )
+
+    @staticmethod
     def _remove_command(app_state: AppState, chat_command: ChatCommand) -> tuple[bool, str]:
         commands: Final = CommandManagementCommand._load_command_handlers(
             commands_file=app_state.config.commands_file,
@@ -178,6 +228,13 @@ class CommandManagementCommand(CommandHandler):
                     True,
                     app_state.translations_manager.get_translation(TranslationKey.COMMAND_REMOVED),
                 )
+        # If no command has been found, it could still be the case that this is a builtin command.
+        # For that case, we want to provide a different error message.
+        if name in app_state.command_handlers:
+            return (
+                False,
+                app_state.translations_manager.get_translation(TranslationKey.BUILTIN_COMMAND_CANNOT_BE_DELETED),
+            )
         return (
             False,
             app_state.translations_manager.get_translation(TranslationKey.COMMAND_TO_DELETE_NOT_FOUND),
