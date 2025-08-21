@@ -32,8 +32,8 @@ class TwitchChat(Chat):
     def __init__(self, client: TwitchChatClient, channel: str) -> None:
         super().__init__(
             ChatFeatures(
-                REGULAR_CHAT=True,
-                BROADCASTING=True,
+                regular_chat=True,
+                broadcasting=True,
             ),
         )
         self._app_loop: Final = asyncio.get_running_loop()

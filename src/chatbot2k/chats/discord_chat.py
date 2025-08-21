@@ -63,8 +63,8 @@ class DiscordChat(Chat):
     ) -> None:
         super().__init__(
             ChatFeatures(
-                REGULAR_CHAT=True,
-                BROADCASTING=False,
+                regular_chat=True,
+                broadcasting=False,
             )
         )
         self._client: Final = client

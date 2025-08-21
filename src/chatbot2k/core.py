@@ -99,7 +99,7 @@ async def run_main_loop(app_state: AppState) -> None:
                             # This broadcaster is not active, skip it.
                             continue
                         await broadcaster.on_chat_message_received(chat_message)
-                    if not chats[i].feature_flags.REGULAR_CHAT:
+                    if not chats[i].feature_flags.regular_chat:
                         # This chat is not capable of processing regular chat messages.
                         continue
                     response = await process_chat_message(chat_message, app_state)
@@ -110,7 +110,7 @@ async def run_main_loop(app_state: AppState) -> None:
                         if j not in active_participant_indices:
                             # This chat is not active, skip it.
                             continue
-                        if not chat.feature_flags.BROADCASTING:
+                        if not chat.feature_flags.broadcasting:
                             # This chat is not capable of broadcasting messages.
                             continue
                         await chat.send_broadcast(chat_message)
