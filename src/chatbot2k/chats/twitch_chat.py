@@ -21,6 +21,7 @@ from chatbot2k.chats.chat import Chat
 from chatbot2k.models.twitch_chat_message_metadata import TwitchChatMessageMetadata
 from chatbot2k.types.broadcast_message import BroadcastMessage
 from chatbot2k.types.chat_message import ChatMessage
+from chatbot2k.types.chat_platform import ChatPlatform
 from chatbot2k.types.chat_response import ChatResponse
 from chatbot2k.types.feature_flags import FeatureFlags
 from chatbot2k.types.feature_flags import FormattingSupport
@@ -114,6 +115,11 @@ class TwitchChat(Chat):
             return
         logging.info(f"Sending broadcast message to Twitch chat: {message.text}")
         await self._send_message(message.text)
+
+    @override
+    @property
+    def platform(self) -> ChatPlatform:
+        return ChatPlatform.TWITCH
 
     async def _on_ready(self, ready_event: EventData) -> None:
         logging.info(f"Twitch chat client is ready. Going to join channel '{self._channel}'...")

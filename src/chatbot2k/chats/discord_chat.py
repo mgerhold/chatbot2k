@@ -19,6 +19,7 @@ from chatbot2k.chats.chat import Chat
 from chatbot2k.models.discord_chat_message_metadata import DiscordChatMessageMetadata
 from chatbot2k.types.broadcast_message import BroadcastMessage
 from chatbot2k.types.chat_message import ChatMessage
+from chatbot2k.types.chat_platform import ChatPlatform
 from chatbot2k.types.chat_response import ChatResponse
 from chatbot2k.types.feature_flags import FeatureFlags
 from chatbot2k.types.feature_flags import FormattingSupport
@@ -120,6 +121,11 @@ class DiscordChat(Chat):
     @override
     async def send_broadcast(self, message: BroadcastMessage) -> None:
         raise NotImplementedError()
+
+    @override
+    @property
+    def platform(self) -> ChatPlatform:
+        return ChatPlatform.DISCORD
 
     @classmethod
     async def create(cls, app_state: AppState) -> Self:

@@ -6,6 +6,7 @@ from typing import final
 
 from chatbot2k.types.broadcast_message import BroadcastMessage
 from chatbot2k.types.chat_message import ChatMessage
+from chatbot2k.types.chat_platform import ChatPlatform
 from chatbot2k.types.chat_response import ChatResponse
 from chatbot2k.types.feature_flags import FeatureFlags
 
@@ -29,4 +30,9 @@ class Chat(ABC):
 
     @abstractmethod
     async def send_broadcast(self, message: BroadcastMessage) -> None:
+        pass
+
+    @property
+    @abstractmethod
+    def platform(self) -> ChatPlatform:
         pass
