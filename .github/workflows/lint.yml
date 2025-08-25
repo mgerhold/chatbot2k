@@ -1,0 +1,41 @@
+name: Lint (uv + ruff + pyrefly)
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check out code
+        uses: actions/checkout@v4
+
+      - name: Install uv
+        run: |
+          curl -LsSf https://astral.sh/uv/install.sh | sh
+          echo "$HOME/.local/bin" >> "$GITHUB_PATH"
+          uv --version
+
+      - name: Cache uv wheel/download cache
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/uv
+          key: uv-${{ runner.os }}-${{ hashFiles('pyproject.toml', 'uv.lock', 'requirements*.txt') }}
+          restore-keys: |
+            uv-${{ runner.os }}-
+
+      - name: Sync dependencies (frozen)
+        run: uv sync --frozen
+
+      - name: Check formatting (ruff)
+        run: uv run ruff format --check
+
+      - name: Lint (ruff)
+        run: uv run ruff check
+
+      - name: Static type checking (pyrefly)
+        run: uv run pyrefly check
