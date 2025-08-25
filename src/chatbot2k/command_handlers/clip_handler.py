@@ -22,7 +22,8 @@ class ClipHandler(CommandHandler):
     @override
     async def handle_command(self, chat_command: ChatCommand) -> Optional[list[ChatResponse]]:
         if self._app_state.is_soundboard_enabled and chat_command.source_chat.feature_flags.can_trigger_soundboard:
-            await self._app_state.soundboard_clips_url_queue.put(self._clip_url)
+            for queue in self._app_state.soundboard_clips_url_queues.values():
+                await queue.put(self._clip_url)
         return []
 
     @override

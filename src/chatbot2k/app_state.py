@@ -2,6 +2,7 @@ import asyncio
 from abc import ABC
 from abc import abstractmethod
 from typing import TYPE_CHECKING
+from uuid import UUID
 
 from chatbot2k.broadcasters.broadcaster import Broadcaster
 from chatbot2k.config import Config
@@ -46,7 +47,7 @@ class AppState(ABC):
 
     @property
     @abstractmethod
-    def soundboard_clips_url_queue(self) -> asyncio.Queue:
+    def soundboard_clips_url_queues(self) -> dict[UUID, asyncio.Queue[str]]:
         pass
 
     @property

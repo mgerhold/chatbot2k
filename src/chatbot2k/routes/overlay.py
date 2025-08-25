@@ -1,7 +1,9 @@
 import asyncio
+import logging
 from collections.abc import AsyncIterator
 from typing import Annotated
 from typing import Final
+from uuid import uuid4
 
 from fastapi import APIRouter
 from fastapi import Depends
@@ -36,12 +38,15 @@ async def overlay_events(
     app_state: Annotated[AppState, Depends(get_app_state)],
 ) -> StreamingResponse:
     async def _generate() -> AsyncIterator[bytes]:
+        uuid: Final = uuid4()
+        logging.info(f"Client connected to `/overlay/events` with UUID {uuid}")
+        app_state.soundboard_clips_url_queues[uuid] = asyncio.Queue()
         try:
             while True:
                 if await request.is_disconnected():
                     break
                 try:
-                    clip_url = await asyncio.wait_for(app_state.soundboard_clips_url_queue.get(), timeout=2.0)
+                    clip_url = await asyncio.wait_for(app_state.soundboard_clips_url_queues[uuid].get(), timeout=2.0)
                 except TimeoutError:
                     # No new soundboard clips, continue waiting.
                     continue
@@ -53,6 +58,9 @@ async def overlay_events(
         except asyncio.CancelledError:
             # Client went away, stop sending events.
             pass
+        finally:
+            logging.info(f"Client disconnected from `/overlay/events` with UUID {uuid}")
+            del app_state.soundboard_clips_url_queues[uuid]
 
     headers: Final = {
         "Cache-Control": "no-cache",
