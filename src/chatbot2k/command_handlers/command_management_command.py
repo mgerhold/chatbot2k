@@ -34,6 +34,8 @@ class CommandManagementCommand(CommandHandler):
     @override
     async def handle_command(self, chat_command: ChatCommand) -> Optional[list[ChatResponse]]:
         argc: Final = len(chat_command.arguments)  # The subcommand (e.g. "add") is included in this count!
+        if argc < 1:
+            return None
         match chat_command.arguments[0].lower():
             case CommandManagementCommand._ADD_SUBCOMMAND if argc >= 3:
                 success, response = CommandManagementCommand._add_or_update_command(
