@@ -84,5 +84,5 @@ class DictionaryHandler(CommandHandler):
         word: Final = chat_command.arguments[1].lower()
         if word not in (other.lower() for other in self._app_state.dictionary.as_dict()):
             return f"Cannot remove '{word}': it does not exist in the dictionary."
-        self._app_state.dictionary.remove_entry(word)
+        self._app_state.dictionary.remove_entry(chat_command.source_chat.platform, word)
         return f"Removed '{word}' from the dictionary."

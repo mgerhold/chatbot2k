@@ -9,6 +9,7 @@ from typing import override
 from chatbot2k.chats.chat import Chat
 from chatbot2k.types.broadcast_message import BroadcastMessage
 from chatbot2k.types.chat_message import ChatMessage
+from chatbot2k.types.chat_platform import ChatPlatform
 from chatbot2k.types.chat_response import ChatResponse
 from chatbot2k.types.permission_level import PermissionLevel
 
@@ -35,3 +36,8 @@ class MockChat(Chat):
     @override
     async def send_broadcast(self, message: BroadcastMessage) -> None:
         logging.info(f"Mock broadcast sent: {message.text}")
+
+    @override
+    @property
+    def platform(self) -> ChatPlatform:
+        return ChatPlatform.MOCK

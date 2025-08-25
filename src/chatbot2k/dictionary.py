@@ -1,6 +1,7 @@
 import json
 import re
 import time
+from collections import defaultdict
 from pathlib import Path
 from typing import Final
 from typing import NamedTuple
@@ -11,6 +12,7 @@ from pydantic.type_adapter import TypeAdapter
 
 from chatbot2k.models.dictionary_entry import DictionaryEntry
 from chatbot2k.types.chat_message import ChatMessage
+from chatbot2k.types.chat_platform import ChatPlatform
 from chatbot2k.types.chat_response import ChatResponse
 
 
@@ -42,17 +44,22 @@ class Dictionary:
             for entry in loaded
         ]
         self._cooldown: Final = cooldown
-        self._usage_timestamps: Final[dict[str, float]] = {}
+        self._usage_timestamps: Final[defaultdict[ChatPlatform, dict[str, float]]] = defaultdict(dict)
         # TODO: Maybe we should store the `AppState` instead to be able to react to
         #       changes in the config at runtime. But for now, I think this is a
         #       classic case of YAGNI.
         self._dictionary_file: Final = dictionary_file
 
     def get_explanations(self, chat_message: ChatMessage) -> Optional[list[ChatResponse]]:
+        chat_platform: Final = chat_message.sender_chat.platform
         matching_entries = [
             (entry.word, entry.explanation)
             for entry in self._entries
-            if entry.pattern.search(chat_message.text) is not None and not self._is_in_cooldown(entry.word)
+            if entry.pattern.search(chat_message.text) is not None
+            and not self._is_in_cooldown(
+                chat_platform,
+                entry.word,
+            )
         ]
         if not matching_entries:
             return None
@@ -64,7 +71,7 @@ class Dictionary:
             matching_entries = matching_entries[: Dictionary._MAX_NUM_EXPLANATIONS_AT_ONCE - 1]
         now: Final = time.monotonic()
         for word, _ in matching_entries:
-            self._usage_timestamps[word] = now
+            self._usage_timestamps[chat_platform][word] = now
 
         responses = [
             ChatResponse(
@@ -99,13 +106,13 @@ class Dictionary:
         self._entries.append(new_entry)
         self._persist()
 
-    def remove_entry(self, word: str) -> None:
+    def remove_entry(self, chat_platform: ChatPlatform, word: str) -> None:
         self._entries = [entry for entry in self._entries if entry.word.lower() != word.lower()]
-        self._usage_timestamps.pop(word, None)
+        self._usage_timestamps[chat_platform].pop(word, None)
         self._persist()
 
-    def _is_in_cooldown(self, word: str) -> bool:
-        last_used: Optional[float] = self._usage_timestamps.get(word)
+    def _is_in_cooldown(self, chat_platform: ChatPlatform, word: str) -> bool:
+        last_used: Optional[float] = self._usage_timestamps[chat_platform].get(word)
         if last_used is None:
             return False
         return (time.monotonic() - last_used) < self._cooldown
