@@ -5,6 +5,7 @@ from pathlib import Path
 from typing import Final
 from typing import final
 from typing import override
+from uuid import UUID
 
 from chatbot2k.app_state import AppState
 from chatbot2k.broadcasters.broadcaster import Broadcaster
@@ -28,7 +29,7 @@ class Globals(AppState):
     def __init__(self) -> None:
         self._is_soundboard_enabled = True
         self._config: Final = Config()
-        self._soundboard_clips_url_queue: Final[asyncio.Queue[str]] = asyncio.Queue()
+        self._soundboard_clips_url_queues: Final[dict[UUID, asyncio.Queue[str]]] = {}
         self._constants: Final = load_constants(
             constants_file=self.config.constants_file,
             create_if_missing=True,
@@ -80,8 +81,8 @@ class Globals(AppState):
 
     @override
     @property
-    def soundboard_clips_url_queue(self) -> asyncio.Queue[str]:
-        return self._soundboard_clips_url_queue
+    def soundboard_clips_url_queues(self) -> dict[UUID, asyncio.Queue[str]]:
+        return self._soundboard_clips_url_queues
 
     @override
     @property
