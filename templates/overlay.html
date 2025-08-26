@@ -35,8 +35,6 @@
 
 <script>
     (() => {
-      const ES_URL = "{{ request.url_for('overlay_events') }}";
-
       const AUDIO_EXT = /\.(mp3|wav|ogg|flac|aac|m4a)(\?|$)/i;
       const VIDEO_EXT = /\.(mp4|webm|mov|mkv|m4v)(\?|$)/i;
 
@@ -140,7 +138,7 @@
       }
 
       // ---- SSE hookup (unchanged) ----
-      const es = new EventSource(ES_URL);
+      const es = new EventSource('overlay/events');
       es.onmessage = (ev) => {
         try {
           const data = JSON.parse(ev.data);
