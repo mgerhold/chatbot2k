@@ -12,8 +12,6 @@
         #status .dot { display:inline-block; width:8px; height:8px; border-radius:999px; background:#b91c1c; margin-right:6px; vertical-align:middle; }
         #status.ok .dot { background:#10b981; }
         /* user gesture button (only appears in regular browsers if autoplay is blocked) */
-        #enable-audio { position: fixed; inset: 0; display:none; align-items:center; justify-content:center; background:rgba(0,0,0,0.6); z-index:9999; }
-        #enable-audio button { padding:0.75rem 1rem; border-radius:10px; border:1px solid #1f2937; background:#111827; color:#e5e7eb; cursor:pointer; }
         .overlay-video {
           position: fixed;
           inset: 0;                 /* top:0; right:0; bottom:0; left:0 */
@@ -28,10 +26,6 @@
     </style>
 </head>
 <body>
-<!-- Only for human preview; OBS browser source will ignore this -->
-<div id="enable-audio">
-    <button>Click to enable sound</button>
-</div>
 
 <script>
     (() => {
@@ -60,10 +54,6 @@
           if (Ctx) await new Ctx().resume();
         } catch {}
       }
-      function showGate() {
-        const gate = document.getElementById("enable-audio");
-        if (gate) gate.style.display = "flex";
-      }
 
       function restartMedia(el) {
         // Ensure we jump to start once metadata is known
@@ -76,8 +66,7 @@
           };
           el.addEventListener("loadedmetadata", onMeta);
         }
-        const p = el.play();
-        if (p && typeof p.then === "function") p.catch(() => showGate());
+        el.play();
       }
 
       function playClip(url) {
@@ -116,8 +105,6 @@
         const playPromise = el.play();
         if (playPromise && typeof playPromise.then === "function") {
           playPromise.catch(() => {
-            // Likely autoplay policy; ask for a user gesture (OBS won’t need this)
-            showGate();
             dispose();
           });
         }
