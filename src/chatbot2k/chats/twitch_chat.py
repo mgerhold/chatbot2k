@@ -39,6 +39,7 @@ class TwitchChat(Chat):
                 broadcasting=True,
                 formatting_support=FormattingSupport.NONE,
                 can_trigger_soundboard=True,
+                supports_giveaways=True,
             ),
         )
         self._app_loop: Final = asyncio.get_running_loop()

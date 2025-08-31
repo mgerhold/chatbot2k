@@ -10,6 +10,8 @@ from chatbot2k.broadcasters.parser import parse_broadcasters
 from chatbot2k.command_handlers.command_handler import CommandHandler
 from chatbot2k.command_handlers.command_management_command import CommandManagementCommand
 from chatbot2k.command_handlers.dictionary_handler import DictionaryHandler
+from chatbot2k.command_handlers.giveaway_enter_handler import GiveawayEnterCommand
+from chatbot2k.command_handlers.giveaway_handler import GiveawayCommand
 from chatbot2k.command_handlers.loader import load_commands
 from chatbot2k.command_handlers.soundboard_handlers import SoundboardHandler
 from chatbot2k.config import Config
@@ -86,6 +88,8 @@ class Globals(AppState):
             self,
             lambda: self._on_commands_changed(),
         )
+        command_handlers[GiveawayCommand.COMMAND_NAME] = GiveawayCommand(self)
+        command_handlers[GiveawayEnterCommand.COMMAND_NAME] = GiveawayEnterCommand(self)
         command_handlers[DictionaryHandler.COMMAND_NAME] = DictionaryHandler(self)
         command_handlers[SoundboardHandler.COMMAND_NAME] = SoundboardHandler(self)
         return command_handlers
