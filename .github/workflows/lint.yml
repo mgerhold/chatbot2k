@@ -37,5 +37,5 @@ jobs:
       - name: Lint (ruff)
         run: uv run ruff check
 
-      - name: Static type checking (pyrefly)
-        run: uv run pyrefly check
+      - name: Static type checking (Pyright)
+        run: uv run pyright
