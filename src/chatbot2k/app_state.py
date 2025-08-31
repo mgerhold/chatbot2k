@@ -6,6 +6,7 @@ from uuid import UUID
 
 from chatbot2k.broadcasters.broadcaster import Broadcaster
 from chatbot2k.config import Config
+from chatbot2k.database.engine import Database
 from chatbot2k.dictionary import Dictionary
 from chatbot2k.translations_manager import TranslationsManager
 
@@ -22,7 +23,7 @@ class AppState(ABC):
 
     @property
     @abstractmethod
-    def constants(self) -> dict[str, str]:
+    def database(self) -> Database:
         pass
 
     @property

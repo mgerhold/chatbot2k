@@ -44,7 +44,7 @@ class SimpleBroadcaster(Broadcaster):
             yield BroadcastMessage(
                 text=replace_constants(
                     apply_builtins(self._message, self._app_state.config),
-                    self._app_state.constants,
+                    self._app_state.database.get_constants(),
                 )
             )
 

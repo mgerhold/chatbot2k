@@ -1,6 +1,4 @@
-import logging
 from collections.abc import Callable
-from pathlib import Path
 from typing import Final
 from typing import Optional
 from typing import final
@@ -8,12 +6,7 @@ from typing import override
 
 from chatbot2k.app_state import AppState
 from chatbot2k.command_handlers.command_handler import CommandHandler
-from chatbot2k.models.command_model import CommandModel
-from chatbot2k.models.commands import CommandsModel
-from chatbot2k.models.parameterized_response_command import ParameterizedResponseCommandModel
-from chatbot2k.models.soundboard_command import SoundboardCommandModel
-from chatbot2k.models.static_response_command import StaticResponseCommandModel
-from chatbot2k.translations_manager import TranslationKey
+from chatbot2k.translation_key import TranslationKey
 from chatbot2k.types.chat_command import ChatCommand
 from chatbot2k.types.chat_response import ChatResponse
 from chatbot2k.types.permission_level import PermissionLevel
@@ -70,48 +63,23 @@ class CommandManagementCommand(CommandHandler):
             )
         ]
 
-    @override
     @property
+    @override
     def min_required_permission_level(self) -> PermissionLevel:
         return PermissionLevel.MODERATOR
 
-    @override
     @property
+    @override
     def usage(self) -> str:
         return "!command [add|add-clip|update|remove] <parameters>..."
 
-    @override
     @property
+    @override
     def description(self) -> str:
         return (
             "Manage custom commands. Use `!command add` to add a new command, `!command add-clip` to add "
             + "a soundboard command, `!command update` to update an existing command, and `!command remove` "
             + "to delete a command."
-        )
-
-    @staticmethod
-    def _load_command_handlers(
-        *,
-        commands_file: Path,
-        create_if_missing: bool,
-    ) -> list[CommandModel]:
-        if create_if_missing and not commands_file.exists():
-            logging.info(f"Commands file {commands_file} does not exist, creating a new one.")
-            commands_file.parent.mkdir(parents=True, exist_ok=True)
-            CommandManagementCommand._save_commands(commands_file=commands_file, commands=[])
-        file_contents: Final = commands_file.read_text(encoding="utf-8")
-        return CommandsModel.model_validate_json(file_contents).commands
-
-    @staticmethod
-    def _save_commands(
-        *,
-        commands_file: Path,
-        commands: list[CommandModel],
-    ) -> None:
-        model: Final = CommandsModel(commands=sorted(commands, key=lambda c: c.name))
-        commands_file.write_text(
-            model.model_dump_json(indent=2),
-            encoding="utf-8",
         )
 
     @staticmethod
@@ -123,20 +91,28 @@ class CommandManagementCommand(CommandHandler):
     ) -> tuple[bool, str]:
         name: Final = chat_command.arguments[1].lstrip("!")
 
-        # We need a special check for *all* registered command handlers, because there are
-        # also builtin ones that are not included in the commands file. Those can neither be
-        # added nor updated, so we return an error message.
-        if name in app_state.command_handlers:
+        soundboard_commands: Final = app_state.database.get_soundboard_commands()
+        if name.lower() in (command.name.lower() for command in soundboard_commands):
             return (
                 False,
-                app_state.translations_manager.get_translation(TranslationKey.COMMAND_ALREADY_EXISTS),
+                app_state.translations_manager.get_translation(TranslationKey.CANNOT_ADD_OR_UPDATE_SOUNDBOARD_COMMAND),
             )
 
-        commands: Final = CommandManagementCommand._load_command_handlers(
-            commands_file=app_state.config.commands_file,
-            create_if_missing=False,
-        )
-        existing_command: Final = next((command for command in commands if command.name == name), None)
+        static_commands: Final = app_state.database.get_static_commands()
+        parameterized_commands: Final = app_state.database.get_parameterized_commands()
+        commands: Final = static_commands + parameterized_commands
+
+        existing_command: Final = next((command for command in commands if command.name.lower() == name.lower()), None)
+
+        # We need a special check for *all* registered command handlers, because there are
+        # also builtin ones that are not included in the database. Those can neither be
+        # added nor updated, so we return an error message.
+        if existing_command is None and name.lower() in (command.lower() for command in app_state.command_handlers):
+            return (
+                False,
+                app_state.translations_manager.get_translation(TranslationKey.BUILTIN_COMMAND_CANNOT_BE_CHANGED),
+            )
+
         if existing_command is None and is_update:
             return (
                 False,
@@ -148,30 +124,20 @@ class CommandManagementCommand(CommandHandler):
                 app_state.translations_manager.get_translation(TranslationKey.COMMAND_ALREADY_EXISTS),
             )
         if existing_command is not None:
-            commands.remove(existing_command)
+            app_state.database.remove_command_case_insensitive(name=existing_command.name)
 
         if len(chat_command.arguments) == 3:
-            commands.append(
-                StaticResponseCommandModel(
-                    type="static",
-                    name=name.lstrip("!"),
-                    response=chat_command.arguments[2],
-                )
+            app_state.database.add_static_command(
+                name=name,
+                response=chat_command.arguments[2],
             )
         else:
             parameters: Final = chat_command.arguments[3:]
-            commands.append(
-                ParameterizedResponseCommandModel(
-                    type="parameterized",
-                    name=name.lstrip("!"),
-                    parameters=parameters,
-                    response=chat_command.arguments[2],
-                )
+            app_state.database.add_parameterized_command(
+                name=name,
+                response=chat_command.arguments[2],
+                parameters=parameters,
             )
-        CommandManagementCommand._save_commands(
-            commands_file=app_state.config.commands_file,
-            commands=commands,
-        )
         return (
             True,
             app_state.translations_manager.get_translation(
@@ -186,27 +152,17 @@ class CommandManagementCommand(CommandHandler):
     ) -> tuple[bool, str]:
         name: Final = chat_command.arguments[1].lstrip("!")
 
-        if name in app_state.command_handlers:
+        if name.lower() in (command.lower() for command in app_state.command_handlers):
             return (
                 False,
                 app_state.translations_manager.get_translation(TranslationKey.COMMAND_ALREADY_EXISTS),
             )
 
-        commands: Final = CommandManagementCommand._load_command_handlers(
-            commands_file=app_state.config.commands_file,
-            create_if_missing=False,
+        app_state.database.add_soundboard_command(
+            name=name,
+            clip_url=chat_command.arguments[2],
         )
-        commands.append(
-            SoundboardCommandModel(
-                type="soundboard",
-                name=name.lstrip("!"),
-                clip_url=chat_command.arguments[2],
-            )
-        )
-        CommandManagementCommand._save_commands(
-            commands_file=app_state.config.commands_file,
-            commands=commands,
-        )
+
         return (
             True,
             app_state.translations_manager.get_translation(TranslationKey.COMMAND_ADDED),
@@ -214,29 +170,22 @@ class CommandManagementCommand(CommandHandler):
 
     @staticmethod
     def _remove_command(app_state: AppState, chat_command: ChatCommand) -> tuple[bool, str]:
-        commands: Final = CommandManagementCommand._load_command_handlers(
-            commands_file=app_state.config.commands_file,
-            create_if_missing=False,
-        )
         name: Final = chat_command.arguments[1].lstrip("!")
-        for command in commands:
-            if command.name == name:
-                commands.remove(command)
-                CommandManagementCommand._save_commands(
-                    commands_file=app_state.config.commands_file,
-                    commands=commands,
-                )
-                return (
-                    True,
-                    app_state.translations_manager.get_translation(TranslationKey.COMMAND_REMOVED),
-                )
+        was_removed: Final = app_state.database.remove_command_case_insensitive(name=name)
+        if was_removed:
+            return (
+                True,
+                app_state.translations_manager.get_translation(TranslationKey.COMMAND_REMOVED),
+            )
+
         # If no command has been found, it could still be the case that this is a builtin command.
         # For that case, we want to provide a different error message.
-        if name in app_state.command_handlers:
+        if name.lower() in (command.lower() for command in app_state.command_handlers):
             return (
                 False,
                 app_state.translations_manager.get_translation(TranslationKey.BUILTIN_COMMAND_CANNOT_BE_DELETED),
             )
+
         return (
             False,
             app_state.translations_manager.get_translation(TranslationKey.COMMAND_TO_DELETE_NOT_FOUND),

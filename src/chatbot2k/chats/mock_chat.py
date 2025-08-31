@@ -37,7 +37,7 @@ class MockChat(Chat):
     async def send_broadcast(self, message: BroadcastMessage) -> None:
         logging.info(f"Mock broadcast sent: {message.text}")
 
-    @override
     @property
+    @override
     def platform(self) -> ChatPlatform:
         return ChatPlatform.MOCK

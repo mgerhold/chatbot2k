@@ -2,6 +2,7 @@ import logging
 from pathlib import Path
 from typing import Final
 
+from chatbot2k.database.tables import Constant
 from chatbot2k.models.constants import ConstantsModel
 
 
@@ -17,7 +18,7 @@ def load_constants(*, constants_file: Path, create_if_missing: bool) -> dict[str
     return {record.name: record.text for record in ConstantsModel.model_validate_json(contents).constants}
 
 
-def replace_constants(text: str, constants: dict[str, str]) -> str:
-    for name, value in constants.items():
-        text = text.replace(f"{{{name}}}", value)
+def replace_constants(text: str, constants: list[Constant]) -> str:
+    for constant in constants:
+        text = text.replace(f"{{{constant.name}}}", constant.text)
     return text

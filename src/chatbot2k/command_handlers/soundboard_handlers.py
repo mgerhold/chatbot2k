@@ -3,7 +3,7 @@ from typing import final
 
 from chatbot2k.app_state import AppState
 from chatbot2k.command_handlers.command_handler import CommandHandler
-from chatbot2k.translations_manager import TranslationKey
+from chatbot2k.translation_key import TranslationKey
 from chatbot2k.types.chat_command import ChatCommand
 from chatbot2k.types.chat_response import ChatResponse
 from chatbot2k.types.permission_level import PermissionLevel

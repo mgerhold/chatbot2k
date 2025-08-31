@@ -122,8 +122,8 @@ class DiscordChat(Chat):
     async def send_broadcast(self, message: BroadcastMessage) -> None:
         raise NotImplementedError()
 
-    @override
     @property
+    @override
     def platform(self) -> ChatPlatform:
         return ChatPlatform.DISCORD
 

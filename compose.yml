@@ -7,10 +7,6 @@ services:
       - "127.0.0.1:8080:8080"
     volumes:
       - ./static:/app/static
-      - ./broadcasts.json:/app/broadcasts.json
-      - ./commands.json:/app/commands.json
-      - ./constants.json:/app/constants.json
-      - ./dictionary.json:/app/dictionary.json
-      - ./translations.json:/app/translations.json
+      - ./storage:/app/storage
     env_file:
       - .env

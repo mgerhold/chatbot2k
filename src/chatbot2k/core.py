@@ -109,7 +109,7 @@ async def _process_chat_message(
         return None
     logging.info(
         f"Processing command {command.name} from user {chat_message.sender_name} "
-        + f"with permission level {chat_message.sender_permission_level}"
+        + f"with permission level {chat_message.sender_permission_level} ({chat_message.sender_permission_level.name})"
     )
     responses: Final = await command_handler.handle_command(command)
     dictionary_entries: Final = app_state.dictionary.get_explanations(chat_message)
@@ -127,7 +127,7 @@ async def _process_chat_message(
     )
 
 
-def _preprocess_outbound_messages_for_chat[T: ChatMessage | BroadcastMessage](
+def _preprocess_outbound_messages_for_chat[T: ChatResponse | BroadcastMessage](
     messages: Sequence[T],
     chat: Chat,
 ) -> list[T]:

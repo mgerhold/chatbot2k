@@ -26,17 +26,17 @@ class ClipHandler(CommandHandler):
                 await queue.put(self._clip_url)
         return []
 
-    @override
     @property
+    @override
     def min_required_permission_level(self) -> PermissionLevel:
         return PermissionLevel.VIEWER
 
-    @override
     @property
+    @override
     def usage(self) -> str:
         return f"!{self.name}"
 
-    @override
     @property
+    @override
     def description(self) -> str:
         return f"Plays this clip: {self._clip_url}"

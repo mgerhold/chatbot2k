@@ -1,19 +1,15 @@
 import hashlib
 from collections import defaultdict
 from collections.abc import Iterable
-from pathlib import Path
 from typing import Final
-
-from pydantic import ValidationError
 
 from chatbot2k.app_state import AppState
 from chatbot2k.broadcasters.broadcaster import Broadcaster
 from chatbot2k.broadcasters.simple_broadcaster import SimpleBroadcaster
-from chatbot2k.models.broadcasts import BroadcastModel
-from chatbot2k.models.broadcasts import BroadcastsModel
+from chatbot2k.database.tables import Broadcast
 
 
-def _stable_key(b: BroadcastModel) -> tuple[int, str]:
+def _stable_key(b: Broadcast) -> tuple[int, str]:
     # Hash the message (or alias) to avoid depending on input order.
     # Use sha1 -> int for cross-process stability (Python's built-in hash is salted).
     key_src = b.alias_command or b.message
@@ -22,12 +18,12 @@ def _stable_key(b: BroadcastModel) -> tuple[int, str]:
 
 
 def _build_broadcasters_evenly_spaced(
-    models: Iterable[BroadcastModel],
+    models: Iterable[Broadcast],
     app_state: AppState,
 ) -> list[Broadcaster]:
     # Group by interval; if your intervals are floats that might differ by tiny epsilons,
     # consider rounding the key, e.g., round(I, 3)
-    groups: dict[float, list[BroadcastModel]] = defaultdict(list)
+    groups: dict[float, list[Broadcast]] = defaultdict(list)
     for m in models:
         groups[m.interval_seconds].append(m)
 
@@ -54,22 +50,6 @@ def _build_broadcasters_evenly_spaced(
     return broadcasters
 
 
-def parse_broadcasters(
-    broadcasters_file_path: Path,
-    app_state: AppState,
-) -> list[Broadcaster]:
-    if not broadcasters_file_path.exists():
-        raise FileNotFoundError(f"Broadcasters file not found: {broadcasters_file_path}")
-    try:
-        contents: Final = broadcasters_file_path.read_text(encoding="utf-8")
-    except Exception as e:
-        msg: Final = f"Error reading broadcasters file: {broadcasters_file_path}. Error: {e}"
-        raise RuntimeError(msg) from e
-
-    try:
-        broadcasts: Final = BroadcastsModel.model_validate_json(contents)
-    except ValidationError as e:
-        msg: Final = f"Error validating commands file: {broadcasters_file_path}. Error: {e}"
-        raise RuntimeError(msg) from e
-
-    return _build_broadcasters_evenly_spaced(broadcasts.broadcasts, app_state)
+def parse_broadcasters(app_state: AppState) -> list[Broadcaster]:
+    db_broadcasts: Final = app_state.database.get_broadcasts()
+    return _build_broadcasters_evenly_spaced(db_broadcasts, app_state)

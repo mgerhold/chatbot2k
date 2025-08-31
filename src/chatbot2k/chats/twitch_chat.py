@@ -116,8 +116,8 @@ class TwitchChat(Chat):
         logging.info(f"Sending broadcast message to Twitch chat: {message.text}")
         await self._send_message(message.text)
 
-    @override
     @property
+    @override
     def platform(self) -> ChatPlatform:
         return ChatPlatform.TWITCH
 
