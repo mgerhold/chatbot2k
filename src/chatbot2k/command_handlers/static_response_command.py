@@ -27,33 +27,32 @@ class StaticResponseCommand(CommandHandler):
 
     @override
     async def handle_command(self, chat_command: ChatCommand) -> Optional[list[ChatResponse]]:
-        if chat_command.arguments:
-            # Arguments are not allowed for static response commands.
-            return None
         return [
             ChatResponse(
                 text=replace_placeholders_in_message(
                     text=self._response,
                     source_message=chat_command.source_message,
-                    constants=self._app_state.constants,
+                    constants=self._app_state.database.get_constants(),
                     config=self._app_state.config,
                 ),
                 chat_message=chat_command.source_message,
             )
         ]
 
-    @override
     @property
+    @override
     def min_required_permission_level(self) -> PermissionLevel:
         return PermissionLevel.VIEWER
 
-    @override
     @property
+    @override
     def usage(self) -> str:
         return f"!{self._name}"
 
-    @override
     @property
+    @override
     def description(self) -> str:
-        names_to_quote: Final = {builtin.name for builtin in Builtin} | set(self._app_state.constants)  # type: ignore[not-iterable]
+        names_to_quote: Final = {builtin.name for builtin in Builtin} | {
+            constant.name for constant in self._app_state.database.get_constants()
+        }
         return f"{quote_braced_with_backticks(self._response, only_these=names_to_quote)}"

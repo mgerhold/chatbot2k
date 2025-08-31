@@ -15,6 +15,7 @@ dependencies = [
     "markdown-it-py>=4.0.0",
     "markupsafe>=3.0.2",
     "pydantic>=2.11.7",
+    "sqlmodel>=0.0.24",
     "twitchapi>=4.5.0",
     "uvicorn>=0.35.0",
 ]
@@ -25,7 +26,7 @@ build-backend = "hatchling.build"
 
 [dependency-groups]
 dev = [
-    "pyrefly>=0.28.1",
+    "pyright>=1.1.404",
     "ruff>=0.12.9",
 ]
 

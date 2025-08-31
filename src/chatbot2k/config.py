@@ -42,11 +42,7 @@ class Config:
     _ENV_FILE_PATH = Path(os.getcwd()) / ".env"
 
     def __init__(self) -> None:
-        self._commands_file: Optional[Path] = None
-        self._broadcasts_file: Optional[Path] = None
-        self._constants_file: Optional[Path] = None
-        self._dictionary_file: Optional[Path] = None
-        self._translations_file: Optional[Path] = None
+        self._database_file: Optional[Path] = None
         self._timezone: Optional[ZoneInfo] = None
         self._locale: Optional[str] = None
         self._bot_name: Optional[str] = None
@@ -60,11 +56,7 @@ class Config:
 
     def reload(self) -> None:
         load_dotenv()
-        self._commands_file = Path(get_environment_variable_or_raise("COMMANDS_FILE"))
-        self._broadcasts_file = Path(get_environment_variable_or_raise("BROADCASTS_FILE"))
-        self._constants_file = Path(get_environment_variable_or_raise("CONSTANTS_FILE"))
-        self._dictionary_file = Path(get_environment_variable_or_raise("DICTIONARY_FILE"))
-        self._translations_file = Path(get_environment_variable_or_raise("TRANSLATIONS_FILE"))
+        self._database_file = Path(get_environment_variable_or_raise("DATABASE_FILE"))
         self._timezone = ZoneInfo(get_environment_variable_or_raise("TIMEZONE"))
         self._locale = get_environment_variable_or_raise("LOCALE")
         self._bot_name = get_environment_variable_or_raise("BOT_NAME")
@@ -80,25 +72,11 @@ class Config:
         self._twitch_channel = get_environment_variable_or_raise("TWITCH_CHANNEL")
         self._discord_token = get_environment_variable_or_raise("DISCORD_BOT_TOKEN")
 
-    @property
-    def commands_file(self) -> Path:
-        return cast(Path, self._commands_file)
+        self._database_file.parent.mkdir(parents=True, exist_ok=True)
 
     @property
-    def broadcasts_file(self) -> Path:
-        return cast(Path, self._broadcasts_file)
-
-    @property
-    def constants_file(self) -> Path:
-        return cast(Path, self._constants_file)
-
-    @property
-    def dictionary_file(self) -> Path:
-        return cast(Path, self._dictionary_file)
-
-    @property
-    def translations_file(self) -> Path:
-        return cast(Path, self._translations_file)
+    def database_file(self) -> Path:
+        return cast(Path, self._database_file)
 
     @property
     def timezone(self) -> ZoneInfo:

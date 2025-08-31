@@ -44,18 +44,18 @@ class DictionaryHandler(CommandHandler):
             case _:
                 return None
 
-    @override
     @property
+    @override
     def min_required_permission_level(self) -> PermissionLevel:
         return PermissionLevel.MODERATOR
 
-    @override
     @property
+    @override
     def usage(self) -> str:
         return f"!{self.COMMAND_NAME} [add|remove] <word> [explanation]"
 
-    @override
     @property
+    @override
     def description(self) -> str:
         return (
             "Manage the dictionary of words and their explanations. "

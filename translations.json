@@ -7,5 +7,6 @@
   "COMMAND_UPDATED": "Command has been updated successfully.",
   "COMMAND_REMOVED": "Command has been removed successfully.",
   "SOUNDBOARD_ENABLED": "Soundboard enabled.",
-  "SOUNDBOARD_DISABLED": "Soundboard disabled."
+  "SOUNDBOARD_DISABLED": "Soundboard disabled.",
+  "CANNOT_ADD_OR_UPDATE_SOUNDBOARD_COMMAND": "You cannot add or update a soundboard command this way. Use `remove` and `add-clip` as subcommands instead."
 }
