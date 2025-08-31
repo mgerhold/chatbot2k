@@ -1,7 +1,4 @@
 .venv
 static
-broadcasts.json
-commands.json
-constants.json
-dictionary.json
+storage/
 .env

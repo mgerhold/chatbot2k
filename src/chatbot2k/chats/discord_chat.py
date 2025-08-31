@@ -92,6 +92,7 @@ class DiscordChat(Chat):
                 broadcasting=False,
                 formatting_support=FormattingSupport.MARKDOWN,
                 can_trigger_soundboard=False,
+                supports_giveaways=False,
             )
         )
         self._client: Final = client
