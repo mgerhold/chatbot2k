@@ -6,8 +6,8 @@ from sqlalchemy import ForeignKey
 from sqlalchemy import String
 from sqlmodel import Field
 from sqlmodel import Relationship
-from sqlmodel import SQLModel
 
+from chatbot2k.database.metadata import SQLModel
 from chatbot2k.translation_key import TranslationKey
 
 
