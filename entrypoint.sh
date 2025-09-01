@@ -17,7 +17,7 @@ if [ "$RUN_MIGRATIONS" = "1" ]; then
     uv run python - <<'PY'
 import os
 from sqlalchemy import create_engine, inspect
-url=os.environ.get(f"sqlite:///{DATABASE_FILENAME}","sqlite:////app/storage/database.sqlite")
+url=os.environ.get(f"sqlite:///{DATABASE_FILE}","sqlite:////app/storage/database.sqlite")
 kw = {"connect_args":{"check_same_thread": False}} if url.startswith("sqlite") else {}
 engine=create_engine(url, **kw)
 insp=inspect(engine)
