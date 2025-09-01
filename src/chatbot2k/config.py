@@ -10,6 +10,10 @@ from zoneinfo import ZoneInfo
 
 from dotenv import load_dotenv
 
+DATABASE_FILE_ENV_VARIABLE = "DATABASE_FILE"
+
+load_dotenv()
+
 
 def get_environment_variable_or_raise(key: str) -> str:
     value = os.getenv(key)
@@ -56,7 +60,7 @@ class Config:
 
     def reload(self) -> None:
         load_dotenv()
-        self._database_file = Path(get_environment_variable_or_raise("DATABASE_FILE"))
+        self._database_file = Path(get_environment_variable_or_raise(DATABASE_FILE_ENV_VARIABLE))
         self._timezone = ZoneInfo(get_environment_variable_or_raise("TIMEZONE"))
         self._locale = get_environment_variable_or_raise("LOCALE")
         self._bot_name = get_environment_variable_or_raise("BOT_NAME")

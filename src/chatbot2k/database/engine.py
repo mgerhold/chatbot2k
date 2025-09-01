@@ -9,7 +9,6 @@ from typing import final
 from sqlalchemy import event
 from sqlalchemy import func
 from sqlmodel import Session
-from sqlmodel import SQLModel
 from sqlmodel import create_engine
 from sqlmodel import select
 
@@ -25,10 +24,14 @@ from chatbot2k.models.parameterized_command import ParameterizedCommand as Param
 from chatbot2k.translation_key import TranslationKey
 
 
+def create_database_url(sqlite_db_path: Path) -> str:
+    return f"sqlite:///{sqlite_db_path}"
+
+
 @final
 class Database:
     def __init__(self, sqlite_db_path: Path, *, echo: bool = False) -> None:
-        url: Final = f"sqlite:///{sqlite_db_path}"
+        url: Final = create_database_url(sqlite_db_path)
         self._engine = create_engine(url, echo=echo)
 
         # Ensure SQLite enforces ON DELETE CASCADE at the DB level
@@ -36,13 +39,14 @@ class Database:
 
             @event.listens_for(self._engine, "connect")
             def _set_sqlite_pragma(dbapi_connection, connection_record):
-                cursor = dbapi_connection.cursor()
+                cursor: Final = dbapi_connection.cursor()
                 try:
                     cursor.execute("PRAGMA foreign_keys=ON")
                 finally:
                     cursor.close()
 
-        SQLModel.metadata.create_all(self._engine)
+        # Uncomment the following line to create tables automatically if they don't exist. We use migrations instead.
+        # SQLModel.metadata.create_all(self._engine)
 
     @contextmanager
     def _session(self) -> Generator[Session]:
