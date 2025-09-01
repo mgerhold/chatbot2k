@@ -8,6 +8,7 @@ from chatbot2k.app_state import AppState
 from chatbot2k.builtins import Builtin
 from chatbot2k.command_handlers.command_handler import CommandHandler
 from chatbot2k.command_handlers.utils import replace_placeholders_in_message
+from chatbot2k.constants import replace_constants
 from chatbot2k.types.chat_command import ChatCommand
 from chatbot2k.types.chat_response import ChatResponse
 from chatbot2k.types.permission_level import PermissionLevel
@@ -64,7 +65,23 @@ class ParameterizedResponseCommand(CommandHandler):
             | {constant.name for constant in self._app_state.database.get_constants()}
             | set(self._placeholders)
         )
-        return f"{quote_braced_with_backticks(self._format_string, only_these=names_to_quote)}"
+
+        suffix: Final = (
+            "\n\n*Parameters of this command:* "
+            + f"{', '.join(f'`{placeholder}`' for placeholder in self._placeholders)}"
+        )
+
+        without_replacements: Final = quote_braced_with_backticks(self._format_string, only_these=names_to_quote)
+        with_replacements: Final = quote_braced_with_backticks(
+            replace_constants(self._format_string, self._app_state.database.get_constants())
+        )
+        if without_replacements != with_replacements:
+            return (
+                f"{without_replacements}\n\n*Note: This response contains constants, it expands to:*\n\n"
+                + f"{with_replacements}{suffix}"
+            )
+
+        return f"{with_replacements}{suffix}"
 
     def _inject_arguments(self, chat_command: ChatCommand) -> Optional[str]:
         """
