@@ -48,6 +48,10 @@ def show_main_page(
         ),
         key=lambda x: x["command"],
     )
+    constants: Final = sorted(
+        {constant.name: constant.text for constant in app_state.database.get_constants()}.items(),
+        key=lambda x: x[0],
+    )
     soundboard_commands: Final = sorted(
         (
             {
@@ -79,6 +83,7 @@ def show_main_page(
         context={
             "bot_name": app_state.config.bot_name,
             "commands": commands,
+            "constants": constants,
             "soundboard_commands": soundboard_commands,
             "dictionary_entries": dictionary_entries,
             "author_name": app_state.config.author_name,

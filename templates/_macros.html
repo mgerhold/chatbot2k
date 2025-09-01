@@ -58,3 +58,27 @@
   </table>
 </div>
 {%- endmacro %}
+
+{% macro constants_table(constants) -%}
+<div class="table-container" role="region" aria-labelledby="constants-heading" tabindex="0">
+  <table class="constants data-table">
+    <caption class="sr-only">Bot constants</caption>
+    <thead>
+      <tr>
+        <th scope="col">Constant Name</th>
+        <th scope="col">Value</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for name, value in constants %}
+      <tr>
+        <td class="mono"><code>{{ name | e }}</code></td>
+        <td>{{ value | e }}</td>
+      </tr>
+      {% else %}
+      <tr><td colspan="2" class="empty">No constants available.</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{%- endmacro %}
