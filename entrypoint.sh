@@ -12,15 +12,23 @@ if [[ -z "${DATABASE_URL:-}" ]]; then
     if [[ "${DATABASE_FILE}" = /* ]]; then
       abs_path="${DATABASE_FILE}"
     else
-      # WORKDIR is /app, so relative paths in .env (like "storage/database.sqlite") resolve here
-      abs_path="/app/${DATABASE_FILE}"
+      abs_path="/app/${DATABASE_FILE}"   # .env uses "storage/database.sqlite"
     fi
   else
     abs_path="/app/storage/database.sqlite"
   fi
-  # sqlite absolute path URL needs three slashes after scheme
-  DATABASE_URL="sqlite://${abs_path/#\//\/}"   # ensures "sqlite:////abs/path"
-  export DATABASE_URL
+
+  # Make sure the directory exists (important for SQLite)
+  db_dir="$(dirname "$abs_path")"
+  mkdir -p "$db_dir"
+
+  # For absolute UNIX paths, just use three slashes + the absolute path that starts with /
+  # => "sqlite:///" + "/app/..." => "sqlite:////app/..."
+  export DATABASE_URL="sqlite:///${abs_path}"
+
+  # Optional debug:
+  echo "[entrypoint] DATABASE_URL=${DATABASE_URL}"
+  echo "[entrypoint] ls -ld $db_dir && ls -l $db_dir" || true
 fi
 
 : "${RUN_MIGRATIONS:=1}"
