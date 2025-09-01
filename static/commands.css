@@ -312,17 +312,19 @@ td a[href^="http"]::after {
 #tab-commands:checked ~ .tab-panels #panel-commands { display: block; }
 #tab-dictionary:checked ~ .tab-panels #panel-dictionary { display: block; }
 
-/* --- Share table styling between both tables --- */
+/* --- Share table styling between all tables --- */
 /* (Your previous CSS targeted only table.commands; broaden it) */
 table.commands,
-table.dictionary {
+table.dictionary,
+table.constants {
   width: 100%;
   border-collapse: collapse;
   min-width: 640px;
 }
 
 table.commands thead th,
-table.dictionary thead th {
+table.dictionary thead th,
+table.constants thead th {
   text-align: left;
   font-weight: 600;
   padding: 0.9rem 1rem;
@@ -334,25 +336,29 @@ table.dictionary thead th {
 }
 
 table.commands tbody td,
-table.dictionary tbody td {
+table.dictionary tbody td,
+table.constants tbody td {
   padding: 0.85rem 1rem;
   border-bottom: 1px solid var(--border);
   vertical-align: top;
 }
 
 table.commands tbody tr:nth-child(even),
-table.dictionary tbody tr:nth-child(even) {
+table.dictionary tbody tr:nth-child(even),
+table.constants tbody tr:nth-child(even) {
   background: rgba(255, 255, 255, 0.015);
 }
 
 table.commands tbody tr:hover,
-table.dictionary tbody tr:hover {
+table.dictionary tbody tr:hover,
+table.constants tbody tr:hover {
   background: rgba(96, 165, 250, 0.08);
 }
 
-/* Reuse code styling in both tables */
+/* Reuse code styling in all tables */
 table.commands td code,
-table.dictionary td code {
+table.dictionary td code,
+table.constants td code {
   font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
   font-size: 0.95rem;
   padding: 0.12rem 0.4rem;
@@ -363,7 +369,8 @@ table.dictionary td code {
 }
 
 table.commands td pre,
-table.dictionary td pre {
+table.dictionary td pre,
+table.constants td pre {
   margin: 0.75rem 0;
   padding: 0.9rem 1rem;
   background: var(--code-bg);
@@ -374,7 +381,8 @@ table.dictionary td pre {
 }
 
 table.commands td pre code,
-table.dictionary td pre code {
+table.dictionary td pre code,
+table.constants td pre code {
   font-size: 0.92rem;
   border: 0;
   background: transparent;

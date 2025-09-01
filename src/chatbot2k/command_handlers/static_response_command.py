@@ -7,6 +7,7 @@ from chatbot2k.app_state import AppState
 from chatbot2k.builtins import Builtin
 from chatbot2k.command_handlers.command_handler import CommandHandler
 from chatbot2k.command_handlers.utils import replace_placeholders_in_message
+from chatbot2k.constants import replace_constants
 from chatbot2k.types.chat_command import ChatCommand
 from chatbot2k.types.chat_response import ChatResponse
 from chatbot2k.types.permission_level import PermissionLevel
@@ -55,4 +56,13 @@ class StaticResponseCommand(CommandHandler):
         names_to_quote: Final = {builtin.name for builtin in Builtin} | {
             constant.name for constant in self._app_state.database.get_constants()
         }
-        return f"{quote_braced_with_backticks(self._response, only_these=names_to_quote)}"
+        without_replacements: Final = quote_braced_with_backticks(self._response, only_these=names_to_quote)
+        with_replacements: Final = quote_braced_with_backticks(
+            replace_constants(self._response, self._app_state.database.get_constants())
+        )
+        if without_replacements != with_replacements:
+            return (
+                f"{without_replacements}\n\n*Note: This response contains constants, it expands to:*\n\n"
+                + f"{with_replacements}"
+            )
+        return without_replacements

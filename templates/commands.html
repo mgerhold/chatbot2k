@@ -1,14 +1,23 @@
 {% extends "base.html" %}
-{% from "_macros.html" import avatar_header, commands_table, dictionary_table %}
+{% from "_macros.html" import avatar_header, commands_table, dictionary_table, constants_table %}
 
 {% block title %}{{ bot_name }} Commands & Dictionary{% endblock %}
 
-{# Enable the 3rd tab with the same selected styling/behavior as the others #}
+{# Enable the 3rd and 4th tabs with the same selected styling/behavior as the others #}
 {% block head_extra %}
 <style>
+    /* Show the Constants panel when its radio is checked */
+    #tab-constants:checked ~ .tab-panels #panel-constants { display: block; }
+    /* Apply the "selected" look to the Constants tab label */
+    #tab-constants:checked ~ .tablist #label-constants {
+      opacity: 1;
+      box-shadow: 0 -1px 0 var(--accent) inset, 0 2px 12px rgba(0,0,0,0.35);
+      background: linear-gradient(180deg, #101a33, #0b1322);
+    }
+
     /* Show the Soundboard panel when its radio is checked */
     #tab-soundboard:checked ~ .tab-panels #panel-soundboard { display: block; }
-    /* Apply the “selected” look to the Soundboard tab label */
+    /* Apply the "selected" look to the Soundboard tab label */
     #tab-soundboard:checked ~ .tablist #label-soundboard {
       opacity: 1;
       box-shadow: 0 -1px 0 var(--accent) inset, 0 2px 12px rgba(0,0,0,0.35);
@@ -24,12 +33,14 @@
 {% block content %}
 <section class="tabs" aria-label="Sections">
     <input class="tab-radio" type="radio" name="section" id="tab-commands" checked>
+    <input class="tab-radio" type="radio" name="section" id="tab-constants">
     <input class="tab-radio" type="radio" name="section" id="tab-dictionary">
     <input class="tab-radio" type="radio" name="section" id="tab-soundboard">
 
     <div class="tablist" role="tablist" aria-label="Sections">
         <label class="tab" for="tab-commands" id="label-commands" role="tab"
                aria-controls="panel-commands">Commands</label>
+        <label class="tab" for="tab-constants" id="label-constants" role="tab" aria-controls="panel-constants">Constants</label>
         <label class="tab" for="tab-dictionary" id="label-dictionary" role="tab" aria-controls="panel-dictionary">Dictionary</label>
         <label class="tab" for="tab-soundboard" id="label-soundboard" role="tab" aria-controls="panel-soundboard">Soundboard</label>
     </div>
@@ -39,6 +50,12 @@
         <section id="panel-commands" class="tab-panel" role="tabpanel" aria-labelledby="label-commands">
             <h2 id="commands-heading" class="sr-only">Commands</h2>
             {{ commands_table(commands) }}
+        </section>
+
+        <!-- Constants panel -->
+        <section id="panel-constants" class="tab-panel" role="tabpanel" aria-labelledby="label-constants">
+            <h2 id="constants-heading" class="sr-only">Constants</h2>
+            {{ constants_table(constants) }}
         </section>
 
         <!-- Dictionary panel -->
@@ -74,7 +91,7 @@
                             base.endswith('.mkv') or base.endswith('.m4v') %}
                             <video controls preload="none" playsinline class="sb-preview">
                                 <source src="{{ sb.clip_url }}">
-                                Your browser can’t play this clip. <a href="{{ sb.clip_url }}" target="_blank"
+                                Your browser can't play this clip. <a href="{{ sb.clip_url }}" target="_blank"
                                                                       rel="noopener noreferrer">Open</a>.
                             </video>
                             {% else %}
