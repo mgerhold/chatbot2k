@@ -136,8 +136,8 @@ def test_advance_returns_sentinel_at_end() -> None:
     source: Final = ""
     lexer: Final = Lexer(source)
     # Calling advance when at end should return the sentinel character.
-    first_result: Final = lexer._advance()
+    first_result: Final = lexer._advance()  # type: ignore[reportPrivateUsage]
     assert first_result == "\0"
     # Subsequent advances should keep returning the sentinel character.
-    second_result: Final = lexer._advance()
+    second_result: Final = lexer._advance()  # type: ignore[reportPrivateUsage]
     assert second_result == "\0"

@@ -35,21 +35,6 @@ _ALLOWED_HTML_ATTRIBUTES = {
 _ALLOWED_PROTOCOLS = ["http", "https", "mailto"]
 
 
-def _target_blank_and_safe_rels(attrs, new=False):
-    """
-    Linkify callback: force external links to open in a new tab and add safe rels.
-    Runs for both newly-created links and existing <a> tags (when skip_tags=()).
-    """
-    href = attrs.get("href", "")
-    # Only affect absolute http(s) links; skip mailto: and relative links
-    if href.startswith("http://") or href.startswith("https://"):
-        attrs["target"] = "_blank"
-        existing = set((attrs.get("rel") or "").split())
-        required = {"noopener", "noreferrer", "nofollow"}
-        attrs["rel"] = " ".join(sorted(existing | required))
-    return attrs
-
-
 _cleaner = bleach.Cleaner(
     tags=_ALLOWED_HTML_TAGS,
     attributes=_ALLOWED_HTML_ATTRIBUTES,

@@ -32,9 +32,9 @@ class Lexer:
 
     def tokenize(self) -> list[Token]:
         tokens: Final[list[Token]] = []
-        while not self._is_at_end:
+        while not self._is_at_end():
             self._discard_whitespace()
-            match self._current:
+            match self._current():
                 case ";":
                     self._advance()
                     tokens.append(self._create_token(TokenType.SEMICOLON))
@@ -57,16 +57,16 @@ class Lexer:
                     # Number literal (we don't differentiate between integers and floats).
                     start_offset = self._current_offset
                     self._advance()
-                    while self._current.isdigit():
+                    while self._current().isdigit():
                         self._advance()
-                    if self._current == ".":
+                    if self._current() == ".":
                         self._advance()
-                        if not self._current.isdigit():
+                        if not self._current().isdigit():
                             raise LexerError(
                                 "Invalid number format at offset.",
                                 self._current_source_location,
                             )
-                        while self._current.isdigit():
+                        while self._current().isdigit():
                             self._advance()
                     tokens.append(self._create_token(TokenType.NUMBER_LITERAL, start_offset))
                 case "'":
@@ -74,17 +74,17 @@ class Lexer:
                     start_offset = self._current_offset
                     self._advance()
                     while True:
-                        if self._current == "\\":
+                        if self._current() == "\\":
                             self._advance()
-                            escaped_char = _ESCAPE_CHARACTERS.get(self._current)
+                            escaped_char = _ESCAPE_CHARACTERS.get(self._current())
                             if escaped_char is None:
-                                msg = f"Invalid escape sequence '\\{self._current}'."
+                                msg = f"Invalid escape sequence '\\{self._current()}'."
                                 raise LexerError(msg, self._current_source_location)
                             self._advance()
                             continue
-                        if self._current == "'":
+                        if self._current() == "'":
                             break
-                        if self._is_at_end:
+                        if self._is_at_end():
                             raise LexerError(
                                 "Unterminated string literal.",
                                 self._current_source_location,
@@ -96,7 +96,7 @@ class Lexer:
                     # Builtin keyword or identifier.
                     start_offset = self._current_offset
                     self._advance()
-                    while Lexer._is_valid_identifier_continuation(self._current):
+                    while Lexer._is_valid_identifier_continuation(self._current()):
                         self._advance()
                     lexeme = self._source[start_offset : self._current_offset]
                     builtin_keyword = _BUILTIN_KEYWORDS.get(lexeme)
@@ -108,7 +108,7 @@ class Lexer:
                     msg = f"Invalid character '{char}'."
                     raise LexerError(msg, self._current_source_location)
                 case _:
-                    msg = f"Unexpected character '{self._current}'."
+                    msg = f"Unexpected character '{self._current()}'."
                     raise LexerError(msg, self._current_source_location)
         tokens.append(
             Token(
@@ -147,20 +147,18 @@ class Lexer:
         )
 
     def _discard_whitespace(self) -> None:
-        while self._current.isspace():
+        while self._current().isspace():
             self._advance()
 
-    @property
     def _is_at_end(self) -> bool:
         return self._current_offset >= len(self._source)
 
-    @property
     def _current(self) -> str:
-        return "\0" if self._is_at_end else self._source[self._current_offset]
+        return "\0" if self._is_at_end() else self._source[self._current_offset]
 
     def _advance(self) -> str:
-        result: Final = self._current
-        if self._is_at_end:
+        result: Final = self._current()
+        if self._is_at_end():
             return result
         self._current_offset += 1
         return result

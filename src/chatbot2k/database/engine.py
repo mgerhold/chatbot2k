@@ -8,6 +8,8 @@ from typing import final
 
 from sqlalchemy import event
 from sqlalchemy import func
+from sqlalchemy.engine.interfaces import DBAPIConnection
+from sqlalchemy.pool.base import ConnectionPoolEntry
 from sqlmodel import Session
 from sqlmodel import create_engine
 from sqlmodel import select
@@ -38,7 +40,7 @@ class Database:
         if url.startswith("sqlite"):
 
             @event.listens_for(self._engine, "connect")
-            def _set_sqlite_pragma(dbapi_connection, connection_record):
+            def _set_sqlite_pragma(dbapi_connection: DBAPIConnection, _: ConnectionPoolEntry) -> None:  # type: ignore[reportUnusedFunction]
                 cursor: Final = dbapi_connection.cursor()
                 try:
                     cursor.execute("PRAGMA foreign_keys=ON")

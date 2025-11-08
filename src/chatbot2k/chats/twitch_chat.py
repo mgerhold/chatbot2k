@@ -3,7 +3,9 @@ import logging
 from collections.abc import AsyncGenerator
 from collections.abc import Sequence
 from typing import Final
+from typing import Optional
 from typing import Self
+from typing import cast
 from typing import final
 from typing import override
 
@@ -71,7 +73,10 @@ class TwitchChat(Chat):
             )
             client.user_auth_refresh_callback = _on_user_refresh
             auth: Final = UserAuthenticator(client, TwitchChat._SCOPES)
-            auth_response: Final = await auth.authenticate()
+            # The cast in the following line is needed because there's no return type
+            # hint on `authenticate()`. However, in the doc string, it mentions that it
+            # returns either `None` or a tuple containing both tokens (as `str` values).
+            auth_response: Final = cast(Optional[tuple[str, str]], await auth.authenticate())
             assert auth_response is not None
             access_token, refresh_token = auth_response
             print(f"Obtained tokens: {access_token}, {refresh_token}")

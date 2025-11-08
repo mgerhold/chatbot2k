@@ -4,7 +4,6 @@ from tempfile import NamedTemporaryFile
 from typing import Final
 from typing import NamedTuple
 from typing import Optional
-from typing import cast
 from typing import final
 from zoneinfo import ZoneInfo
 
@@ -80,43 +79,61 @@ class Config:
 
     @property
     def database_file(self) -> Path:
-        return cast(Path, self._database_file)
+        if self._database_file is None:
+            raise AssertionError("Database file path is not set. This should not happen.")
+        return self._database_file
 
     @property
     def timezone(self) -> ZoneInfo:
-        return cast(ZoneInfo, self._timezone)
+        if self._timezone is None:
+            raise AssertionError("Timezone is not set. This should not happen.")
+        return self._timezone
 
     @property
     def locale(self) -> str:
-        return cast(str, self._locale)
+        if self._locale is None:
+            raise AssertionError("Locale is not set. This should not happen.")
+        return self._locale
 
     @property
     def bot_name(self) -> str:
-        return cast(str, self._bot_name)
+        if self._bot_name is None:
+            raise AssertionError("Bot name is not set. This should not happen.")
+        return self._bot_name
 
     @property
     def author_name(self) -> str:
-        return cast(str, self._author_name)
+        if self._author_name is None:
+            raise AssertionError("Author name is not set. This should not happen.")
+        return self._author_name
 
     @property
     def twitch_client_id(self) -> str:
-        return cast(str, self._twitch_client_id)
+        if self._twitch_client_id is None:
+            raise AssertionError("Twitch client ID is not set. This should not happen.")
+        return self._twitch_client_id
 
     @property
     def twitch_client_secret(self) -> TwitchClientSecret:
-        return cast(TwitchClientSecret, self._twitch_client_secret)
+        if self._twitch_client_secret is None:
+            raise AssertionError("Twitch client secret is not set. This should not happen.")
+        return self._twitch_client_secret
 
     @property
     def twitch_credentials(self) -> Optional[OAuthTokens]:
-        return cast(Optional[OAuthTokens], self._twitch_credentials)
+        return self._twitch_credentials
 
     @property
     def twitch_channel(self) -> str:
-        return cast(str, self._twitch_channel)
+        if self._twitch_channel is None:
+            raise AssertionError("Twitch channel is not set. This should not happen.")
+        return self._twitch_channel
 
     @property
     def discord_token(self) -> str:
-        return cast(str, self._discord_token)
+        if self._discord_token is None:
+            raise AssertionError("Discord bot token is not set. This should not happen.")
+        return self._discord_token
 
     @staticmethod
     def _update_env_file(path: Path, updates: dict[str, str]) -> None:
