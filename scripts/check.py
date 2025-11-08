@@ -17,12 +17,15 @@ def run_uv(args: list[str]) -> None:
 
 def main() -> None:
     args = sys.argv[1:]
-    if len(args) > 1 or (args and args[0] != "--fix"):
-        print(f"Usage: {args[0]} [--fix]", file=sys.stderr)
+
+    if len(args) > 1 or (args and args[0] not in ("--fix", "--test")):
+        print(f"Usage: {args[0]} [--fix/--test]", file=sys.stderr)
         print(args, file=sys.stderr)
         sys.exit(2)
 
-    if "--fix" in args:
+    if "--test" in args:
+        run_uv(["pytest", "-v"])
+    elif "--fix" in args:
         run_uv(["ruff", "format"])
         run_uv(["ruff", "check", "--fix"])
         run_uv(["pyright"])
