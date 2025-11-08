@@ -1,6 +1,9 @@
 from typing import Final
 
+import pytest
+
 from chatbot2k.scripting_engine.lexer import Lexer
+from chatbot2k.scripting_engine.lexer import LexerError
 from chatbot2k.scripting_engine.source_location import SourceLocation
 from chatbot2k.scripting_engine.token import Token
 from chatbot2k.scripting_engine.token_types import TokenType
@@ -62,3 +65,79 @@ def test_tokenize_can_analyze_all_token_types() -> None:
     assert tokens[11].type == TokenType.END_OF_INPUT
     assert tokens[11].source_location == SourceLocation(source, offset=87, length=1)
     assert tokens[11].source_location.lexeme == ""
+
+
+def test_invalid_escape_sequence_raises() -> None:
+    source: Final = r"'\x'"
+    lexer: Final = Lexer(source)
+    with pytest.raises(LexerError) as exception_info:
+        lexer.tokenize()
+    error: Final = exception_info.value
+    assert r"Invalid escape sequence '\x'." in str(error)
+    # Error points at the escaped character.
+    assert error.source_location == SourceLocation(source, offset=2, length=1)
+
+
+def test_unterminated_string_literal_raises() -> None:
+    source: Final = "'no end"
+    lexer: Final = Lexer(source)
+    with pytest.raises(LexerError) as exception_info:
+        lexer.tokenize()
+    error: Final = exception_info.value
+    assert "Unterminated string literal." in str(error)
+    # Error source location should point to end of input.
+    assert error.source_location == SourceLocation(source, offset=len(source), length=1)
+
+
+def test_invalid_number_format_trailing_dot_raises() -> None:
+    source: Final = "123."
+    lexer: Final = Lexer(source)
+    with pytest.raises(LexerError) as exception_info:
+        lexer.tokenize()
+    error: Final = exception_info.value
+    assert "Invalid number format at offset." in str(error)
+    assert error.source_location == SourceLocation(source, offset=len(source), length=1)
+
+
+def test_tokenizing_integer_number_succeeds() -> None:
+    source: Final = "42"
+    tokens: Final = _tokenize_source(source)
+    assert len(tokens) == 2  # Number literal + end of input.
+    assert tokens[0].type == TokenType.NUMBER_LITERAL
+    assert tokens[0].source_location == SourceLocation(source, offset=0, length=2)
+    assert tokens[0].source_location.lexeme == "42"
+
+    assert tokens[1].type == TokenType.END_OF_INPUT
+    assert tokens[1].source_location == SourceLocation(source, offset=2, length=1)
+    assert tokens[1].source_location.lexeme == ""
+
+
+def test_invalid_non_ascii_character_raises() -> None:
+    source: Final = "🐍"
+    lexer: Final = Lexer(source)
+    with pytest.raises(LexerError) as exception_info:
+        lexer.tokenize()
+    error: Final = exception_info.value
+    assert "Invalid character '🐍'." in str(error)
+    assert error.source_location == SourceLocation(source, offset=0, length=1)
+
+
+def test_unexpected_underscore_start_raises() -> None:
+    source: Final = "_"
+    lexer: Final = Lexer(source)
+    with pytest.raises(LexerError) as exception_info:
+        lexer.tokenize()
+    error: Final = exception_info.value
+    assert "Unexpected character '_'" in str(error)
+    assert error.source_location == SourceLocation(source, offset=0, length=1)
+
+
+def test_advance_returns_sentinel_at_end() -> None:
+    source: Final = ""
+    lexer: Final = Lexer(source)
+    # Calling advance when at end should return the sentinel character.
+    first_result: Final = lexer._advance()
+    assert first_result == "\0"
+    # Subsequent advances should keep returning the sentinel character.
+    second_result: Final = lexer._advance()
+    assert second_result == "\0"
