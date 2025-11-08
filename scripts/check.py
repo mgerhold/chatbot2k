@@ -24,7 +24,16 @@ def main() -> None:
         sys.exit(2)
 
     if "--test" in args:
-        run_uv(["pytest", "-v"])
+        run_uv(
+            [
+                "pytest",
+                "-v",
+                "--cov=src/",
+                "--cov-branch",
+                "--cov-report=term-missing:skip-covered",
+                "--cov-report=html:coverage_html",
+            ]
+        )
     elif "--fix" in args:
         run_uv(["ruff", "format"])
         run_uv(["ruff", "check", "--fix"])

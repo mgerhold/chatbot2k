@@ -15,3 +15,5 @@ wheels/
 static/soundboard/*
 !static/soundboard/.gitkeep
 storage/
+
+.coverage
