@@ -73,3 +73,44 @@ class DictionaryEntry(SQLModel, table=True):
 class Translation(SQLModel, table=True):
     key: TranslationKey = Field(primary_key=True)
     value: str
+
+
+@final
+class Script(SQLModel, table=True):
+    """Represents a script command in the database.
+
+    The command name serves as the primary key (e.g., '!run-script', '!increase-counter').
+    The script is stored as JSON (dumped Pydantic model) and the source code is preserved.
+    """
+
+    command: str = Field(primary_key=True)
+    source_code: str  # Original source code.
+    script_json: str  # JSON representation of the Script Pydantic model.
+
+    stores: list["ScriptStore"] = Relationship(
+        back_populates="script",
+        sa_relationship_kwargs={"cascade": "all, delete-orphan"},
+    )
+
+
+@final
+class ScriptStore(SQLModel, table=True):
+    """Represents a store (persistent variable) for a script.
+
+    Primary key is the combination of `script_command` and `store_name`.
+    Contains the store definition (from AST) and the current runtime value.
+    """
+
+    script_command: str = Field(
+        sa_column=Column(
+            "script_command",
+            String,
+            ForeignKey("script.command", ondelete="CASCADE"),
+            primary_key=True,
+        )
+    )
+    store_name: str = Field(primary_key=True)
+    store_json: str  # JSON representation of the `Store` Pydantic model (from AST).
+    value_json: str  # JSON representation of the current `Value`.
+
+    script: Script = Relationship(back_populates="stores")
