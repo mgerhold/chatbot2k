@@ -8,11 +8,22 @@ from chatbot2k.scripting_engine.parser import Parser
 from chatbot2k.scripting_engine.parser import UnknownVariableError
 from chatbot2k.scripting_engine.stores import StoreKey
 from chatbot2k.scripting_engine.types.execution_error import ExecutionError
+from chatbot2k.scripting_engine.types.value import NumberValue
+from chatbot2k.scripting_engine.types.value import StringValue
 from chatbot2k.scripting_engine.types.value import Value
 from test.mock_store import MockStore
 
 
 def _execute(source: str, store_overrides: Optional[dict[str, Value]] = None) -> Optional[str]:
+    output, _ = _execute_with_store(source, store_overrides)
+    return output
+
+
+def _execute_with_store(
+    source: str,
+    store_overrides: Optional[dict[str, Value]] = None,
+) -> tuple[Optional[str], MockStore]:
+    """Execute a script and return both the output and the store for inspection."""
     lexer: Final = Lexer(source)
     tokens: Final = lexer.tokenize()
     script_name: Final = "!test-script"
@@ -28,7 +39,9 @@ def _execute(source: str, store_overrides: Optional[dict[str, Value]] = None) ->
     if store_overrides is not None:
         initial_data.update({StoreKey(script_name, store_name): value for store_name, value in store_overrides.items()})
 
-    return script.execute(MockStore(initial_data))
+    mock_store = MockStore(initial_data)
+    output = script.execute(mock_store)
+    return output, mock_store
 
 
 def test_hello_world() -> None:
@@ -184,6 +197,60 @@ def test_variable_in_expression() -> None:
 def test_variable_and_store_interaction() -> None:
     output: Final = _execute("STORE s = 10; LET v = 5; PRINT s + v;")
     assert output == "15"
+
+
+def test_store_value_persists_after_variable_assignment() -> None:
+    """Verify that assigning a store to a variable creates a copy, not a reference."""
+    output, store = _execute_with_store("STORE counter = 10; LET x = counter; x = 20; PRINT counter;")
+    assert output == "10"  # counter should still be 10
+    # Verify the store itself wasn't changed
+    key = StoreKey("!test-script", "counter")
+    assert store.get_value(key) == NumberValue(value=10.0)
+
+
+def test_store_assignment_modifies_store() -> None:
+    """Verify that directly assigning to a store does modify the store."""
+    output, store = _execute_with_store("STORE counter = 10; counter = 20; PRINT counter;")
+    assert output == "20"
+    # Verify the store was changed
+    key = StoreKey("!test-script", "counter")
+    assert store.get_value(key) == NumberValue(value=20.0)
+
+
+def test_store_modification_with_expression() -> None:
+    """Verify that modifying a store with an expression updates the store."""
+    output, store = _execute_with_store("STORE value = 5; value = value * 3 + 2; PRINT value;")
+    assert output == "17"
+    # Verify the store was changed
+    key = StoreKey("!test-script", "value")
+    assert store.get_value(key) == NumberValue(value=17.0)
+
+
+def test_multiple_store_modifications() -> None:
+    """Verify that multiple modifications to a store all persist."""
+    output, store = _execute_with_store("STORE x = 1; x = x + 1; x = x + 1; x = x + 1; PRINT x;")
+    assert output == "4"
+    # Verify the store was changed
+    key = StoreKey("!test-script", "x")
+    assert store.get_value(key) == NumberValue(value=4.0)
+
+
+def test_string_store_modification() -> None:
+    """Verify that string store modifications persist."""
+    output, store = _execute_with_store("STORE msg = 'Hello'; msg = msg + ' World'; PRINT msg;")
+    assert output == "Hello World"
+    # Verify the store was changed
+    key = StoreKey("!test-script", "msg")
+    assert store.get_value(key) == StringValue(value="Hello World")
+
+
+def test_mixed_store_and_variable_assignments() -> None:
+    """Verify that stores are modified but variables copied from stores are independent."""
+    output, store = _execute_with_store("STORE a = 10; LET b = a; a = 20; b = 30; PRINT a; PRINT b;")
+    assert output == "2030"
+    # Verify the store 'a' was changed to 20, not affected by variable b
+    key = StoreKey("!test-script", "a")
+    assert store.get_value(key) == NumberValue(value=20.0)
 
 
 # Multiple statements
