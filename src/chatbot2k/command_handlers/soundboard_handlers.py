@@ -39,6 +39,9 @@ class SoundboardHandler(CommandHandler):
                         chat_message=chat_command.source_message,
                     )
                 ]
+            case _:
+                # Unknown subcommand.
+                return None
 
     @property
     def min_required_permission_level(self) -> PermissionLevel:

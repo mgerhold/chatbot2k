@@ -97,7 +97,7 @@ class DiscordChat(Chat):
         )
         self._client: Final = client
         self._chat_message_queue: Final = chat_message_queue
-        self._client_task: Optional[asyncio.Task] = None
+        self._client_task: Optional[asyncio.Task[None]] = None
         self._discord_token: Final = discord_token
 
     async def _ensure_started(self) -> None:

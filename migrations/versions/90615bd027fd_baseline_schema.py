@@ -95,6 +95,65 @@ def upgrade() -> None:
         ),
         sa.PrimaryKeyConstraint("command_name", "name", name=op.f("pk_parameter")),
     )
+
+    # Seed translation data
+    translation_table = sa.table(
+        "translation",
+        sa.column("key", sa.String()),
+        sa.column("value", sa.String()),
+    )
+    op.bulk_insert(
+        translation_table,
+        [
+            {
+                "key": "COMMAND_ALREADY_EXISTS",
+                "value": "Cannot add command: A command with this name already exists.",
+            },
+            {
+                "key": "COMMAND_TO_UPDATE_NOT_FOUND",
+                "value": "Cannot update command: The command to update was not found.",
+            },
+            {
+                "key": "COMMAND_TO_DELETE_NOT_FOUND",
+                "value": "Cannot delete command: The command to delete was not found.",
+            },
+            {
+                "key": "BUILTIN_COMMAND_CANNOT_BE_DELETED",
+                "value": "Cannot delete command: The command is a built-in command and cannot be deleted.",
+            },
+            {
+                "key": "COMMAND_ADDED",
+                "value": "New command has been added successfully.",
+            },
+            {
+                "key": "COMMAND_UPDATED",
+                "value": "Command has been updated successfully.",
+            },
+            {
+                "key": "COMMAND_REMOVED",
+                "value": "Command has been removed successfully.",
+            },
+            {
+                "key": "SOUNDBOARD_ENABLED",
+                "value": "Soundboard enabled.",
+            },
+            {
+                "key": "SOUNDBOARD_DISABLED",
+                "value": "Soundboard disabled.",
+            },
+            {
+                "key": "CANNOT_ADD_OR_UPDATE_SOUNDBOARD_COMMAND",
+                "value": (
+                    "You cannot add or update a soundboard command this way. "
+                    + "Use `remove` and `add-clip` as subcommands instead."
+                ),
+            },
+            {
+                "key": "BUILTIN_COMMAND_CANNOT_BE_CHANGED",
+                "value": ("Cannot add or update command: The command is a built-in command and cannot be changed."),
+            },
+        ],
+    )
     # ### end Alembic commands ###
 
 

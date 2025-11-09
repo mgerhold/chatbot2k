@@ -1,4 +1,4 @@
-name: Lint (uv + ruff + pyrefly)
+name: Lint & Test (uv + ruff + pyright + pytest)
 
 on:
   push:
@@ -39,3 +39,6 @@ jobs:
 
       - name: Static type checking (Pyright)
         run: uv run pyright
+
+      - name: Run tests (pytest)
+        run: uv run pytest -v --cov=src/ --cov-branch --cov-report=term-missing:skip-covered

@@ -1,6 +1,7 @@
 import os
 from logging.config import fileConfig
 from pathlib import Path
+from typing import Literal
 
 from alembic import context
 from sqlalchemy import engine_from_config
@@ -8,7 +9,6 @@ from sqlalchemy import pool
 from sqlmodel import SQLModel
 
 from chatbot2k.config import DATABASE_FILE_ENV_VARIABLE
-from chatbot2k.database import tables  # noqa: F401  (important: imports all tables)
 from chatbot2k.database.engine import create_database_url
 
 config = context.config
@@ -25,7 +25,7 @@ if db_file_path is not None:
 target_metadata = SQLModel.metadata
 
 
-def _render_item(type_, obj, autogen_context):
+def _render_item(type_: str, obj: object, autogen_context: object | None) -> str | Literal[False]:
     # Whenever Alembic tries to render a column "type", and it is SQLModel's AutoString,
     # render it as plain sa.String() so type checkers are happy and the DDL is portable.
     if type_ == "type":

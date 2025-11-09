@@ -20,7 +20,7 @@ class Dictionary:
     @final
     class _InternalEntry(NamedTuple):
         word: str
-        pattern: re.Pattern
+        pattern: re.Pattern[str]
         explanation: str
 
     def __init__(
@@ -110,6 +110,6 @@ class Dictionary:
         return (time.monotonic() - last_used) < self._cooldown
 
     @staticmethod
-    def _build_regex(word: str) -> re.Pattern:
+    def _build_regex(word: str) -> re.Pattern[str]:
         pattern: Final = rf"\b{re.escape(word)}\b"
         return re.compile(pattern, re.IGNORECASE)
