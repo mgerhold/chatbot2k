@@ -7,16 +7,16 @@ from chatbot2k.scripting_engine.parser import Parser
 from chatbot2k.scripting_engine.parser import StoreRedefinitionError
 from chatbot2k.scripting_engine.parser import UnknownVariableError
 from chatbot2k.scripting_engine.parser import VariableRedefinitionError
-from chatbot2k.scripting_engine.types import BinaryOperationExpression
-from chatbot2k.scripting_engine.types import BinaryOperator
-from chatbot2k.scripting_engine.types import DataType
-from chatbot2k.scripting_engine.types import NumberLiteralExpression
-from chatbot2k.scripting_engine.types import PrintStatement
-from chatbot2k.scripting_engine.types import Script
-from chatbot2k.scripting_engine.types import StringLiteralExpression
-from chatbot2k.scripting_engine.types import UnaryOperationExpression
-from chatbot2k.scripting_engine.types import UnaryOperator
-from chatbot2k.scripting_engine.types import VariableDefinitionStatement
+from chatbot2k.scripting_engine.types.ast import Script
+from chatbot2k.scripting_engine.types.data_types import DataType
+from chatbot2k.scripting_engine.types.expressions import BinaryOperationExpression
+from chatbot2k.scripting_engine.types.expressions import BinaryOperator
+from chatbot2k.scripting_engine.types.expressions import NumberLiteralExpression
+from chatbot2k.scripting_engine.types.expressions import StringLiteralExpression
+from chatbot2k.scripting_engine.types.expressions import UnaryOperationExpression
+from chatbot2k.scripting_engine.types.expressions import UnaryOperator
+from chatbot2k.scripting_engine.types.statements import PrintStatement
+from chatbot2k.scripting_engine.types.statements import VariableDefinitionStatement
 
 
 def _parse_source(source: str) -> Script:

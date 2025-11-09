@@ -8,21 +8,21 @@ from typing import final
 from chatbot2k.scripting_engine.precedence import Precedence
 from chatbot2k.scripting_engine.token import Token
 from chatbot2k.scripting_engine.token_types import TokenType
-from chatbot2k.scripting_engine.types import AssignmentStatement
-from chatbot2k.scripting_engine.types import BinaryOperationExpression
-from chatbot2k.scripting_engine.types import BinaryOperator
-from chatbot2k.scripting_engine.types import Expression
-from chatbot2k.scripting_engine.types import NumberLiteralExpression
-from chatbot2k.scripting_engine.types import PrintStatement
-from chatbot2k.scripting_engine.types import Script
-from chatbot2k.scripting_engine.types import Statement
-from chatbot2k.scripting_engine.types import Store
-from chatbot2k.scripting_engine.types import StoreIdentifierExpression
-from chatbot2k.scripting_engine.types import StringLiteralExpression
-from chatbot2k.scripting_engine.types import UnaryOperationExpression
-from chatbot2k.scripting_engine.types import UnaryOperator
-from chatbot2k.scripting_engine.types import VariableDefinitionStatement
-from chatbot2k.scripting_engine.types import VariableIdentifierExpression
+from chatbot2k.scripting_engine.types.ast import Script
+from chatbot2k.scripting_engine.types.ast import Store
+from chatbot2k.scripting_engine.types.expressions import BinaryOperationExpression
+from chatbot2k.scripting_engine.types.expressions import BinaryOperator
+from chatbot2k.scripting_engine.types.expressions import Expression
+from chatbot2k.scripting_engine.types.expressions import NumberLiteralExpression
+from chatbot2k.scripting_engine.types.expressions import StoreIdentifierExpression
+from chatbot2k.scripting_engine.types.expressions import StringLiteralExpression
+from chatbot2k.scripting_engine.types.expressions import UnaryOperationExpression
+from chatbot2k.scripting_engine.types.expressions import UnaryOperator
+from chatbot2k.scripting_engine.types.expressions import VariableIdentifierExpression
+from chatbot2k.scripting_engine.types.statements import AssignmentStatement
+from chatbot2k.scripting_engine.types.statements import PrintStatement
+from chatbot2k.scripting_engine.types.statements import Statement
+from chatbot2k.scripting_engine.types.statements import VariableDefinitionStatement
 
 
 @final
