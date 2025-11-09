@@ -9,6 +9,7 @@ from chatbot2k.scripting_engine.token_types import TokenType
 _BUILTIN_KEYWORDS = {
     "STORE": TokenType.STORE,
     "PRINT": TokenType.PRINT,
+    "LET": TokenType.LET,
 }
 
 _ESCAPE_CHARACTERS = {
@@ -45,34 +46,20 @@ class Lexer:
                     self._advance()
                     tokens.append(self._create_token(TokenType.PLUS))
                 case "-":
-                    # Check if this is a negative number literal or a minus token.
-                    if self._peek().isdigit():
-                        # Negative number literal.
-                        start_offset = self._current_offset
-                        self._advance()  # Consume the minus sign.
-                        self._advance()  # Start consuming digits.
-                        while self._current().isdigit():
-                            self._advance()
-                        if self._current() == ".":
-                            self._advance()
-                            if not self._current().isdigit():
-                                raise LexerError(
-                                    "Invalid number format at offset.",
-                                    self._current_source_location,
-                                )
-                            while self._current().isdigit():
-                                self._advance()
-                        tokens.append(self._create_token(TokenType.NUMBER_LITERAL, start_offset))
-                    else:
-                        # Minus token.
-                        self._advance()
-                        tokens.append(self._create_token(TokenType.MINUS))
+                    self._advance()
+                    tokens.append(self._create_token(TokenType.MINUS))
                 case "*":
                     self._advance()
                     tokens.append(self._create_token(TokenType.ASTERISK))
                 case "/":
                     self._advance()
                     tokens.append(self._create_token(TokenType.SLASH))
+                case "(":
+                    self._advance()
+                    tokens.append(self._create_token(TokenType.LEFT_PARENTHESIS))
+                case ")":
+                    self._advance()
+                    tokens.append(self._create_token(TokenType.RIGHT_PARENTHESIS))
                 case _ as char if char.isdigit():
                     # Number literal (we don't differentiate between integers and floats).
                     start_offset = self._current_offset
@@ -175,10 +162,6 @@ class Lexer:
 
     def _current(self) -> str:
         return "\0" if self._is_at_end() else self._source[self._current_offset]
-
-    def _peek(self) -> str:
-        next_offset: Final = self._current_offset + 1
-        return "\0" if next_offset >= len(self._source) else self._source[next_offset]
 
     def _advance(self) -> str:
         result: Final = self._current()

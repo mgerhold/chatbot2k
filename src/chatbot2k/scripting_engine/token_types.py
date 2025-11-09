@@ -11,9 +11,12 @@ class TokenType(Enum):
     MINUS = auto()
     ASTERISK = auto()
     SLASH = auto()
+    LEFT_PARENTHESIS = auto()
+    RIGHT_PARENTHESIS = auto()
 
     STORE = auto()
     PRINT = auto()
+    LET = auto()
 
     IDENTIFIER = auto()
     STRING_LITERAL = auto()

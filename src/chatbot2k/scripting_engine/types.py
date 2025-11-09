@@ -2,6 +2,7 @@ from abc import ABC
 from abc import abstractmethod
 from enum import StrEnum
 from typing import Annotated
+from typing import Final
 from typing import Literal
 from typing import Self
 from typing import final
@@ -20,19 +21,42 @@ class DataType(StrEnum):
 
 
 @final
-class NumberValue(BaseModel):
+class Store(BaseModel):
     model_config = ConfigDict(frozen=True)
 
-    data_type: Literal[DataType.NUMBER] = DataType.NUMBER
-    value: float
+    name: str
+    value: "Expression"
+
+    @property
+    def data_type(self) -> DataType:
+        return self.value.get_data_type()
 
 
 @final
-class StringValue(BaseModel):
+class ExpressionType(StrEnum):
+    STRING_LITERAL = "string_literal"
+    NUMBER_LITERAL = "number_literal"
+    STORE_IDENTIFIER = "store_identifier"
+    VARIABLE_IDENTIFIER = "variable_identifier"
+    UNARY_OPERATION = "unary_operation"
+    BINARY_OPERATION = "binary_operation"
+
+
+class BaseExpression(ABC):
+    @abstractmethod
+    def get_data_type(self) -> DataType: ...
+
+
+@final
+class StringLiteralExpression(BaseModel, BaseExpression):
     model_config = ConfigDict(frozen=True)
 
-    data_type: Literal[DataType.STRING] = DataType.STRING
+    expression_type: Literal[ExpressionType.STRING_LITERAL] = ExpressionType.STRING_LITERAL
     value: str
+
+    @override
+    def get_data_type(self) -> DataType:
+        return DataType.STRING
 
     @classmethod
     def from_lexeme(cls, lexeme: str) -> Self:
@@ -60,43 +84,6 @@ class StringValue(BaseModel):
                     i += 1
 
         return cls(value=escaped_string)
-
-
-type Value = Annotated[NumberValue | StringValue, Discriminator("data_type")]
-
-
-@final
-class Store(BaseModel):
-    model_config = ConfigDict(frozen=True)
-
-    name: str
-    value: Value
-
-
-@final
-class ExpressionType(StrEnum):
-    STRING_LITERAL = "string_literal"
-    NUMBER_LITERAL = "number_literal"
-    STORE_IDENTIFIER = "store_identifier"
-    VARIABLE_IDENTIFIER = "variable_identifier"
-    BINARY_OPERATION = "binary_operation"
-
-
-class BaseExpression(ABC):
-    @abstractmethod
-    def get_data_type(self) -> DataType: ...
-
-
-@final
-class StringLiteralExpression(BaseModel, BaseExpression):
-    model_config = ConfigDict(frozen=True)
-
-    expression_type: Literal[ExpressionType.STRING_LITERAL] = ExpressionType.STRING_LITERAL
-    value: str
-
-    @override
-    def get_data_type(self) -> DataType:
-        return DataType.STRING
 
 
 @final
@@ -146,6 +133,29 @@ class BinaryOperator(StrEnum):
 
 
 @final
+class UnaryOperator(StrEnum):
+    PLUS = "+"
+    NEGATE = "-"
+
+
+@final
+class UnaryOperationExpression(BaseModel, BaseExpression):
+    model_config = ConfigDict(frozen=True)
+
+    expression_type: Literal[ExpressionType.UNARY_OPERATION] = ExpressionType.UNARY_OPERATION
+    operator: UnaryOperator
+    operand: "Expression"
+
+    @override
+    def get_data_type(self) -> DataType:
+        operand_type: Final = self.operand.get_data_type()
+        if operand_type == DataType.NUMBER:
+            return DataType.NUMBER
+        msg: Final = f"Unary operator {self.operator} is not supported for {operand_type} operands"
+        raise TypeError(msg)
+
+
+@final
 class BinaryOperationExpression(BaseModel, BaseExpression):
     model_config = ConfigDict(frozen=True)
 
@@ -176,6 +186,7 @@ type Expression = Annotated[
     | NumberLiteralExpression
     | StoreIdentifierExpression
     | VariableIdentifierExpression
+    | UnaryOperationExpression
     | BinaryOperationExpression,
     Discriminator("expression_type"),
 ]
@@ -185,6 +196,7 @@ type Expression = Annotated[
 class StatementKind(StrEnum):
     PRINT = "print"
     ASSIGNMENT = "assignment"
+    VARIABLE_DEFINITION = "variable_definition"
 
 
 @final
@@ -204,8 +216,18 @@ class AssignmentStatement(BaseModel):
     expression: Expression  # The rvalue.
 
 
+@final
+class VariableDefinitionStatement(BaseModel):
+    model_config = ConfigDict(frozen=True)
+
+    kind: Literal[StatementKind.VARIABLE_DEFINITION] = StatementKind.VARIABLE_DEFINITION
+    variable_name: str
+    data_type: DataType
+    initial_value: Expression
+
+
 type Statement = Annotated[
-    PrintStatement | AssignmentStatement,
+    PrintStatement | AssignmentStatement | VariableDefinitionStatement,
     Discriminator("kind"),
 ]
 
