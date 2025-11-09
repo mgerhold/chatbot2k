@@ -12,6 +12,7 @@ from chatbot2k.scripting_engine.types.data_types import DataType
 from chatbot2k.scripting_engine.types.expressions import BinaryOperationExpression
 from chatbot2k.scripting_engine.types.expressions import BinaryOperator
 from chatbot2k.scripting_engine.types.expressions import NumberLiteralExpression
+from chatbot2k.scripting_engine.types.expressions import StoreIdentifierExpression
 from chatbot2k.scripting_engine.types.expressions import StringLiteralExpression
 from chatbot2k.scripting_engine.types.expressions import UnaryOperationExpression
 from chatbot2k.scripting_engine.types.expressions import UnaryOperator
@@ -66,6 +67,36 @@ def test_parser_parses_stores() -> None:
     assert isinstance(script.stores[1].value, StringLiteralExpression)
     assert script.stores[1].value.value == "chizzle"
     assert len(script.statements) == 2
+
+
+def test_parser_parses_store_with_expression() -> None:
+    """Test that stores can be initialized with expressions."""
+    script: Final = _parse_source("STORE result = 5 + 3; PRINT result;")
+    assert len(script.stores) == 1
+    assert script.stores[0].name == "result"
+    assert script.stores[0].data_type == DataType.NUMBER
+    assert isinstance(script.stores[0].value, BinaryOperationExpression)
+    assert script.stores[0].value.operator == BinaryOperator.ADD
+
+
+def test_parser_parses_store_referencing_another_store() -> None:
+    """Test that stores can reference previously defined stores."""
+    script: Final = _parse_source("STORE a = 10; STORE b = a + 5; PRINT b;")
+    assert len(script.stores) == 2
+    assert script.stores[0].name == "a"
+    assert isinstance(script.stores[0].value, NumberLiteralExpression)
+    assert script.stores[1].name == "b"
+    assert isinstance(script.stores[1].value, BinaryOperationExpression)
+    # Verify the expression references store 'a'
+    match script.stores[1].value:
+        case BinaryOperationExpression(
+            operator=BinaryOperator.ADD,
+            left=StoreIdentifierExpression(store_name="a"),
+            right=NumberLiteralExpression(value=5.0),
+        ):
+            pass  # Test passes
+        case _:
+            pytest.fail(f"Unexpected store expression: {script.stores[1].value}")
 
 
 def test_parser_parses_variable_definitions() -> None:

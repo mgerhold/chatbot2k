@@ -158,6 +158,48 @@ def test_store_string_update() -> None:
     assert output == "Hello world"
 
 
+def test_store_with_expression() -> None:
+    """Test that store definitions can use expressions."""
+    output: Final = _execute("STORE x = 5 + 3; PRINT x;")
+    assert output == "8"
+
+
+def test_store_with_complex_expression() -> None:
+    """Test that store definitions can use complex expressions."""
+    output: Final = _execute("STORE result = (10 + 5) * 2; PRINT result;")
+    assert output == "30"
+
+
+def test_store_referencing_another_store() -> None:
+    """Test that store definitions can reference previously defined stores."""
+    output: Final = _execute("STORE a = 10; STORE b = a + 5; PRINT b;")
+    assert output == "15"
+
+
+def test_store_referencing_multiple_stores() -> None:
+    """Test that store definitions can reference multiple previously defined stores."""
+    output: Final = _execute("STORE x = 3; STORE y = 4; STORE z = x * x + y * y; PRINT z;")
+    assert output == "25"
+
+
+def test_store_with_string_expression() -> None:
+    """Test that store definitions can use string expressions."""
+    output: Final = _execute("STORE greeting = 'Hello' + ' World'; PRINT greeting;")
+    assert output == "Hello World"
+
+
+def test_store_referencing_store_with_string() -> None:
+    """Test that store definitions can reference stores with string values."""
+    output: Final = _execute("STORE name = 'Alice'; STORE message = 'Hello, ' + name; PRINT message;")
+    assert output == "Hello, Alice"
+
+
+def test_store_chain_references() -> None:
+    """Test that stores can form a chain of references."""
+    output: Final = _execute("STORE a = 1; STORE b = a + 1; STORE c = b + 1; STORE d = c + 1; PRINT d;")
+    assert output == "4"
+
+
 # Variable operations
 def test_variable_definition() -> None:
     output: Final = _execute("LET x = 42; PRINT x;")

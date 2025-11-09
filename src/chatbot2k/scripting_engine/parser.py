@@ -107,19 +107,11 @@ class Parser:
         if previous_definition is not None:
             raise StoreRedefinitionError(store_name)
         self._expect(TokenType.EQUALS, "'=' after store name")
-        store: Optional[Store] = None
-        if (number_token := self._match(TokenType.NUMBER_LITERAL)) is not None:
-            store = Store(
-                name=store_name,
-                value=NumberLiteralExpression(value=float(number_token.source_location.lexeme)),
-            )
-        if (string_token := self._match(TokenType.STRING_LITERAL)) is not None:
-            store = Store(
-                name=store_name,
-                value=StringLiteralExpression.from_lexeme(string_token.source_location.lexeme),
-            )
-        if store is None:
-            raise ExpectedTokenError(self._current(), "initial store value")
+        value: Final = self._expression(stores, [], Precedence.UNKNOWN)
+        store: Final = Store(
+            name=store_name,
+            value=value,
+        )
         self._expect(TokenType.SEMICOLON, "';' after store declaration")
         return store
 
