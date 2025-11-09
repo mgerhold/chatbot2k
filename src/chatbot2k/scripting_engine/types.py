@@ -242,5 +242,6 @@ def is_not_empty[T](values: list[T]) -> list[T]:
 class Script(BaseModel):
     model_config = ConfigDict(frozen=True)
 
+    name: str  # Usually the name of the command, e.g. "!run".
     stores: list[Store]  # Maybe empty.
     statements: Annotated[list[Statement], AfterValidator(is_not_empty)]

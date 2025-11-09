@@ -78,7 +78,8 @@ class _TableEntry(NamedTuple):
 
 @final
 class Parser:
-    def __init__(self, tokens: list[Token]) -> None:
+    def __init__(self, script_name: str, tokens: list[Token]) -> None:
+        self._script_name: Final = script_name
         self._tokens: Final = tokens
         self._current_index = 0
 
@@ -86,6 +87,7 @@ class Parser:
         stores: Final = self._stores()
         statements: Final = self._statements(stores)
         return Script(
+            name=self._script_name,
             stores=stores,
             statements=statements,
         )

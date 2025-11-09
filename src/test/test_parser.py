@@ -22,7 +22,7 @@ from chatbot2k.scripting_engine.types import VariableDefinitionStatement
 def _parse_source(source: str) -> Script:
     lexer: Final = Lexer(source)
     tokens: Final = lexer.tokenize()
-    parser: Final = Parser(tokens)
+    parser: Final = Parser("!some_script_name", tokens)
     return parser.parse()
 
 
