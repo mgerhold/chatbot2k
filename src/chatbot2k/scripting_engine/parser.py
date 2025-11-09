@@ -171,13 +171,27 @@ class Parser:
     ) -> Statement:
         identifier_token: Final = self._expect(TokenType.IDENTIFIER, "assignment target")
         identifier_name: Final = identifier_token.source_location.lexeme
+
+        # Check if it's a store
         store: Final = next((store for store in stores if store.name == identifier_name), None)
-        if store is None:
-            raise NotImplementedError("Local variables are not yet supported.")
-        lvalue: StoreIdentifierExpression | VariableIdentifierExpression = StoreIdentifierExpression(
-            store_name=identifier_name,
-            data_type=store.data_type,
-        )
+        if store is not None:
+            lvalue: StoreIdentifierExpression | VariableIdentifierExpression = StoreIdentifierExpression(
+                store_name=identifier_name,
+                data_type=store.data_type,
+            )
+        else:
+            # Check if it's a variable
+            variable: Final = next(
+                (var for var in variable_definitions if var.variable_name == identifier_name),
+                None,
+            )
+            if variable is None:
+                raise UnknownVariableError(identifier_name)
+            lvalue = VariableIdentifierExpression(
+                variable_name=identifier_name,
+                data_type=variable.data_type,
+            )
+
         self._expect(TokenType.EQUALS, "'=' in assignment")
         rvalue: Final = self._expression(stores, variable_definitions, Precedence.UNKNOWN)
         return AssignmentStatement(
