@@ -117,7 +117,13 @@ class DiscordChat(Chat):
             if not isinstance(metadata, DiscordChatMessageMetadata):
                 logging.error("Response metadata is not of type DiscordChatMessageMetadata. Unable to respond.")
                 continue
-            await metadata.message.channel.send(response.text)
+            try:
+                await metadata.message.channel.send(response.text)
+            except Exception as e:
+                try:
+                    await metadata.message.channel.send(f"Unable to send message: {e}")
+                except Exception:
+                    logging.error(f"Unable to send error message to channel: {e}")
 
     @override
     async def send_broadcast(self, message: BroadcastMessage) -> None:
