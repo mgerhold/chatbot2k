@@ -4,6 +4,7 @@ from chatbot2k.app_state import AppState
 from chatbot2k.command_handlers.clip_handler import ClipHandler
 from chatbot2k.command_handlers.command_handler import CommandHandler
 from chatbot2k.command_handlers.parameterized_response_command import ParameterizedResponseCommand
+from chatbot2k.command_handlers.script_command_handler import ScriptCommandHandler
 from chatbot2k.command_handlers.static_response_command import StaticResponseCommand
 
 
@@ -38,6 +39,15 @@ def load_commands(app_state: AppState) -> dict[str, CommandHandler]:
             app_state=app_state,
             name=soundboard_command.name,
             clip_url=soundboard_command.clip_url,
+        )
+
+    for script in app_state.database.get_scripts():
+        assert script.command.lower() not in (name.lower() for name in result)
+        logging.info(f"Loaded script command: !{script.command}")
+        result[script.command] = ScriptCommandHandler(
+            app_state=app_state,
+            name=script.command,
+            script_json=script.script_json,
         )
 
     return result

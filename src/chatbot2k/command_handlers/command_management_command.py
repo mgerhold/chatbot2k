@@ -6,6 +6,11 @@ from typing import override
 
 from chatbot2k.app_state import AppState
 from chatbot2k.command_handlers.command_handler import CommandHandler
+from chatbot2k.database.engine import ScriptStoreData
+from chatbot2k.scripting_engine.lexer import Lexer
+from chatbot2k.scripting_engine.parser import Parser
+from chatbot2k.scripting_engine.stores import StoreKey
+from chatbot2k.scripting_engine.types.value import Value
 from chatbot2k.translation_key import TranslationKey
 from chatbot2k.types.chat_command import ChatCommand
 from chatbot2k.types.chat_response import ChatResponse
@@ -17,6 +22,7 @@ class CommandManagementCommand(CommandHandler):
     COMMAND_NAME = "command"
     _ADD_SUBCOMMAND = "add"
     _ADD_CLIP_SUBCOMMAND = "add-clip"
+    _ADD_SCRIPT_SUBCOMMAND = "add-script"
     _UPDATE_SUBCOMMAND = "update"
     _REMOVE_SUBCOMMAND = "remove"
 
@@ -38,6 +44,11 @@ class CommandManagementCommand(CommandHandler):
                 )
             case CommandManagementCommand._ADD_CLIP_SUBCOMMAND if argc >= 3:
                 success, response = CommandManagementCommand._add_clip_command(
+                    self._app_state,
+                    chat_command,
+                )
+            case CommandManagementCommand._ADD_SCRIPT_SUBCOMMAND if argc >= 3:
+                success, response = CommandManagementCommand._add_script_command(
                     self._app_state,
                     chat_command,
                 )
@@ -71,15 +82,15 @@ class CommandManagementCommand(CommandHandler):
     @property
     @override
     def usage(self) -> str:
-        return "!command [add|add-clip|update|remove] <parameters>..."
+        return "!command [add|add-clip|add-script|update|remove] <parameters>..."
 
     @property
     @override
     def description(self) -> str:
         return (
             "Manage custom commands. Use `!command add` to add a new command, `!command add-clip` to add "
-            + "a soundboard command, `!command update` to update an existing command, and `!command remove` "
-            + "to delete a command."
+            + "a soundboard command, `!command add-script` to add a script command, `!command update` to "
+            + "update an existing command, and `!command remove` to delete a command."
         )
 
     @staticmethod
@@ -167,6 +178,97 @@ class CommandManagementCommand(CommandHandler):
             True,
             app_state.translations_manager.get_translation(TranslationKey.COMMAND_ADDED),
         )
+
+    @staticmethod
+    def _add_script_command(
+        app_state: AppState,
+        chat_command: ChatCommand,
+    ) -> tuple[bool, str]:
+        """Add a script command by parsing the source code and storing it in the database.
+
+        Args:
+            app_state: Application state containing database and other services
+            chat_command: The chat command containing arguments: [subcommand, name, source_code]
+
+        Returns:
+            Tuple of (success: bool, response_message: str)
+        """
+        name: Final = chat_command.arguments[1].lstrip("!")
+        source_code: Final = chat_command.arguments[2]
+
+        # Check if command already exists.
+        if name.lower() in (command.lower() for command in app_state.command_handlers):
+            return (
+                False,
+                app_state.translations_manager.get_translation(TranslationKey.COMMAND_ALREADY_EXISTS),
+            )
+
+        try:
+            # Tokenize the source code.
+            lexer: Final = Lexer(source_code)
+            tokens: Final = lexer.tokenize()
+
+            # Parse the tokens.
+            parser: Final = Parser(name, tokens)
+            script: Final = parser.parse()
+
+            # Evaluate store initial values.
+            store_data: Final[list[ScriptStoreData]] = []
+            initial_store_values: Final[dict[StoreKey, Value]] = {}
+
+            for store in script.stores:
+                store_key = StoreKey(
+                    script_name=script.name,
+                    store_name=store.name,
+                )
+                # Evaluate the initial value expression.
+                try:
+                    value = store.value.evaluate(
+                        script_name=script.name,
+                        stores=initial_store_values,
+                        variables={},  # Empty dict because variables cannot defined before stores.
+                    )
+                    initial_store_values[store_key] = value
+
+                    # Serialize to JSON.
+                    store_json = store.model_dump_json()
+                    value_json = value.model_dump_json()
+
+                    store_data.append(
+                        ScriptStoreData(
+                            store_name=store.name,
+                            store_json=store_json,
+                            value_json=value_json,
+                        )
+                    )
+                except Exception as e:
+                    return (
+                        False,
+                        f"Error evaluating store '{store.name}': {e}",
+                    )
+
+            # Serialize the script to JSON.
+            script_json = script.model_dump_json()
+
+            # Add to database.
+            app_state.database.add_script(
+                command=name,
+                source_code=source_code,
+                script_json=script_json,
+                stores=store_data,
+            )
+
+            return (
+                True,
+                app_state.translations_manager.get_translation(TranslationKey.COMMAND_ADDED),
+            )
+
+        except Exception as e:
+            # Catch lexer/parser errors and return a friendly message.
+            return (
+                False,
+                f"Script parsing error: {e}",
+            )
 
     @staticmethod
     def _remove_command(app_state: AppState, chat_command: ChatCommand) -> tuple[bool, str]:

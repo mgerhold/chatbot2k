@@ -3,6 +3,7 @@ from collections.abc import Iterable
 from contextlib import contextmanager
 from pathlib import Path
 from typing import Final
+from typing import NamedTuple
 from typing import Optional
 from typing import final
 
@@ -19,11 +20,22 @@ from chatbot2k.database.tables import Constant
 from chatbot2k.database.tables import DictionaryEntry
 from chatbot2k.database.tables import Parameter
 from chatbot2k.database.tables import ParameterizedCommand
+from chatbot2k.database.tables import Script
+from chatbot2k.database.tables import ScriptStore
 from chatbot2k.database.tables import SoundboardCommand
 from chatbot2k.database.tables import StaticCommand
 from chatbot2k.database.tables import Translation
 from chatbot2k.models.parameterized_command import ParameterizedCommand as ParameterizedCommandModel
 from chatbot2k.translation_key import TranslationKey
+
+
+@final
+class ScriptStoreData(NamedTuple):
+    """Data for a script store to be added to the database."""
+
+    store_name: str
+    store_json: str
+    value_json: str
 
 
 def create_database_url(sqlite_db_path: Path) -> str:
@@ -134,12 +146,23 @@ class Database:
 
     def remove_command_case_insensitive(self, *, name: str) -> bool:
         with self._session() as s:
+            # Handle regular commands (`StaticCommand`, `ParameterizedCommand`, `SoundboardCommand`).
             for command_type in (StaticCommand, ParameterizedCommand, SoundboardCommand):
                 obj = s.exec(select(command_type).where(func.lower(command_type.name) == name.lower())).one_or_none()
                 if obj is not None:
                     s.delete(obj)
                     s.commit()
                     return True
+
+            # Handle Script commands (use `command` field instead of `name`).
+            script_object: Final = s.exec(
+                select(Script).where(func.lower(Script.command) == name.lower())
+            ).one_or_none()
+            if script_object is not None:
+                s.delete(script_object)
+                s.commit()
+                return True
+
             return False
 
     def remove_soundboard_command(self, *, name: str) -> None:
@@ -256,3 +279,99 @@ class Database:
     def get_translations(self) -> list[Translation]:
         with self._session() as s:
             return list(s.exec(select(Translation)).all())
+
+    def add_script(
+        self,
+        *,
+        command: str,
+        source_code: str,
+        script_json: str,
+        stores: list[ScriptStoreData],
+    ) -> Script:
+        """Add a script command with its stores to the database.
+
+        Args:
+            command: Command name (e.g., "!hello-world")
+            source_code: Original source code
+            script_json: JSON representation of the `Script` Pydantic model
+            stores: List of `ScriptStoreData` containing store information
+
+        Returns:
+            The created `Script` object
+        """
+        with self._session() as s:
+            existing: Final = s.get(Script, command)
+            if existing is not None:
+                raise ValueError(f"Script command '{command}' already exists")
+
+            script_object: Final = Script(
+                command=command,
+                source_code=source_code,
+                script_json=script_json,
+            )
+            s.add(script_object)
+
+            # Add all stores.
+            for store_data in stores:
+                store_obj = ScriptStore(
+                    script_command=command,
+                    store_name=store_data.store_name,
+                    store_json=store_data.store_json,
+                    value_json=store_data.value_json,
+                )
+                s.add(store_obj)
+
+            s.commit()
+            s.refresh(script_object)
+            return script_object
+
+    def get_scripts(self) -> list[Script]:
+        """Get all script commands from the database."""
+        with self._session() as s:
+            return list(s.exec(select(Script)).all())
+
+    def get_script(self, command: str) -> Optional[Script]:
+        """Get a specific script command by name."""
+        with self._session() as s:
+            return s.get(Script, command)
+
+    def remove_script(self, command: str) -> bool:
+        """Remove a script command and its stores from the database.
+
+        Returns:
+            `True` if the script was removed, `False` if it didn't exist
+        """
+        with self._session() as s:
+            script_object: Final = s.get(Script, command)
+            if script_object is None:
+                return False
+            s.delete(script_object)  # CASCADE will delete associated stores
+            s.commit()
+            return True
+
+    def get_script_store(self, *, script_command: str, store_name: str) -> Optional[ScriptStore]:
+        """Get a specific script store by script command and store name."""
+        with self._session() as s:
+            return s.exec(
+                select(ScriptStore).where(
+                    ScriptStore.script_command == script_command,
+                    ScriptStore.store_name == store_name,
+                )
+            ).one_or_none()
+
+    def update_script_store_value(self, *, script_command: str, store_name: str, value_json: str) -> None:
+        """Update the value of a script store."""
+        with self._session() as s:
+            store: Final = s.exec(
+                select(ScriptStore).where(
+                    ScriptStore.script_command == script_command,
+                    ScriptStore.store_name == store_name,
+                )
+            ).one_or_none()
+
+            if store is None:
+                raise KeyError(f"ScriptStore '{store_name}' for script '{script_command}' not found")
+
+            store.value_json = value_json
+            s.add(store)
+            s.commit()
