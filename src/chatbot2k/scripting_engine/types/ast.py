@@ -43,6 +43,7 @@ class Script(BaseModel):
         for statement in self.statements:
             if (result := statement.execute(self.name, stores, variables)) is not None:
                 output = result if output is None else f"{output}{result}"
+        persistent_store.store_values(stores)
         return output
 
     def _collect_required_stores(self) -> set[StoreKey]:
