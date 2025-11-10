@@ -109,6 +109,13 @@ class CommandManagementCommand(CommandHandler):
                 app_state.translations_manager.get_translation(TranslationKey.CANNOT_ADD_OR_UPDATE_SOUNDBOARD_COMMAND),
             )
 
+        scripts: Final = app_state.database.get_scripts()
+        if name.lower() in (script.command.lower() for script in scripts):
+            return (
+                False,
+                app_state.translations_manager.get_translation(TranslationKey.CANNOT_ADD_OR_UPDATE_SCRIPT_COMMAND),
+            )
+
         static_commands: Final = app_state.database.get_static_commands()
         parameterized_commands: Final = app_state.database.get_parameterized_commands()
         commands: Final = static_commands + parameterized_commands
