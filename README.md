@@ -49,7 +49,10 @@ Currently, the language supports the following data types:
 
 - **Numbers**: Integral or floating-point numbers, possibly negative. They are mapped to Python's `float` type.
 - **Strings**: Sequences of characters enclosed in single quotes (`'`). They are mapped to Python's `str` type and
-  support UTF-8. The only allowed escape sequences are `\'` for single quote and `\n` for newline.
+  support UTF-8. The allowed escape sequences are:
+  - `\'` for single quote
+  - `\n` for newline
+  - `\\` for backslash
 
 ## Keywords
 
