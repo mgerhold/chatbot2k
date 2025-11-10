@@ -55,6 +55,7 @@ class Config:
         self._twitch_credentials: Optional[OAuthTokens] = None
         self._twitch_channel: Optional[str] = None
         self._discord_token: Optional[str] = None
+        self._discord_moderator_role_id: Optional[int] = None
         self.reload()
 
     def reload(self) -> None:
@@ -74,6 +75,11 @@ class Config:
             self._twitch_credentials = None
         self._twitch_channel = get_environment_variable_or_raise("TWITCH_CHANNEL")
         self._discord_token = get_environment_variable_or_raise("DISCORD_BOT_TOKEN")
+        discord_moderator_role_id_str: Final = get_environment_variable_or_default("DISCORD_MODERATOR_ROLE_ID", None)
+        if discord_moderator_role_id_str is not None:
+            self._discord_moderator_role_id = int(discord_moderator_role_id_str)
+        else:
+            self._discord_moderator_role_id = None
 
         self._database_file.parent.mkdir(parents=True, exist_ok=True)
 
@@ -134,6 +140,10 @@ class Config:
         if self._discord_token is None:
             raise AssertionError("Discord bot token is not set. This should not happen.")
         return self._discord_token
+
+    @property
+    def discord_moderator_role_id(self) -> Optional[int]:
+        return self._discord_moderator_role_id
 
     @staticmethod
     def _update_env_file(path: Path, updates: dict[str, str]) -> None:
