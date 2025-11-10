@@ -54,9 +54,11 @@ class _DiscordClient(Client):
         *,
         intents: discord.Intents,
         chat_message_queue: asyncio.Queue[DiscordChatMessage],
+        moderator_role_id: Optional[int],
     ) -> None:
         super().__init__(intents=intents)
         self._chat_message_queue: Final = chat_message_queue
+        self._moderator_role_id: Final = moderator_role_id
 
     async def on_ready(self) -> None:
         logging.info(f"Connected to Discord as user {self.user}.")
@@ -68,6 +70,10 @@ class _DiscordClient(Client):
         if isinstance(message.author, discord.Member):
             if message.author.guild_permissions.administrator:
                 permissions_level = PermissionLevel.ADMIN
+            elif self._moderator_role_id is not None and any(
+                role.id == self._moderator_role_id for role in message.author.roles
+            ):
+                permissions_level = PermissionLevel.MODERATOR
         await self._chat_message_queue.put(
             DiscordChatMessage(
                 text=message.content,
@@ -143,7 +149,8 @@ class DiscordChat(Chat):
         client: Final = _DiscordClient(
             intents=intents,
             chat_message_queue=chat_message_queue,
+            moderator_role_id=app_state.config.discord_moderator_role_id,
         )
-        instance = cls(client, chat_message_queue, app_state.config.discord_token)
+        instance: Final = cls(client, chat_message_queue, app_state.config.discord_token)
         await instance._ensure_started()
         return instance
