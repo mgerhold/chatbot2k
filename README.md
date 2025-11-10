@@ -33,7 +33,7 @@ uv run uvicorn chatbot2k.main:app --host 0.0.0.0 --port 8080 --reload
 ## Scripting Language Reference
 
 A new script command can be added by moderators of broadcasters using the command: `!command add-script !<
-command_name> "<script_code>"
+command_name> "<script_code>"`
 
 Each script consists of multiple sections:
 
