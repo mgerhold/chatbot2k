@@ -2,6 +2,7 @@ from typing import Final
 from typing import Optional
 from typing import final
 
+from chatbot2k.scripting_engine.escape_characters import ESCAPE_CHARACTERS
 from chatbot2k.scripting_engine.source_location import SourceLocation
 from chatbot2k.scripting_engine.token import Token
 from chatbot2k.scripting_engine.token_types import TokenType
@@ -10,11 +11,6 @@ _BUILTIN_KEYWORDS = {
     "STORE": TokenType.STORE,
     "PRINT": TokenType.PRINT,
     "LET": TokenType.LET,
-}
-
-_ESCAPE_CHARACTERS = {
-    "n": "\n",
-    "'": "'",
 }
 
 
@@ -83,7 +79,7 @@ class Lexer:
                     while True:
                         if self._current() == "\\":
                             self._advance()
-                            escaped_char = _ESCAPE_CHARACTERS.get(self._current())
+                            escaped_char = ESCAPE_CHARACTERS.get(self._current())
                             if escaped_char is None:
                                 msg = f"Invalid escape sequence '\\{self._current()}'."
                                 raise LexerError(msg, self._current_source_location)

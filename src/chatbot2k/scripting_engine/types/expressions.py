@@ -12,6 +12,7 @@ from pydantic import BaseModel
 from pydantic import ConfigDict
 from pydantic import Discriminator
 
+from chatbot2k.scripting_engine.escape_characters import ESCAPE_CHARACTERS
 from chatbot2k.scripting_engine.stores import StoreKey
 from chatbot2k.scripting_engine.types.data_types import DataType
 from chatbot2k.scripting_engine.types.execution_error import ExecutionError
@@ -73,20 +74,17 @@ class StringLiteralExpression(BaseModel, BaseExpression):
         i = 1
         while i < len(lexeme) - 1:
             current = lexeme[i]
-            next_ = lexeme[i + 1]
-            match current, next_:
-                case "\\", "n":
-                    escaped_string += "\n"
-                    i += 2
-                case "\\", "'":
-                    escaped_string += "'"
-                    i += 2
-                case "\\", _:
+            if current == "\\" and i + 1 < len(lexeme) - 1:
+                next_ = lexeme[i + 1]
+                escaped_char = ESCAPE_CHARACTERS.get(next_)
+                if escaped_char is None:
                     msg = f"Invalid escape sequence: \\{next_}"
                     raise AssertionError(msg)
-                case _, _:
-                    escaped_string += current
-                    i += 1
+                escaped_string += escaped_char
+                i += 2
+            else:
+                escaped_string += current
+                i += 1
 
         return cls(value=escaped_string)
 

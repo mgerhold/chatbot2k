@@ -80,6 +80,11 @@ def test_string_with_escaped_quote() -> None:
     assert output == "It's working!"
 
 
+def test_string_with_escaped_backslash() -> None:
+    output: Final = _execute(r"PRINT 'Path: C:\\Users\\John';")
+    assert output == r"Path: C:\Users\John"
+
+
 # Number operations
 def test_addition() -> None:
     output: Final = _execute("PRINT 10 + 5;")
