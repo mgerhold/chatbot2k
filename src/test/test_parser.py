@@ -3,10 +3,15 @@ from typing import Final
 import pytest
 
 from chatbot2k.scripting_engine.lexer import Lexer
+from chatbot2k.scripting_engine.parser import DuplicateParameterNameError
+from chatbot2k.scripting_engine.parser import ExpectedTokenError
+from chatbot2k.scripting_engine.parser import ParameterShadowsStoreError
 from chatbot2k.scripting_engine.parser import Parser
 from chatbot2k.scripting_engine.parser import StoreRedefinitionError
 from chatbot2k.scripting_engine.parser import UnknownVariableError
 from chatbot2k.scripting_engine.parser import VariableRedefinitionError
+from chatbot2k.scripting_engine.parser import VariableShadowsParameterError
+from chatbot2k.scripting_engine.parser import VariableShadowsStoreError
 from chatbot2k.scripting_engine.types.ast import Script
 from chatbot2k.scripting_engine.types.data_types import DataType
 from chatbot2k.scripting_engine.types.expressions import BinaryOperationExpression
@@ -545,3 +550,106 @@ def test_parser_handles_complex_expression_with_parentheses_and_unary() -> None:
             pass  # Test passed
         case _:
             pytest.fail(f"Unexpected statement structure: {script.statements[0]}")
+
+
+def test_parser_parses_no_parameters() -> None:
+    """Test that a script without parameters works correctly."""
+    script: Final = _parse_source("PRINT 'no params';")
+    assert len(script.stores) == 0
+    assert len(script.parameters) == 0
+    assert len(script.statements) == 1
+
+
+def test_parser_parses_single_parameter() -> None:
+    """Test parsing a script with a single parameter."""
+    script: Final = _parse_source("PARAMS my_param; PRINT 'test';")
+    assert len(script.parameters) == 1
+    assert script.parameters[0].name == "my_param"
+
+
+def test_parser_parses_multiple_parameters() -> None:
+    """Test parsing a script with multiple parameters."""
+    script: Final = _parse_source("PARAMS first, second, third; PRINT 'test';")
+    assert len(script.parameters) == 3
+    assert script.parameters[0].name == "first"
+    assert script.parameters[1].name == "second"
+    assert script.parameters[2].name == "third"
+
+
+def test_parser_parses_two_parameters() -> None:
+    """Test parsing a script with exactly two parameters."""
+    script: Final = _parse_source("PARAMS alpha, beta; PRINT 'test';")
+    assert len(script.parameters) == 2
+    assert script.parameters[0].name == "alpha"
+    assert script.parameters[1].name == "beta"
+
+
+def test_parser_parses_parameters_with_stores() -> None:
+    """Test that parameters can be used together with stores."""
+    script: Final = _parse_source("STORE counter = 0; PARAMS user_id; PRINT counter;")
+    assert len(script.parameters) == 1
+    assert script.parameters[0].name == "user_id"
+    assert len(script.stores) == 1
+    assert script.stores[0].name == "counter"
+
+
+def test_parser_does_not_allow_parameters_before_stores() -> None:
+    """Test that stores must come before parameters."""
+    with pytest.raises(ExpectedTokenError, match="Expected statement"):
+        _ = _parse_source("PARAMS name; STORE value = 42; PRINT value;")
+
+
+def test_parser_raises_on_duplicate_parameter_names() -> None:
+    """Test that duplicate parameter names raise an error."""
+    with pytest.raises(DuplicateParameterNameError, match="Parameter 'duplicate' is already defined."):
+        _parse_source("PARAMS duplicate, duplicate; PRINT 'test';")
+
+
+def test_parser_raises_on_duplicate_parameter_in_longer_list() -> None:
+    """Test that duplicate parameter names are caught even in longer lists."""
+    with pytest.raises(DuplicateParameterNameError, match="Parameter 'second' is already defined."):
+        _parse_source("PARAMS first, second, third, second; PRINT 'test';")
+
+
+def test_parser_parses_trailing_comma_in_parameters() -> None:
+    """Test that trailing comma before semicolon is handled."""
+    script: Final = _parse_source("PARAMS param1, param2,; PRINT 'test';")
+    assert len(script.parameters) == 2
+    assert script.parameters[0].name == "param1"
+    assert script.parameters[1].name == "param2"
+
+
+def test_parser_allows_parameter_names_similar_to_keywords() -> None:
+    """Test that parameter names can be similar to keywords (but not exact matches)."""
+    script: Final = _parse_source("PARAMS store, print, let; PRINT 'test';")
+    assert len(script.parameters) == 3
+    assert script.parameters[0].name == "store"
+    assert script.parameters[1].name == "print"
+    assert script.parameters[2].name == "let"
+
+
+def test_parser_does_not_allow_parameter_name_identical_to_store_name() -> None:
+    """Test that a parameter name identical to a store name raises an error."""
+    with pytest.raises(
+        ParameterShadowsStoreError,
+        match="Parameter 'data' shadows store with the same name.",
+    ):
+        _parse_source("STORE data = 100; PARAMS data; PRINT data;")
+
+
+def test_parser_does_not_allow_variable_name_identical_to_parameter_name() -> None:
+    """Test that a variable name identical to a parameter name raises an error."""
+    with pytest.raises(
+        VariableShadowsParameterError,
+        match="Variable 'input' shadows parameter with the same name.",
+    ):
+        _parse_source("PARAMS input; LET input = 5; PRINT input;")
+
+
+def test_parser_does_not_allow_variable_name_identical_to_store_name() -> None:
+    """Test that a variable name identical to a store name raises an error."""
+    with pytest.raises(
+        VariableShadowsStoreError,
+        match="Variable 'config' shadows store with the same name.",
+    ):
+        _parse_source("STORE config = 'value'; LET config = 10; PRINT config;")

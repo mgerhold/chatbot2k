@@ -15,7 +15,9 @@ def _tokenize_source(source: str) -> list[Token]:
 
 
 def test_tokenize_can_analyze_all_token_types() -> None:
-    source: Final = r";=+-*/()STORE PRINT some_identifier_123 'my string 🐍\'quoted\'\ntext on second line' 3.14 LET"
+    source: Final = (
+        r";=+-*/()STORE PRINT some_identifier_123 'my string 🐍\'quoted\'\ntext on second line' 3.14 LET PARAMS,"
+    )
     tokens: Final = _tokenize_source(source)
     assert len(tokens) == len(TokenType)
     assert tokens[0].type == TokenType.SEMICOLON
@@ -74,9 +76,17 @@ def test_tokenize_can_analyze_all_token_types() -> None:
     assert tokens[13].source_location == SourceLocation(source, offset=90, length=3)
     assert tokens[13].source_location.lexeme == "LET"
 
-    assert tokens[14].type == TokenType.END_OF_INPUT
-    assert tokens[14].source_location == SourceLocation(source, offset=93, length=1)
-    assert tokens[14].source_location.lexeme == ""
+    assert tokens[14].type == TokenType.PARAMS
+    assert tokens[14].source_location == SourceLocation(source, offset=94, length=6)
+    assert tokens[14].source_location.lexeme == "PARAMS"
+
+    assert tokens[15].type == TokenType.COMMA
+    assert tokens[15].source_location == SourceLocation(source, offset=100, length=1)
+    assert tokens[15].source_location.lexeme == ","
+
+    assert tokens[16].type == TokenType.END_OF_INPUT
+    assert tokens[16].source_location == SourceLocation(source, offset=101, length=1)
+    assert tokens[16].source_location.lexeme == ""
 
 
 def test_invalid_escape_sequence_raises() -> None:

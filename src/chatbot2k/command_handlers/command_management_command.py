@@ -233,7 +233,8 @@ class CommandManagementCommand(CommandHandler):
                     value = store.value.evaluate(
                         script_name=script.name,
                         stores=initial_store_values,
-                        variables={},  # Empty dict because variables cannot defined before stores.
+                        parameters={},  # Empty dict because parameter definitions do not access values.
+                        variables={},  # Empty dict because variables cannot be defined before stores.
                     )
                     initial_store_values[store_key] = value
 

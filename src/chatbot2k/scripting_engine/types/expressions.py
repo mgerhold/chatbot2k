@@ -26,6 +26,7 @@ class ExpressionType(StrEnum):
     STRING_LITERAL = "string_literal"
     NUMBER_LITERAL = "number_literal"
     STORE_IDENTIFIER = "store_identifier"
+    PARAMETER_IDENTIFIER = "parameter_identifier"
     VARIABLE_IDENTIFIER = "variable_identifier"
     UNARY_OPERATION = "unary_operation"
     BINARY_OPERATION = "binary_operation"
@@ -40,6 +41,7 @@ class BaseExpression(ABC):
         self,
         script_name: str,
         stores: dict[StoreKey, Value],
+        parameters: dict[str, Value],
         variables: dict[str, Value],
     ) -> Value: ...
 
@@ -60,6 +62,7 @@ class StringLiteralExpression(BaseModel, BaseExpression):
         self,
         script_name: str,
         stores: dict[StoreKey, Value],
+        parameters: dict[str, Value],
         variables: dict[str, Value],
     ) -> Value:
         return StringValue(value=self.value)
@@ -105,6 +108,7 @@ class NumberLiteralExpression(BaseModel, BaseExpression):
         self,
         script_name: str,
         stores: dict[StoreKey, Value],
+        parameters: dict[str, Value],
         variables: dict[str, Value],
     ) -> Value:
         return NumberValue(value=self.value)
@@ -127,6 +131,7 @@ class StoreIdentifierExpression(BaseModel, BaseExpression):
         self,
         script_name: str,
         stores: dict[StoreKey, Value],
+        parameters: dict[str, Value],
         variables: dict[str, Value],
     ) -> Value:
         store_key: Final = StoreKey(
@@ -141,6 +146,39 @@ class StoreIdentifierExpression(BaseModel, BaseExpression):
             msg = (
                 f"Type mismatch when accessing store '{self.store_name}': "
                 + f"expected {self.data_type}, got {value.get_data_type()}"
+            )
+            raise ExecutionError(msg)
+        return value
+
+
+@final
+class ParameterIdentifierExpression(BaseModel, BaseExpression):
+    model_config = ConfigDict(frozen=True)
+
+    expression_type: Literal[ExpressionType.PARAMETER_IDENTIFIER] = ExpressionType.PARAMETER_IDENTIFIER
+    parameter_name: str
+
+    @override
+    def get_data_type(self) -> DataType:
+        # All parameters are strings.
+        return DataType.STRING
+
+    @override
+    def evaluate(
+        self,
+        script_name: str,
+        stores: dict[StoreKey, Value],
+        parameters: dict[str, Value],
+        variables: dict[str, Value],
+    ) -> Value:
+        value: Final = parameters.get(self.parameter_name)
+        if value is None:
+            msg = f"Parameter '{self.parameter_name}' not defined."
+            raise ExecutionError(msg)
+        if value.get_data_type() != DataType.STRING:
+            msg = (
+                f"Type mismatch when accessing parameter '{self.parameter_name}': "
+                + f"expected {DataType.STRING}, got {value.get_data_type()}"
             )
             raise ExecutionError(msg)
         return value
@@ -163,6 +201,7 @@ class VariableIdentifierExpression(BaseModel, BaseExpression):
         self,
         script_name: str,
         stores: dict[StoreKey, Value],
+        parameters: dict[str, Value],
         variables: dict[str, Value],
     ) -> Value:
         value: Final = variables.get(self.variable_name)
@@ -213,9 +252,10 @@ class UnaryOperationExpression(BaseModel, BaseExpression):
         self,
         script_name: str,
         stores: dict[StoreKey, Value],
+        parameters: dict[str, Value],
         variables: dict[str, Value],
     ) -> Value:
-        operand_value: Final = self.operand.evaluate(script_name, stores, variables)
+        operand_value: Final = self.operand.evaluate(script_name, stores, parameters, variables)
         match self.operator, operand_value:
             case UnaryOperator.PLUS, NumberValue(value=v):
                 return NumberValue(value=v)
@@ -258,10 +298,11 @@ class BinaryOperationExpression(BaseModel, BaseExpression):
         self,
         script_name: str,
         stores: dict[StoreKey, Value],
+        parameters: dict[str, Value],
         variables: dict[str, Value],
     ) -> Value:
-        left_value: Final = self.left.evaluate(script_name, stores, variables)
-        right_value: Final = self.right.evaluate(script_name, stores, variables)
+        left_value: Final = self.left.evaluate(script_name, stores, parameters, variables)
+        right_value: Final = self.right.evaluate(script_name, stores, parameters, variables)
         match left_value, self.operator, right_value:
             case NumberValue(value=l), BinaryOperator.ADD, NumberValue(value=r):
                 return NumberValue(value=l + r)
@@ -285,6 +326,7 @@ type Expression = Annotated[
     StringLiteralExpression
     | NumberLiteralExpression
     | StoreIdentifierExpression
+    | ParameterIdentifierExpression
     | VariableIdentifierExpression
     | UnaryOperationExpression
     | BinaryOperationExpression,

@@ -16,6 +16,7 @@ from chatbot2k.scripting_engine.stores import StoreKey
 from chatbot2k.scripting_engine.types.data_types import DataType
 from chatbot2k.scripting_engine.types.execution_error import ExecutionError
 from chatbot2k.scripting_engine.types.expressions import Expression
+from chatbot2k.scripting_engine.types.expressions import ParameterIdentifierExpression
 from chatbot2k.scripting_engine.types.expressions import StoreIdentifierExpression
 from chatbot2k.scripting_engine.types.expressions import VariableIdentifierExpression
 from chatbot2k.scripting_engine.types.value import Value
@@ -27,6 +28,7 @@ class BaseStatement(ABC):
         self,
         script_name: str,
         stores: dict[StoreKey, Value],
+        parameters: dict[str, Value],
         variables: dict[str, Value],
     ) -> Optional[str]: ...
 
@@ -46,8 +48,14 @@ class PrintStatement(BaseModel, BaseStatement):
     argument: Expression
 
     @override
-    def execute(self, script_name: str, stores: dict[StoreKey, Value], variables: dict[str, Value]) -> Optional[str]:
-        value: Final = self.argument.evaluate(script_name, stores, variables)
+    def execute(
+        self,
+        script_name: str,
+        stores: dict[StoreKey, Value],
+        parameters: dict[str, Value],
+        variables: dict[str, Value],
+    ) -> Optional[str]:
+        value: Final = self.argument.evaluate(script_name, stores, parameters, variables)
         return value.to_string()
 
 
@@ -56,7 +64,7 @@ class AssignmentStatement(BaseModel, BaseStatement):
     model_config = ConfigDict(frozen=True)
 
     kind: Literal[StatementKind.ASSIGNMENT] = StatementKind.ASSIGNMENT
-    assignment_target: StoreIdentifierExpression | VariableIdentifierExpression
+    assignment_target: StoreIdentifierExpression | ParameterIdentifierExpression | VariableIdentifierExpression
     expression: Expression  # The rvalue.
 
     @override
@@ -64,6 +72,7 @@ class AssignmentStatement(BaseModel, BaseStatement):
         self,
         script_name: str,
         stores: dict[StoreKey, Value],
+        parameters: dict[str, Value],
         variables: dict[str, Value],
     ) -> Optional[str]:
         match self.assignment_target:
@@ -82,7 +91,21 @@ class AssignmentStatement(BaseModel, BaseStatement):
                         + f"expected {value.get_data_type()}, got {self.expression.get_data_type()}"
                     )
                     raise ExecutionError(msg)
-                stores[store_key] = self.expression.evaluate(script_name, stores, variables)
+                stores[store_key] = self.expression.evaluate(script_name, stores, parameters, variables)
+                return None
+            case ParameterIdentifierExpression(parameter_name=parameter_name):
+                if parameter_name not in parameters:
+                    msg = f"Parameter '{parameter_name}' not defined"
+                    raise ExecutionError(msg)
+                value = parameters[parameter_name]
+                if value.get_data_type() != self.expression.get_data_type():
+                    msg = (
+                        f"Type mismatch when assigning to parameter '{parameter_name}': "
+                        + f"expected {value.get_data_type()}, got {self.expression.get_data_type()}"
+                    )
+                    raise ExecutionError(msg)
+                parameters[parameter_name] = self.expression.evaluate(script_name, stores, parameters, variables)
+                print(f"Assigned '{parameters[parameter_name]}' to parameter {parameter_name}")
                 return None
             case VariableIdentifierExpression(variable_name=variable_name):
                 if variable_name not in variables:
@@ -95,7 +118,7 @@ class AssignmentStatement(BaseModel, BaseStatement):
                         + f"expected {value.get_data_type()}, got {self.expression.get_data_type()}"
                     )
                     raise ExecutionError(msg)
-                variables[variable_name] = self.expression.evaluate(script_name, stores, variables)
+                variables[variable_name] = self.expression.evaluate(script_name, stores, parameters, variables)
                 return None
 
 
@@ -109,7 +132,13 @@ class VariableDefinitionStatement(BaseModel, BaseStatement):
     initial_value: Expression
 
     @override
-    def execute(self, script_name: str, stores: dict[StoreKey, Value], variables: dict[str, Value]) -> Optional[str]:
+    def execute(
+        self,
+        script_name: str,
+        stores: dict[StoreKey, Value],
+        parameters: dict[str, Value],
+        variables: dict[str, Value],
+    ) -> Optional[str]:
         if self.variable_name in variables:
             msg = f"Variable '{self.variable_name}' already defined"
             raise ExecutionError(msg)
@@ -119,7 +148,7 @@ class VariableDefinitionStatement(BaseModel, BaseStatement):
                 + f"expected {self.data_type}, got {self.initial_value.get_data_type()}"
             )
             raise ExecutionError(msg)
-        variables[self.variable_name] = self.initial_value.evaluate(script_name, stores, variables)
+        variables[self.variable_name] = self.initial_value.evaluate(script_name, stores, parameters, variables)
         return None
 
 

@@ -36,7 +36,7 @@ class ScriptCommandHandler(CommandHandler):
         # Execute the script with a timeout to prevent abuse.
         try:
             output: Final = await asyncio.wait_for(
-                asyncio.to_thread(self._script.execute, self._persistent_store),
+                asyncio.to_thread(self._script.execute, self._persistent_store, chat_command.arguments),
                 timeout=self._EXECUTION_TIMEOUT_SECONDS,
             )
         except TimeoutError:

@@ -8,12 +8,14 @@ from typing import final
 from chatbot2k.scripting_engine.precedence import Precedence
 from chatbot2k.scripting_engine.token import Token
 from chatbot2k.scripting_engine.token_types import TokenType
+from chatbot2k.scripting_engine.types.ast import Parameter
 from chatbot2k.scripting_engine.types.ast import Script
 from chatbot2k.scripting_engine.types.ast import Store
 from chatbot2k.scripting_engine.types.expressions import BinaryOperationExpression
 from chatbot2k.scripting_engine.types.expressions import BinaryOperator
 from chatbot2k.scripting_engine.types.expressions import Expression
 from chatbot2k.scripting_engine.types.expressions import NumberLiteralExpression
+from chatbot2k.scripting_engine.types.expressions import ParameterIdentifierExpression
 from chatbot2k.scripting_engine.types.expressions import StoreIdentifierExpression
 from chatbot2k.scripting_engine.types.expressions import StringLiteralExpression
 from chatbot2k.scripting_engine.types.expressions import UnaryOperationExpression
@@ -50,10 +52,35 @@ class UnknownVariableError(RuntimeError):
         super().__init__(f"Variable '{variable_name}' is not defined.")
 
 
+@final
+class ParameterShadowsStoreError(RuntimeError):
+    def __init__(self, parameter_name: str) -> None:
+        super().__init__(f"Parameter '{parameter_name}' shadows store with the same name.")
+
+
+@final
+class VariableShadowsParameterError(RuntimeError):
+    def __init__(self, variable_name: str) -> None:
+        super().__init__(f"Variable '{variable_name}' shadows parameter with the same name.")
+
+
+@final
+class VariableShadowsStoreError(RuntimeError):
+    def __init__(self, variable_name: str) -> None:
+        super().__init__(f"Variable '{variable_name}' shadows store with the same name.")
+
+
+@final
+class DuplicateParameterNameError(RuntimeError):
+    def __init__(self, parameter_name: str) -> None:
+        super().__init__(f"Parameter '{parameter_name}' is already defined.")
+
+
 type _UnaryParser = Callable[
     [
         Parser,
         list[Store],
+        list[Parameter],
         list[VariableDefinitionStatement],
     ],
     Expression,
@@ -63,6 +90,7 @@ type _BinaryParser = Callable[
         Parser,
         Annotated[Expression, "left operand"],
         list[Store],
+        list[Parameter],
         list[VariableDefinitionStatement],
     ],
     Expression,
@@ -85,10 +113,12 @@ class Parser:
 
     def parse(self) -> Script:
         stores: Final = self._stores()
-        statements: Final = self._statements(stores)
+        parameters: Final = self._parameters(stores)
+        statements: Final = self._statements(stores, parameters)
         return Script(
             name=self._script_name,
             stores=stores,
+            parameters=parameters,
             statements=statements,
         )
 
@@ -107,7 +137,7 @@ class Parser:
         if previous_definition is not None:
             raise StoreRedefinitionError(store_name)
         self._expect(TokenType.EQUALS, "'=' after store name")
-        value: Final = self._expression(stores, [], Precedence.UNKNOWN)
+        value: Final = self._expression(stores, [], [], Precedence.UNKNOWN)
         store: Final = Store(
             name=store_name,
             value=value,
@@ -115,7 +145,29 @@ class Parser:
         self._expect(TokenType.SEMICOLON, "';' after store declaration")
         return store
 
-    def _statements(self, stores: list[Store]) -> list[Statement]:
+    def _parameters(self, stores: list[Store]) -> list[Parameter]:
+        if self._match(TokenType.PARAMS) is None:
+            return []
+        parameters: Final[list[Parameter]] = []
+        while True:
+            identifier_token = self._expect(TokenType.IDENTIFIER, "parameter name")
+            parameter_name = identifier_token.source_location.lexeme
+            if next((store.name for store in stores if store.name == parameter_name), None) is not None:
+                raise ParameterShadowsStoreError(parameter_name)
+            if next((parameter.name for parameter in parameters if parameter.name == parameter_name), None) is not None:
+                raise DuplicateParameterNameError(parameter_name)
+            parameter = Parameter(name=parameter_name)
+            parameters.append(parameter)
+            if self._match(TokenType.COMMA) is None or self._current().type == TokenType.SEMICOLON:
+                break
+        self._expect(TokenType.SEMICOLON, "';' after parameter list")
+        return parameters
+
+    def _statements(
+        self,
+        stores: list[Store],
+        parameters: list[Parameter],
+    ) -> list[Statement]:
         statements: Final[list[Statement]] = []
         # The following list is only used internally to keep track of variable definitions
         # that already happened. It is not part of the returned Script. Using this list,
@@ -124,7 +176,7 @@ class Parser:
         # of concerns, but we don't want to add a separate semantic analysis phase.
         variable_definitions: Final[list[VariableDefinitionStatement]] = []
         while not self._is_at_end():
-            statements.append(self._statement(stores, variable_definitions))
+            statements.append(self._statement(stores, parameters, variable_definitions))
         if not statements:
             raise ExpectedTokenError(self._current(), "at least one statement")
         return statements
@@ -132,16 +184,17 @@ class Parser:
     def _statement(
         self,
         stores: list[Store],
+        parameters: list[Parameter],
         variable_definitions: list[VariableDefinitionStatement],
     ) -> Statement:
         statement: Statement
         match self._current().type:
             case TokenType.PRINT:
-                statement = self._print_statement(stores, variable_definitions)
+                statement = self._print_statement(stores, parameters, variable_definitions)
             case TokenType.IDENTIFIER:
-                statement = self._assignment(stores, variable_definitions)
+                statement = self._assignment(stores, parameters, variable_definitions)
             case TokenType.LET:
-                statement = self._variable_definition(stores, variable_definitions)
+                statement = self._variable_definition(stores, parameters, variable_definitions)
             case _:
                 raise ExpectedTokenError(self._current(), "statement")
         self._expect(TokenType.SEMICOLON, "';' after statement")
@@ -150,42 +203,46 @@ class Parser:
     def _print_statement(
         self,
         stores: list[Store],
+        parameters: list[Parameter],
         variable_definitions: list[VariableDefinitionStatement],
     ) -> Statement:
         self._expect(TokenType.PRINT, "'print' keyword")  # This is a double-check.
-        expression: Final = self._expression(stores, variable_definitions, Precedence.UNKNOWN)
+        expression: Final = self._expression(stores, parameters, variable_definitions, Precedence.UNKNOWN)
         return PrintStatement(argument=expression)
 
     def _assignment(
         self,
         stores: list[Store],
+        parameters: list[Parameter],
         variable_definitions: list[VariableDefinitionStatement],
     ) -> Statement:
         identifier_token: Final = self._expect(TokenType.IDENTIFIER, "assignment target")
         identifier_name: Final = identifier_token.source_location.lexeme
 
-        # Check if it's a store
-        store: Final = next((store for store in stores if store.name == identifier_name), None)
-        if store is not None:
-            lvalue: StoreIdentifierExpression | VariableIdentifierExpression = StoreIdentifierExpression(
-                store_name=identifier_name,
-                data_type=store.data_type,
+        # Check if it's a store.
+        if (store := next((store for store in stores if store.name == identifier_name), None)) is not None:
+            lvalue: StoreIdentifierExpression | ParameterIdentifierExpression | VariableIdentifierExpression = (
+                StoreIdentifierExpression(
+                    store_name=identifier_name,
+                    data_type=store.data_type,
+                )
             )
-        else:
-            # Check if it's a variable
-            variable: Final = next(
-                (var for var in variable_definitions if var.variable_name == identifier_name),
-                None,
-            )
-            if variable is None:
-                raise UnknownVariableError(identifier_name)
+        # Check if it's a parameter.
+        elif next((parameter for parameter in parameters if parameter.name == identifier_name), None) is not None:
+            lvalue = ParameterIdentifierExpression(parameter_name=identifier_name)
+        # Check if it's a variable.
+        elif (
+            variable := next((var for var in variable_definitions if var.variable_name == identifier_name), None)
+        ) is not None:
             lvalue = VariableIdentifierExpression(
                 variable_name=identifier_name,
                 data_type=variable.data_type,
             )
+        else:
+            raise UnknownVariableError(identifier_name)
 
         self._expect(TokenType.EQUALS, "'=' in assignment")
-        rvalue: Final = self._expression(stores, variable_definitions, Precedence.UNKNOWN)
+        rvalue: Final = self._expression(stores, parameters, variable_definitions, Precedence.UNKNOWN)
         return AssignmentStatement(
             assignment_target=lvalue,
             expression=rvalue,
@@ -194,11 +251,16 @@ class Parser:
     def _variable_definition(
         self,
         stores: list[Store],
+        parameters: list[Parameter],
         variable_definitions: list[VariableDefinitionStatement],
     ) -> Statement:
         self._expect(TokenType.LET, "'let' keyword")  # This is a double-check.
         identifier_token: Final = self._expect(TokenType.IDENTIFIER, "variable name")
         identifier_name: Final = identifier_token.source_location.lexeme
+        if next((store.name for store in stores if store.name == identifier_name), None) is not None:
+            raise VariableShadowsStoreError(identifier_name)
+        if next((parameter.name for parameter in parameters if parameter.name == identifier_name), None) is not None:
+            raise VariableShadowsParameterError(identifier_name)
         previous_definition: Final = next(
             (definition for definition in variable_definitions if definition.variable_name == identifier_name),
             None,
@@ -208,6 +270,7 @@ class Parser:
         self._expect(TokenType.EQUALS, "'=' in variable definition")
         initial_value: Final = self._expression(
             stores,
+            parameters,
             variable_definitions,
             Precedence.UNKNOWN,
         )
@@ -222,6 +285,7 @@ class Parser:
     def _expression(
         self,
         stores: list[Store],
+        parameters: list[Parameter],
         variable_definitions: list[VariableDefinitionStatement],
         precedence: Precedence,
     ) -> Expression:
@@ -229,22 +293,24 @@ class Parser:
         prefix_parser: Final = table_entry.prefix_parser
         if prefix_parser is None:
             raise ExpectedTokenError(self._current(), "expression")
-        left_operand = prefix_parser(self, stores, variable_definitions)
+        left_operand = prefix_parser(self, stores, parameters, variable_definitions)
 
         while True:
             table_entry = Parser._PARSER_TABLE[self._current().type]
             if table_entry.infix_precedence <= precedence or table_entry.infix_parser is None:
                 return left_operand
-            left_operand = table_entry.infix_parser(self, left_operand, stores, variable_definitions)
+            left_operand = table_entry.infix_parser(self, left_operand, stores, parameters, variable_definitions)
 
     def _identifier(
         self,
         stores: list[Store],
+        parameters: list[Parameter],
         variable_definitions: list[VariableDefinitionStatement],
     ) -> Expression:
         identifier_token: Final = self._expect(TokenType.IDENTIFIER, "identifier")  # This is a double-check.
+        identifier_name: Final = identifier_token.source_location.lexeme
         store: Final = next(
-            (store for store in stores if store.name == identifier_token.source_location.lexeme),
+            (store for store in stores if store.name == identifier_name),
             None,
         )
         if store is not None:
@@ -252,12 +318,14 @@ class Parser:
                 store_name=store.name,
                 data_type=store.data_type,
             )
+        parameter: Final = next(
+            (parameter for parameter in parameters if parameter.name == identifier_name),
+            None,
+        )
+        if parameter is not None:
+            return ParameterIdentifierExpression(parameter_name=parameter.name)
         variable_definition: Final = next(
-            (
-                definition
-                for definition in variable_definitions
-                if definition.variable_name == identifier_token.source_location.lexeme
-            ),
+            (definition for definition in variable_definitions if definition.variable_name == identifier_name),
             None,
         )
         if variable_definition is not None:
@@ -265,11 +333,12 @@ class Parser:
                 variable_name=variable_definition.variable_name,
                 data_type=variable_definition.data_type,
             )
-        raise UnknownVariableError(identifier_token.source_location.lexeme)
+        raise UnknownVariableError(identifier_name)
 
     def _number_literal(
         self,
         _stores: list[Store],
+        parameters: list[Parameter],
         _variable_definitions: list[VariableDefinitionStatement],
     ) -> Expression:
         number_token: Final = self._expect(TokenType.NUMBER_LITERAL, "number literal")  # This is a double-check.
@@ -278,6 +347,7 @@ class Parser:
     def _string_literal(
         self,
         _stores: list[Store],
+        parameters: list[Parameter],
         _variable_definitions: list[VariableDefinitionStatement],
     ) -> Expression:
         string_token: Final = self._expect(TokenType.STRING_LITERAL, "string literal")  # This is a double-check.
@@ -286,6 +356,7 @@ class Parser:
     def _unary_operation(
         self,
         stores: list[Store],
+        parameters: list[Parameter],
         variable_definitions: list[VariableDefinitionStatement],
     ) -> Expression:
         unary_operator: UnaryOperator
@@ -298,16 +369,17 @@ class Parser:
                 msg: Final = f"unexpected unary operator: {self._current().type}"
                 raise AssertionError(msg)
         self._advance()
-        operand: Final = self._expression(stores, variable_definitions, Precedence.UNARY)
+        operand: Final = self._expression(stores, parameters, variable_definitions, Precedence.UNARY)
         return UnaryOperationExpression(operator=unary_operator, operand=operand)
 
     def _grouped_expression(
         self,
         stores: list[Store],
+        parameters: list[Parameter],
         variable_definitions: list[VariableDefinitionStatement],
     ) -> Expression:
         self._expect(TokenType.LEFT_PARENTHESIS, "'('")  # This is a double-check.
-        expression: Final = self._expression(stores, variable_definitions, Precedence.UNKNOWN)
+        expression: Final = self._expression(stores, parameters, variable_definitions, Precedence.UNKNOWN)
         self._expect(TokenType.RIGHT_PARENTHESIS, "')' after grouped expression")
         return expression
 
@@ -340,6 +412,7 @@ class Parser:
         self,
         left_operand: Expression,
         stores: list[Store],
+        parameters: list[Parameter],
         variable_definitions: list[VariableDefinitionStatement],
     ) -> Expression:
         binary_operator: BinaryOperator
@@ -357,7 +430,7 @@ class Parser:
                 raise AssertionError(msg)
         precedence: Final = Parser._PARSER_TABLE[self._current().type].infix_precedence
         self._advance()
-        right_operand: Final = self._expression(stores, variable_definitions, precedence)
+        right_operand: Final = self._expression(stores, parameters, variable_definitions, precedence)
         return BinaryOperationExpression(left=left_operand, operator=binary_operator, right=right_operand)
 
     _PARSER_TABLE = {

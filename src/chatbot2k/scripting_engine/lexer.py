@@ -9,8 +9,21 @@ from chatbot2k.scripting_engine.token_types import TokenType
 
 _BUILTIN_KEYWORDS = {
     "STORE": TokenType.STORE,
+    "PARAMS": TokenType.PARAMS,
     "PRINT": TokenType.PRINT,
     "LET": TokenType.LET,
+}
+
+_SINGLE_CHAR_TOKENS = {
+    ",": TokenType.COMMA,
+    ";": TokenType.SEMICOLON,
+    "=": TokenType.EQUALS,
+    "+": TokenType.PLUS,
+    "-": TokenType.MINUS,
+    "*": TokenType.ASTERISK,
+    "/": TokenType.SLASH,
+    "(": TokenType.LEFT_PARENTHESIS,
+    ")": TokenType.RIGHT_PARENTHESIS,
 }
 
 
@@ -32,30 +45,9 @@ class Lexer:
         while not self._is_at_end():
             self._discard_whitespace()
             match self._current():
-                case ";":
+                case c if c in _SINGLE_CHAR_TOKENS:
                     self._advance()
-                    tokens.append(self._create_token(TokenType.SEMICOLON))
-                case "=":
-                    self._advance()
-                    tokens.append(self._create_token(TokenType.EQUALS))
-                case "+":
-                    self._advance()
-                    tokens.append(self._create_token(TokenType.PLUS))
-                case "-":
-                    self._advance()
-                    tokens.append(self._create_token(TokenType.MINUS))
-                case "*":
-                    self._advance()
-                    tokens.append(self._create_token(TokenType.ASTERISK))
-                case "/":
-                    self._advance()
-                    tokens.append(self._create_token(TokenType.SLASH))
-                case "(":
-                    self._advance()
-                    tokens.append(self._create_token(TokenType.LEFT_PARENTHESIS))
-                case ")":
-                    self._advance()
-                    tokens.append(self._create_token(TokenType.RIGHT_PARENTHESIS))
+                    tokens.append(self._create_token(_SINGLE_CHAR_TOKENS[c]))
                 case _ as char if char.isdigit():
                     # Number literal (we don't differentiate between integers and floats).
                     start_offset = self._current_offset

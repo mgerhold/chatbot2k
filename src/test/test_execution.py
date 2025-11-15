@@ -33,14 +33,14 @@ def _execute_with_store(
     initial_data: Final[dict[StoreKey, Value]] = {}
     for store in script.stores:
         key = StoreKey(script_name, store.name)
-        value = store.value.evaluate(script_name, initial_data, {})
+        value = store.value.evaluate(script_name, initial_data, {}, {})
         initial_data[key] = value
 
     if store_overrides is not None:
         initial_data.update({StoreKey(script_name, store_name): value for store_name, value in store_overrides.items()})
 
     mock_store = MockStore(initial_data)
-    output = script.execute(mock_store)
+    output = script.execute(mock_store, [])
     return output, mock_store
 
 

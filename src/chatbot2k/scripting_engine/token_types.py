@@ -5,6 +5,7 @@ from typing import final
 
 @final
 class TokenType(Enum):
+    COMMA = auto()
     SEMICOLON = auto()
     EQUALS = auto()
     PLUS = auto()
@@ -15,6 +16,7 @@ class TokenType(Enum):
     RIGHT_PARENTHESIS = auto()
 
     STORE = auto()
+    PARAMS = auto()
     PRINT = auto()
     LET = auto()
 
