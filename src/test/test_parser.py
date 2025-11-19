@@ -463,6 +463,116 @@ def test_parser_parses_double_negation() -> None:
             pytest.fail(f"Unexpected statement structure: {script.statements[0]}")
 
 
+def test_parser_parses_string_to_number_operator_with_string_literal() -> None:
+    # $'42' should be parsed as UnaryOperation(TO_NUMBER, StringLiteral('42'))
+    script: Final = _parse_source("PRINT $'42';")
+    assert len(script.statements) == 1
+
+    match script.statements[0]:
+        case PrintStatement(
+            argument=UnaryOperationExpression(
+                operator=UnaryOperator.TO_NUMBER,
+                operand=StringLiteralExpression(value="42"),
+            )
+        ):
+            pass  # Test passed
+        case _:
+            pytest.fail(f"Unexpected statement structure: {script.statements[0]}")
+
+
+def test_parser_parses_string_to_number_operator_with_string_expression() -> None:
+    # $('3' + '.14') should be parsed correctly
+    script: Final = _parse_source("PRINT $('3' + '.14');")
+    assert len(script.statements) == 1
+
+    match script.statements[0]:
+        case PrintStatement(
+            argument=UnaryOperationExpression(
+                operator=UnaryOperator.TO_NUMBER,
+                operand=BinaryOperationExpression(
+                    operator=BinaryOperator.ADD,
+                    left=StringLiteralExpression(value="3"),
+                    right=StringLiteralExpression(value=".14"),
+                ),
+            )
+        ):
+            pass  # Test passed
+        case _:
+            pytest.fail(f"Unexpected statement structure: {script.statements[0]}")
+
+
+def test_parser_parses_string_to_number_operator_with_store() -> None:
+    # $my_store should be parsed as UnaryOperation(TO_NUMBER, StoreIdentifier('my_store'))
+    script: Final = _parse_source("STORE my_store = '123'; PRINT $my_store;")
+    assert len(script.statements) == 1
+
+    match script.statements[0]:
+        case PrintStatement(
+            argument=UnaryOperationExpression(
+                operator=UnaryOperator.TO_NUMBER,
+                operand=StoreIdentifierExpression(store_name="my_store"),
+            )
+        ):
+            pass  # Test passed
+        case _:
+            pytest.fail(f"Unexpected statement structure: {script.statements[0]}")
+
+
+def test_parser_parses_evaluate_operator_with_string_literal() -> None:
+    # !'PRINT 5;' should be parsed as UnaryOperation(EVALUATE, StringLiteral('PRINT 5;'))
+    script: Final = _parse_source("PRINT !'PRINT 5;';")
+    assert len(script.statements) == 1
+
+    match script.statements[0]:
+        case PrintStatement(
+            argument=UnaryOperationExpression(
+                operator=UnaryOperator.EVALUATE,
+                operand=StringLiteralExpression(value="PRINT 5;"),
+            )
+        ):
+            pass  # Test passed
+        case _:
+            pytest.fail(f"Unexpected statement structure: {script.statements[0]}")
+
+
+def test_parser_parses_evaluate_operator_with_string_expression() -> None:
+    # !('PRINT ' + '42;') should be parsed correctly
+    script: Final = _parse_source("PRINT !('PRINT ' + '42;');")
+    assert len(script.statements) == 1
+
+    match script.statements[0]:
+        case PrintStatement(
+            argument=UnaryOperationExpression(
+                operator=UnaryOperator.EVALUATE,
+                operand=BinaryOperationExpression(
+                    operator=BinaryOperator.ADD,
+                    left=StringLiteralExpression(value="PRINT "),
+                    right=StringLiteralExpression(value="42;"),
+                ),
+            )
+        ):
+            pass  # Test passed
+        case _:
+            pytest.fail(f"Unexpected statement structure: {script.statements[0]}")
+
+
+def test_parser_parses_evaluate_operator_with_store() -> None:
+    # !code_store should be parsed as UnaryOperation(EVALUATE, StoreIdentifier('code_store'))
+    script: Final = _parse_source("STORE code_store = 'PRINT 100;'; PRINT !code_store;")
+    assert len(script.statements) == 1
+
+    match script.statements[0]:
+        case PrintStatement(
+            argument=UnaryOperationExpression(
+                operator=UnaryOperator.EVALUATE,
+                operand=StoreIdentifierExpression(store_name="code_store"),
+            )
+        ):
+            pass  # Test passed
+        case _:
+            pytest.fail(f"Unexpected statement structure: {script.statements[0]}")
+
+
 def test_parser_parses_grouped_expression() -> None:
     # (5) should just return the number
     script: Final = _parse_source("PRINT (5);")

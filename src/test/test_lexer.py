@@ -16,7 +16,7 @@ def _tokenize_source(source: str) -> list[Token]:
 
 def test_tokenize_can_analyze_all_token_types() -> None:
     source: Final = (
-        r";=+-*/()STORE PRINT some_identifier_123 'my string 🐍\'quoted\'\ntext on second line' 3.14 LET PARAMS,"
+        r";=+-*/()STORE PRINT some_identifier_123 'my string 🐍\'quoted\'\ntext on second line' 3.14 LET PARAMS,$!"
     )
     tokens: Final = _tokenize_source(source)
     assert len(tokens) == len(TokenType)
@@ -84,9 +84,17 @@ def test_tokenize_can_analyze_all_token_types() -> None:
     assert tokens[15].source_location == SourceLocation(source, offset=100, length=1)
     assert tokens[15].source_location.lexeme == ","
 
-    assert tokens[16].type == TokenType.END_OF_INPUT
+    assert tokens[16].type == TokenType.DOLLAR
     assert tokens[16].source_location == SourceLocation(source, offset=101, length=1)
-    assert tokens[16].source_location.lexeme == ""
+    assert tokens[16].source_location.lexeme == "$"
+
+    assert tokens[17].type == TokenType.EXCLAMATION_MARK
+    assert tokens[17].source_location == SourceLocation(source, offset=102, length=1)
+    assert tokens[17].source_location.lexeme == "!"
+
+    assert tokens[18].type == TokenType.END_OF_INPUT
+    assert tokens[18].source_location == SourceLocation(source, offset=103, length=1)
+    assert tokens[18].source_location.lexeme == ""
 
 
 def test_invalid_escape_sequence_raises() -> None:

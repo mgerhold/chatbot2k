@@ -16,6 +16,8 @@ _BUILTIN_KEYWORDS = {
 
 _SINGLE_CHAR_TOKENS = {
     ",": TokenType.COMMA,
+    "!": TokenType.EXCLAMATION_MARK,
+    "$": TokenType.DOLLAR,
     ";": TokenType.SEMICOLON,
     "=": TokenType.EQUALS,
     "+": TokenType.PLUS,

@@ -13,7 +13,10 @@ from pydantic import ConfigDict
 from pydantic import Discriminator
 
 from chatbot2k.scripting_engine.escape_characters import ESCAPE_CHARACTERS
+from chatbot2k.scripting_engine.lexer import LexerError
+from chatbot2k.scripting_engine.stores import AlwaysEmptyPersistentStore
 from chatbot2k.scripting_engine.stores import StoreKey
+from chatbot2k.scripting_engine.token_types import TokenType
 from chatbot2k.scripting_engine.types.data_types import DataType
 from chatbot2k.scripting_engine.types.execution_error import ExecutionError
 from chatbot2k.scripting_engine.types.value import NumberValue
@@ -229,6 +232,8 @@ class BinaryOperator(StrEnum):
 class UnaryOperator(StrEnum):
     PLUS = "+"
     NEGATE = "-"
+    TO_NUMBER = "$"
+    EVALUATE = "!"
 
 
 @final
@@ -255,16 +260,52 @@ class UnaryOperationExpression(BaseModel, BaseExpression):
         parameters: dict[str, Value],
         variables: dict[str, Value],
     ) -> Value:
+        from chatbot2k.scripting_engine.lexer import Lexer
+        from chatbot2k.scripting_engine.parser import Parser
+
         operand_value: Final = self.operand.evaluate(script_name, stores, parameters, variables)
         match self.operator, operand_value:
-            case UnaryOperator.PLUS, NumberValue(value=v):
+            case UnaryOperator.PLUS | UnaryOperator.TO_NUMBER, NumberValue(value=v):
                 return NumberValue(value=v)
             case UnaryOperator.NEGATE, NumberValue(value=v):
                 return NumberValue(value=-v)
-            case _, _:
-                msg: Final = (
-                    f"Unary operator {self.operator} is not supported for {operand_value.get_data_type()} operands"
-                )
+            case UnaryOperator.TO_NUMBER, StringValue(value=value):
+                try:
+                    lexer = Lexer(value)
+                    tokens: Final = lexer.tokenize()
+                except LexerError as e:
+                    msg = f"Failed to lex string '{value}' for number conversion: {str(e)}"
+                    raise ExecutionError(msg) from e
+                msg = f"String '{value}' does not represent a valid number"
+                if len(tokens) < 2:
+                    raise ExecutionError(msg)
+                match tokens[0].type, tokens[1].type:
+                    case TokenType.NUMBER_LITERAL, TokenType.END_OF_INPUT:
+                        return NumberValue(value=float(tokens[0].source_location.lexeme))
+                    case TokenType.PLUS, TokenType.NUMBER_LITERAL:
+                        return NumberValue(value=float(tokens[1].source_location.lexeme))
+                    case TokenType.MINUS, TokenType.NUMBER_LITERAL:
+                        return NumberValue(value=-float(tokens[1].source_location.lexeme))
+                    case _:
+                        raise ExecutionError(msg)
+            case UnaryOperator.EVALUATE, StringValue(value=source_code):
+                try:
+                    lexer = Lexer(source_code)
+                    parser: Final = Parser("", lexer.tokenize())
+                    script: Final = parser.parse()
+                except Exception as e:
+                    msg = f"Failed to parse code for evaluation: {str(e)}"
+                    raise ExecutionError(msg) from e
+                if script.stores:
+                    raise ExecutionError("Stores inside evaluated code are not supported")
+                if script.parameters:
+                    raise ExecutionError("Parameters inside evaluated code are not supported")
+                script_output: Final = script.execute(AlwaysEmptyPersistentStore(), [])
+                if script_output is None:
+                    raise ExecutionError("Evaluated script did not produce any output")
+                return StringValue(value=script_output)
+            case UnaryOperator.PLUS | UnaryOperator.NEGATE | UnaryOperator.TO_NUMBER | UnaryOperator.EVALUATE, _:
+                msg = f"Unary operator {self.operator} is not supported for {operand_value.get_data_type()} operands"
                 raise ExecutionError(msg)
 
 

@@ -147,6 +147,145 @@ def test_unary_in_expression() -> None:
     assert output == "5"
 
 
+# String to number conversion tests
+def test_string_to_number_with_integer_string() -> None:
+    output: Final = _execute("PRINT $'42';")
+    assert output == "42"
+
+
+def test_string_to_number_with_float_string() -> None:
+    output: Final = _execute("PRINT $'3.14';")
+    assert output == "3.14"
+
+
+def test_string_to_number_with_negative_string() -> None:
+    output: Final = _execute("PRINT $'-17';")
+    assert output == "-17"
+
+
+def test_string_to_number_with_zero_string() -> None:
+    output: Final = _execute("PRINT $'0';")
+    assert output == "0"
+
+
+def test_string_to_number_with_store() -> None:
+    output: Final = _execute("STORE num_str = '123'; PRINT $num_str;")
+    assert output == "123"
+
+
+def test_string_to_number_with_concatenated_strings() -> None:
+    output: Final = _execute("PRINT $('3' + '.14');")
+    assert output == "3.14"
+
+
+def test_string_to_number_in_arithmetic_expression() -> None:
+    output: Final = _execute("PRINT $'10' + $'20';")
+    assert output == "30"
+
+
+def test_string_to_number_with_variable() -> None:
+    output: Final = _execute("LET x = '99'; PRINT $x;")
+    assert output == "99"
+
+
+def test_string_to_number_with_invalid_string_raises_error() -> None:
+    with pytest.raises(ExecutionError, match="String 'not a number' does not represent a valid number"):
+        _execute("PRINT $'not a number';")
+
+
+def test_string_to_number_with_empty_string_raises_error() -> None:
+    with pytest.raises(ExecutionError, match="String '' does not represent a valid number"):
+        _execute("PRINT $'';")
+
+
+def test_string_to_number_with_partial_number_raises_error() -> None:
+    with pytest.raises(ExecutionError, match="String '12abc' does not represent a valid number"):
+        _execute("PRINT $'12abc';")
+
+
+# Evaluate string as code tests
+def test_evaluate_simple_expression() -> None:
+    output: Final = _execute("PRINT !'PRINT 5;';")
+    assert output == "5"
+
+
+def test_evaluate_string_literal() -> None:
+    output: Final = _execute("PRINT !'PRINT \\'Hello\\';';")
+    assert output == "Hello"
+
+
+def test_evaluate_arithmetic_expression() -> None:
+    output: Final = _execute("PRINT !'PRINT 2 + 3;';")
+    assert output == "5"
+
+
+def test_evaluate_complex_expression() -> None:
+    output: Final = _execute("PRINT !'PRINT (10 + 5) * 2;';")
+    assert output == "30"
+
+
+def test_evaluate_with_store() -> None:
+    output: Final = _execute("STORE code = 'PRINT 42;'; PRINT !code;")
+    assert output == "42"
+
+
+def test_evaluate_with_concatenated_code() -> None:
+    output: Final = _execute("PRINT !('PRINT ' + '99;');")
+    assert output == "99"
+
+
+def test_evaluate_with_variable() -> None:
+    output: Final = _execute("LET script = 'PRINT 123;'; PRINT !script;")
+    assert output == "123"
+
+
+def test_evaluate_multiple_statements() -> None:
+    output: Final = _execute("PRINT !'PRINT 1; PRINT 2; PRINT 3;';")
+    assert output == "123"
+
+
+def test_evaluate_with_string_concatenation_in_code() -> None:
+    output: Final = _execute("PRINT !'PRINT \\'Hello\\' + \\' World\\';';")
+    assert output == "Hello World"
+
+
+def test_evaluate_invalid_syntax_raises_error() -> None:
+    with pytest.raises(ExecutionError, match="Failed to parse code for evaluation"):
+        _execute("PRINT !'PRINT ;';")
+
+
+def test_evaluate_code_with_stores_raises_error() -> None:
+    with pytest.raises(ExecutionError, match="Stores inside evaluated code are not supported"):
+        _execute("PRINT !'STORE x = 5; PRINT x;';")
+
+
+def test_evaluate_code_with_parameters_raises_error() -> None:
+    with pytest.raises(ExecutionError, match="Parameters inside evaluated code are not supported"):
+        _execute("PRINT !'PARAMS x; PRINT 5;';")
+
+
+def test_evaluate_code_without_output_raises_error() -> None:
+    with pytest.raises(ExecutionError, match="Evaluated script did not produce any output"):
+        _execute("PRINT !'LET x = 5;';")
+
+
+def test_evaluate_nested_evaluation() -> None:
+    # Test evaluating code that itself contains evaluation
+    output: Final = _execute("PRINT !'PRINT !\\'PRINT 7;\\';';")
+    assert output == "7"
+
+
+# Combined tests for string to number and evaluate
+def test_string_to_number_and_evaluate_combined() -> None:
+    output: Final = _execute("PRINT $!'PRINT \\'42\\';';")
+    assert output == "42"
+
+
+def test_evaluate_expression_with_string_to_number() -> None:
+    output: Final = _execute("PRINT !'PRINT $\\'25\\';';")
+    assert output == "25"
+
+
 # Store operations
 def test_store_update() -> None:
     output: Final = _execute("STORE x = 10; x = x * 2; PRINT x;")

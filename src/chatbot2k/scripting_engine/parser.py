@@ -365,6 +365,10 @@ class Parser:
                 unary_operator = UnaryOperator.PLUS
             case TokenType.MINUS:
                 unary_operator = UnaryOperator.NEGATE
+            case TokenType.DOLLAR:
+                unary_operator = UnaryOperator.TO_NUMBER
+            case TokenType.EXCLAMATION_MARK:
+                unary_operator = UnaryOperator.EVALUATE
             case _:
                 msg: Final = f"unexpected unary operator: {self._current().type}"
                 raise AssertionError(msg)
@@ -434,6 +438,9 @@ class Parser:
         return BinaryOperationExpression(left=left_operand, operator=binary_operator, right=right_operand)
 
     _PARSER_TABLE = {
+        TokenType.COMMA: _TableEntry(None, None, Precedence.UNKNOWN),
+        TokenType.DOLLAR: _TableEntry(_unary_operation, None, Precedence.UNARY),
+        TokenType.EXCLAMATION_MARK: _TableEntry(_unary_operation, None, Precedence.UNARY),
         TokenType.SEMICOLON: _TableEntry(None, None, Precedence.UNKNOWN),
         TokenType.EQUALS: _TableEntry(None, None, Precedence.UNKNOWN),
         TokenType.PLUS: _TableEntry(_unary_operation, _binary_expression, Precedence.SUM),
@@ -443,6 +450,7 @@ class Parser:
         TokenType.LEFT_PARENTHESIS: _TableEntry(_grouped_expression, None, Precedence.UNKNOWN),
         TokenType.RIGHT_PARENTHESIS: _TableEntry(None, None, Precedence.UNKNOWN),
         TokenType.STORE: _TableEntry(None, None, Precedence.UNKNOWN),
+        TokenType.PARAMS: _TableEntry(None, None, Precedence.UNKNOWN),
         TokenType.PRINT: _TableEntry(None, None, Precedence.UNKNOWN),
         TokenType.LET: _TableEntry(None, None, Precedence.UNKNOWN),
         TokenType.IDENTIFIER: _TableEntry(_identifier, None, Precedence.UNARY),
@@ -450,3 +458,8 @@ class Parser:
         TokenType.NUMBER_LITERAL: _TableEntry(_number_literal, None, Precedence.UNARY),
         TokenType.END_OF_INPUT: _TableEntry(None, None, Precedence.UNKNOWN),
     }
+
+    if set(_PARSER_TABLE) != set(TokenType):
+        missing_tokens: Final = set(TokenType) - set(_PARSER_TABLE)
+        msg: Final = f"Parser table is missing entries for token types: {missing_tokens}"
+        raise AssertionError(msg)

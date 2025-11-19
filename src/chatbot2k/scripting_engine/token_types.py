@@ -6,6 +6,8 @@ from typing import final
 @final
 class TokenType(Enum):
     COMMA = auto()
+    DOLLAR = auto()
+    EXCLAMATION_MARK = auto()
     SEMICOLON = auto()
     EQUALS = auto()
     PLUS = auto()
