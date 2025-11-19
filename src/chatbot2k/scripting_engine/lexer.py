@@ -12,14 +12,16 @@ _BUILTIN_KEYWORDS = {
     "PARAMS": TokenType.PARAMS,
     "PRINT": TokenType.PRINT,
     "LET": TokenType.LET,
+    "true": TokenType.BOOL_LITERAL,
+    "false": TokenType.BOOL_LITERAL,
 }
 
 _SINGLE_CHAR_TOKENS = {
+    ":": TokenType.COLON,
     ",": TokenType.COMMA,
-    "!": TokenType.EXCLAMATION_MARK,
     "$": TokenType.DOLLAR,
+    "?": TokenType.QUESTION_MARK,
     ";": TokenType.SEMICOLON,
-    "=": TokenType.EQUALS,
     "+": TokenType.PLUS,
     "-": TokenType.MINUS,
     "*": TokenType.ASTERISK,
@@ -66,6 +68,38 @@ class Lexer:
                         while self._current().isdigit():
                             self._advance()
                     tokens.append(self._create_token(TokenType.NUMBER_LITERAL, start_offset))
+                case "=":
+                    start_offset = self._current_offset
+                    self._advance()
+                    if self._current() == "=":
+                        self._advance()
+                        tokens.append(self._create_token(TokenType.EQUALS_EQUALS, start_offset))
+                    else:
+                        tokens.append(self._create_token(TokenType.EQUALS, start_offset))
+                case "<":
+                    start_offset = self._current_offset
+                    self._advance()
+                    if self._current() == "=":
+                        self._advance()
+                        tokens.append(self._create_token(TokenType.LESS_THAN_EQUALS, start_offset))
+                    else:
+                        tokens.append(self._create_token(TokenType.LESS_THAN, start_offset))
+                case ">":
+                    start_offset = self._current_offset
+                    self._advance()
+                    if self._current() == "=":
+                        self._advance()
+                        tokens.append(self._create_token(TokenType.GREATER_THAN_EQUALS, start_offset))
+                    else:
+                        tokens.append(self._create_token(TokenType.GREATER_THAN, start_offset))
+                case "!":
+                    start_offset = self._current_offset
+                    self._advance()
+                    if self._current() == "=":
+                        self._advance()
+                        tokens.append(self._create_token(TokenType.EXCLAMATION_MARK_EQUALS, start_offset))
+                    else:
+                        tokens.append(self._create_token(TokenType.EXCLAMATION_MARK, start_offset))
                 case "'":
                     # String literal.
                     start_offset = self._current_offset

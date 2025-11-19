@@ -8,6 +8,8 @@ from chatbot2k.scripting_engine.parser import ExpectedTokenError
 from chatbot2k.scripting_engine.parser import ParameterShadowsStoreError
 from chatbot2k.scripting_engine.parser import Parser
 from chatbot2k.scripting_engine.parser import StoreRedefinitionError
+from chatbot2k.scripting_engine.parser import TernaryConditionTypeError
+from chatbot2k.scripting_engine.parser import TernaryOperatorTypeError
 from chatbot2k.scripting_engine.parser import UnknownVariableError
 from chatbot2k.scripting_engine.parser import VariableRedefinitionError
 from chatbot2k.scripting_engine.parser import VariableShadowsParameterError
@@ -16,6 +18,7 @@ from chatbot2k.scripting_engine.types.ast import Script
 from chatbot2k.scripting_engine.types.data_types import DataType
 from chatbot2k.scripting_engine.types.expressions import BinaryOperationExpression
 from chatbot2k.scripting_engine.types.expressions import BinaryOperator
+from chatbot2k.scripting_engine.types.expressions import BoolLiteralExpression
 from chatbot2k.scripting_engine.types.expressions import NumberLiteralExpression
 from chatbot2k.scripting_engine.types.expressions import StoreIdentifierExpression
 from chatbot2k.scripting_engine.types.expressions import StringLiteralExpression
@@ -763,3 +766,39 @@ def test_parser_does_not_allow_variable_name_identical_to_store_name() -> None:
         match="Variable 'config' shadows store with the same name.",
     ):
         _parse_source("STORE config = 'value'; LET config = 10; PRINT config;")
+
+
+def test_parser_parses_bool_literals() -> None:
+    """Test that boolean literals are parsed correctly."""
+    script: Final = _parse_source("PRINT true; PRINT false;")
+    assert len(script.statements) == 2
+
+    match script.statements[0]:
+        case PrintStatement(argument=BoolLiteralExpression(value=True)):
+            pass  # Test passed
+        case _:
+            pytest.fail(f"Unexpected statement structure: {script.statements[0]}")
+
+    match script.statements[1]:
+        case PrintStatement(argument=BoolLiteralExpression(value=False)):
+            pass  # Test passed
+        case _:
+            pytest.fail(f"Unexpected statement structure: {script.statements[1]}")
+
+
+def test_parser_does_not_allow_non_bool_expression_for_ternary_condition() -> None:
+    """Test that non-boolean expressions cannot be used as conditions in ternary operations."""
+    with pytest.raises(
+        TernaryConditionTypeError,
+        match="Ternary operator condition must be of type 'bool', got 'number'",
+    ):
+        _parse_source("PRINT 5 ? 'yes' : 'no';")
+
+
+def test_parser_does_not_allow_different_types_for_ternary_branches() -> None:
+    """Test that the true and false branches of a ternary operation must be of the same type."""
+    with pytest.raises(
+        TernaryOperatorTypeError,
+        match="Ternary operator branches must have the same type, got 'string' and 'number'",
+    ):
+        _parse_source("PRINT true ? 'yes' : 0;")

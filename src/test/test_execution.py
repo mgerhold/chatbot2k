@@ -567,3 +567,57 @@ def test_variable_type_change_raises() -> None:
         match="Type mismatch when assigning to variable 'x': expected number, got string",
     ):
         _execute("LET x = 5; x = 'string';")
+
+
+def test_print_bool_literals() -> None:
+    output: Final = _execute("PRINT true; PRINT false;")
+    assert output == "truefalse"
+
+
+def test_ternary_operator() -> None:
+    output = _execute("PRINT true ? 'Greater' : 'Lesser';")
+    assert output == "Greater"
+    output = _execute("PRINT false ? 'Greater' : 'Lesser';")
+    assert output == "Lesser"
+    output = _execute("PRINT true ? 42 : 0;")
+    assert output == "42"
+    output = _execute("PRINT false ? 42 : 0;")
+    assert output == "0"
+
+
+def test_convert_bool_to_number() -> None:
+    output: Final = _execute("PRINT $true; PRINT $false;")
+    assert output == "10"  # true -> 1, false -> 0
+
+
+def test_equals_operator() -> None:
+    output = _execute("PRINT true == true; PRINT true == false; PRINT false == false;")
+    assert output == "truefalsetrue"
+    output = _execute("PRINT 5 == 5; PRINT 5 == 10;")
+    assert output == "truefalse"
+    output = _execute("PRINT 'test' == 'test'; PRINT 'test' == 'TEST';")
+    assert output == "truefalse"
+
+
+def test_not_equals_operator() -> None:
+    output = _execute("PRINT true != false; PRINT true != true; PRINT false != false;")
+    assert output == "truefalsefalse"
+    output = _execute("PRINT 5 != 10; PRINT 5 != 5;")
+    assert output == "truefalse"
+    output = _execute("PRINT 'test' != 'TEST'; PRINT 'test' != 'test';")
+    assert output == "truefalse"
+
+
+def test_comparison_operators() -> None:
+    output = _execute("PRINT 5 < 10; PRINT 10 < 5; PRINT 5 <= 5; PRINT 6 <= 5;")
+    assert output == "truefalsetruefalse"
+    output = _execute("PRINT 10 > 5; PRINT 5 > 10; PRINT 5 >= 5; PRINT 4 >= 5;")
+    assert output == "truefalsetruefalse"
+    output = _execute("PRINT 'apple' <= 'banana'; PRINT 'banana' <= 'apple';")
+    assert output == "truefalse"
+    output = _execute("PRINT 'banana' >= 'apple'; PRINT 'apple' >= 'banana';")
+    assert output == "truefalse"
+    output = _execute("PRINT 'apple' < 'banana'; PRINT 'banana' < 'apple';")
+    assert output == "truefalse"
+    output = _execute("PRINT 'banana' > 'apple'; PRINT 'apple' > 'banana';")
+    assert output == "truefalse"

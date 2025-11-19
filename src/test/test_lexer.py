@@ -16,10 +16,13 @@ def _tokenize_source(source: str) -> list[Token]:
 
 def test_tokenize_can_analyze_all_token_types() -> None:
     source: Final = (
-        r";=+-*/()STORE PRINT some_identifier_123 'my string 🐍\'quoted\'\ntext on second line' 3.14 LET PARAMS,$!"
+        r";=+-*/()STORE PRINT some_identifier_123 'my string 🐍\'quoted\'\ntext on second line' 3.14 "
+        + "LET PARAMS,$!:?true false== != < <= > >="
     )
     tokens: Final = _tokenize_source(source)
-    assert len(tokens) == len(TokenType)
+
+    # Add 1 because we have two different keywords for boolean literals (`true` and `false`).
+    assert len(tokens) == len(TokenType) + 1
     assert tokens[0].type == TokenType.SEMICOLON
     assert tokens[0].source_location == SourceLocation(source, offset=0, length=1)
     assert tokens[0].source_location.lexeme == ";"
@@ -92,9 +95,49 @@ def test_tokenize_can_analyze_all_token_types() -> None:
     assert tokens[17].source_location == SourceLocation(source, offset=102, length=1)
     assert tokens[17].source_location.lexeme == "!"
 
-    assert tokens[18].type == TokenType.END_OF_INPUT
+    assert tokens[18].type == TokenType.COLON
     assert tokens[18].source_location == SourceLocation(source, offset=103, length=1)
-    assert tokens[18].source_location.lexeme == ""
+    assert tokens[18].source_location.lexeme == ":"
+
+    assert tokens[19].type == TokenType.QUESTION_MARK
+    assert tokens[19].source_location == SourceLocation(source, offset=104, length=1)
+    assert tokens[19].source_location.lexeme == "?"
+
+    assert tokens[20].type == TokenType.BOOL_LITERAL
+    assert tokens[20].source_location == SourceLocation(source, offset=105, length=4)
+    assert tokens[20].source_location.lexeme == "true"
+
+    assert tokens[21].type == TokenType.BOOL_LITERAL
+    assert tokens[21].source_location == SourceLocation(source, offset=110, length=5)
+    assert tokens[21].source_location.lexeme == "false"
+
+    assert tokens[22].type == TokenType.EQUALS_EQUALS
+    assert tokens[22].source_location == SourceLocation(source, offset=115, length=2)
+    assert tokens[22].source_location.lexeme == "=="
+
+    assert tokens[23].type == TokenType.EXCLAMATION_MARK_EQUALS
+    assert tokens[23].source_location == SourceLocation(source, offset=118, length=2)
+    assert tokens[23].source_location.lexeme == "!="
+
+    assert tokens[24].type == TokenType.LESS_THAN
+    assert tokens[24].source_location == SourceLocation(source, offset=121, length=1)
+    assert tokens[24].source_location.lexeme == "<"
+
+    assert tokens[25].type == TokenType.LESS_THAN_EQUALS
+    assert tokens[25].source_location == SourceLocation(source, offset=123, length=2)
+    assert tokens[25].source_location.lexeme == "<="
+
+    assert tokens[26].type == TokenType.GREATER_THAN
+    assert tokens[26].source_location == SourceLocation(source, offset=126, length=1)
+    assert tokens[26].source_location.lexeme == ">"
+
+    assert tokens[27].type == TokenType.GREATER_THAN_EQUALS
+    assert tokens[27].source_location == SourceLocation(source, offset=128, length=2)
+    assert tokens[27].source_location.lexeme == ">="
+
+    assert tokens[28].type == TokenType.END_OF_INPUT
+    assert tokens[28].source_location == SourceLocation(source, offset=130, length=1)
+    assert tokens[28].source_location.lexeme == ""
 
 
 def test_invalid_escape_sequence_raises() -> None:

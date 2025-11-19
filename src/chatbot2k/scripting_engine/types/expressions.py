@@ -19,6 +19,7 @@ from chatbot2k.scripting_engine.stores import StoreKey
 from chatbot2k.scripting_engine.token_types import TokenType
 from chatbot2k.scripting_engine.types.data_types import DataType
 from chatbot2k.scripting_engine.types.execution_error import ExecutionError
+from chatbot2k.scripting_engine.types.value import BoolValue
 from chatbot2k.scripting_engine.types.value import NumberValue
 from chatbot2k.scripting_engine.types.value import StringValue
 from chatbot2k.scripting_engine.types.value import Value
@@ -28,14 +29,16 @@ from chatbot2k.scripting_engine.types.value import Value
 class ExpressionType(StrEnum):
     STRING_LITERAL = "string_literal"
     NUMBER_LITERAL = "number_literal"
+    BOOL_LITERAL = "bool_literal"
     STORE_IDENTIFIER = "store_identifier"
     PARAMETER_IDENTIFIER = "parameter_identifier"
     VARIABLE_IDENTIFIER = "variable_identifier"
     UNARY_OPERATION = "unary_operation"
     BINARY_OPERATION = "binary_operation"
+    TERNARY_OPERATION = "ternary_operation"
 
 
-class BaseExpression(ABC):
+class BaseExpression(BaseModel, ABC):
     @abstractmethod
     def get_data_type(self) -> DataType: ...
 
@@ -50,7 +53,7 @@ class BaseExpression(ABC):
 
 
 @final
-class StringLiteralExpression(BaseModel, BaseExpression):
+class StringLiteralExpression(BaseExpression):
     model_config = ConfigDict(frozen=True)
 
     expression_type: Literal[ExpressionType.STRING_LITERAL] = ExpressionType.STRING_LITERAL
@@ -96,7 +99,7 @@ class StringLiteralExpression(BaseModel, BaseExpression):
 
 
 @final
-class NumberLiteralExpression(BaseModel, BaseExpression):
+class NumberLiteralExpression(BaseExpression):
     model_config = ConfigDict(frozen=True)
 
     expression_type: Literal[ExpressionType.NUMBER_LITERAL] = ExpressionType.NUMBER_LITERAL
@@ -118,7 +121,29 @@ class NumberLiteralExpression(BaseModel, BaseExpression):
 
 
 @final
-class StoreIdentifierExpression(BaseModel, BaseExpression):
+class BoolLiteralExpression(BaseExpression):
+    model_config = ConfigDict(frozen=True)
+
+    expression_type: Literal[ExpressionType.BOOL_LITERAL] = ExpressionType.BOOL_LITERAL
+    value: bool
+
+    @override
+    def get_data_type(self) -> DataType:
+        return DataType.BOOL
+
+    @override
+    def evaluate(
+        self,
+        script_name: str,
+        stores: dict[StoreKey, Value],
+        parameters: dict[str, Value],
+        variables: dict[str, Value],
+    ) -> Value:
+        return BoolValue(value=self.value)
+
+
+@final
+class StoreIdentifierExpression(BaseExpression):
     model_config = ConfigDict(frozen=True)
 
     expression_type: Literal[ExpressionType.STORE_IDENTIFIER] = ExpressionType.STORE_IDENTIFIER
@@ -155,7 +180,7 @@ class StoreIdentifierExpression(BaseModel, BaseExpression):
 
 
 @final
-class ParameterIdentifierExpression(BaseModel, BaseExpression):
+class ParameterIdentifierExpression(BaseExpression):
     model_config = ConfigDict(frozen=True)
 
     expression_type: Literal[ExpressionType.PARAMETER_IDENTIFIER] = ExpressionType.PARAMETER_IDENTIFIER
@@ -188,7 +213,7 @@ class ParameterIdentifierExpression(BaseModel, BaseExpression):
 
 
 @final
-class VariableIdentifierExpression(BaseModel, BaseExpression):
+class VariableIdentifierExpression(BaseExpression):
     model_config = ConfigDict(frozen=True)
 
     expression_type: Literal[ExpressionType.VARIABLE_IDENTIFIER] = ExpressionType.VARIABLE_IDENTIFIER
@@ -227,6 +252,13 @@ class BinaryOperator(StrEnum):
     MULTIPLY = "*"
     DIVIDE = "/"
 
+    EQUALS = "=="
+    NOT_EQUALS = "!="
+    LESS_THAN = "<"
+    LESS_THAN_OR_EQUAL = "<="
+    GREATER_THAN = ">"
+    GREATER_THAN_OR_EQUAL = ">="
+
 
 @final
 class UnaryOperator(StrEnum):
@@ -237,7 +269,7 @@ class UnaryOperator(StrEnum):
 
 
 @final
-class UnaryOperationExpression(BaseModel, BaseExpression):
+class UnaryOperationExpression(BaseExpression):
     model_config = ConfigDict(frozen=True)
 
     expression_type: Literal[ExpressionType.UNARY_OPERATION] = ExpressionType.UNARY_OPERATION
@@ -269,6 +301,8 @@ class UnaryOperationExpression(BaseModel, BaseExpression):
                 return NumberValue(value=v)
             case UnaryOperator.NEGATE, NumberValue(value=v):
                 return NumberValue(value=-v)
+            case UnaryOperator.TO_NUMBER, BoolValue(value=value):
+                return NumberValue(value=1 if value else 0)
             case UnaryOperator.TO_NUMBER, StringValue(value=value):
                 try:
                     lexer = Lexer(value)
@@ -310,7 +344,7 @@ class UnaryOperationExpression(BaseModel, BaseExpression):
 
 
 @final
-class BinaryOperationExpression(BaseModel, BaseExpression):
+class BinaryOperationExpression(BaseExpression):
     model_config = ConfigDict(frozen=True)
 
     expression_type: Literal[ExpressionType.BINARY_OPERATION] = ExpressionType.BINARY_OPERATION
@@ -322,6 +356,23 @@ class BinaryOperationExpression(BaseModel, BaseExpression):
     def get_data_type(self) -> DataType:
         match self.left.get_data_type(), self.operator, self.right.get_data_type():
             case (
+                (DataType.BOOL, BinaryOperator.EQUALS, DataType.BOOL)
+                | (DataType.BOOL, BinaryOperator.NOT_EQUALS, DataType.BOOL)
+                | (DataType.NUMBER, BinaryOperator.EQUALS, DataType.NUMBER)
+                | (DataType.NUMBER, BinaryOperator.NOT_EQUALS, DataType.NUMBER)
+                | (DataType.NUMBER, BinaryOperator.LESS_THAN, DataType.NUMBER)
+                | (DataType.NUMBER, BinaryOperator.LESS_THAN_OR_EQUAL, DataType.NUMBER)
+                | (DataType.NUMBER, BinaryOperator.GREATER_THAN, DataType.NUMBER)
+                | (DataType.NUMBER, BinaryOperator.GREATER_THAN_OR_EQUAL, DataType.NUMBER)
+                | (DataType.STRING, BinaryOperator.EQUALS, DataType.STRING)
+                | (DataType.STRING, BinaryOperator.NOT_EQUALS, DataType.STRING)
+                | (DataType.STRING, BinaryOperator.LESS_THAN, DataType.STRING)
+                | (DataType.STRING, BinaryOperator.LESS_THAN_OR_EQUAL, DataType.STRING)
+                | (DataType.STRING, BinaryOperator.GREATER_THAN, DataType.STRING)
+                | (DataType.STRING, BinaryOperator.GREATER_THAN_OR_EQUAL, DataType.STRING)
+            ):
+                return DataType.BOOL
+            case (
                 (DataType.NUMBER, BinaryOperator.ADD, DataType.NUMBER)
                 | (DataType.NUMBER, BinaryOperator.SUBTRACT, DataType.NUMBER)
                 | (DataType.NUMBER, BinaryOperator.MULTIPLY, DataType.NUMBER)
@@ -330,8 +381,11 @@ class BinaryOperationExpression(BaseModel, BaseExpression):
                 return DataType.NUMBER
             case (DataType.STRING, BinaryOperator.ADD, DataType.STRING):
                 return DataType.STRING
-            case (DataType.STRING, _, DataType.STRING) | (DataType.STRING, _, _) | (_, _, DataType.STRING):
+            case (DataType.STRING, _, _) | (_, _, DataType.STRING):
                 msg = f"Operator {self.operator} is not supported for string operands"
+                raise TypeError(msg)
+            case (DataType.BOOL, _, _) | (_, _, DataType.BOOL):
+                msg = f"Operator {self.operator} is not supported for boolean operands"
                 raise TypeError(msg)
 
     @override
@@ -345,6 +399,34 @@ class BinaryOperationExpression(BaseModel, BaseExpression):
         left_value: Final = self.left.evaluate(script_name, stores, parameters, variables)
         right_value: Final = self.right.evaluate(script_name, stores, parameters, variables)
         match left_value, self.operator, right_value:
+            case (
+                (BoolValue(value=l), BinaryOperator.EQUALS, BoolValue(value=r))
+                | (NumberValue(value=l), BinaryOperator.EQUALS, NumberValue(value=r))
+                | (StringValue(value=l), BinaryOperator.EQUALS, StringValue(value=r))
+            ):
+                return BoolValue(value=l == r)
+            case (
+                (BoolValue(value=l), BinaryOperator.NOT_EQUALS, BoolValue(value=r))
+                | (NumberValue(value=l), BinaryOperator.NOT_EQUALS, NumberValue(value=r))
+                | (StringValue(value=l), BinaryOperator.NOT_EQUALS, StringValue(value=r))
+            ):
+                return BoolValue(value=l != r)
+            case NumberValue(value=l), BinaryOperator.LESS_THAN, NumberValue(value=r):
+                return BoolValue(value=l < r)
+            case NumberValue(value=l), BinaryOperator.LESS_THAN_OR_EQUAL, NumberValue(value=r):
+                return BoolValue(value=l <= r)
+            case NumberValue(value=l), BinaryOperator.GREATER_THAN, NumberValue(value=r):
+                return BoolValue(value=l > r)
+            case NumberValue(value=l), BinaryOperator.GREATER_THAN_OR_EQUAL, NumberValue(value=r):
+                return BoolValue(value=l >= r)
+            case StringValue(value=l), BinaryOperator.LESS_THAN, StringValue(value=r):
+                return BoolValue(value=l < r)
+            case StringValue(value=l), BinaryOperator.LESS_THAN_OR_EQUAL, StringValue(value=r):
+                return BoolValue(value=l <= r)
+            case StringValue(value=l), BinaryOperator.GREATER_THAN, StringValue(value=r):
+                return BoolValue(value=l > r)
+            case StringValue(value=l), BinaryOperator.GREATER_THAN_OR_EQUAL, StringValue(value=r):
+                return BoolValue(value=l >= r)
             case NumberValue(value=l), BinaryOperator.ADD, NumberValue(value=r):
                 return NumberValue(value=l + r)
             case NumberValue(value=l), BinaryOperator.SUBTRACT, NumberValue(value=r):
@@ -359,17 +441,54 @@ class BinaryOperationExpression(BaseModel, BaseExpression):
             case StringValue(value=l), BinaryOperator.ADD, StringValue(value=r):
                 return StringValue(value=l + r)
             case _, _, _:
-                msg = f"Operator {self.operator} is not supported for the given operand types"
+                msg = (
+                    f"Operator {self.operator} is not supported for the given operand types "
+                    + f"'{left_value.get_data_type()}' and '{right_value.get_data_type()}'"
+                )
                 raise ExecutionError(msg)
+
+
+@final
+class TernaryOperationExpression(BaseExpression):
+    model_config = ConfigDict(frozen=True)
+
+    expression_type: Literal[ExpressionType.TERNARY_OPERATION] = ExpressionType.TERNARY_OPERATION
+    condition: "Expression"
+    true_expression: "Expression"
+    false_expression: "Expression"
+    data_type: DataType
+
+    @override
+    def get_data_type(self) -> DataType:
+        return self.data_type
+
+    @override
+    def evaluate(
+        self,
+        script_name: str,
+        stores: dict[StoreKey, Value],
+        parameters: dict[str, Value],
+        variables: dict[str, Value],
+    ) -> Value:
+        predicate: Final = self.condition.evaluate(script_name, stores, parameters, variables)
+        if predicate.get_data_type() != DataType.BOOL:
+            msg = f"Ternary condition must be a boolean, got {predicate.get_data_type()}"
+            raise ExecutionError(msg)
+        assert isinstance(predicate, BoolValue)
+        if predicate.value:
+            return self.true_expression.evaluate(script_name, stores, parameters, variables)
+        return self.false_expression.evaluate(script_name, stores, parameters, variables)
 
 
 type Expression = Annotated[
     StringLiteralExpression
     | NumberLiteralExpression
+    | BoolLiteralExpression
     | StoreIdentifierExpression
     | ParameterIdentifierExpression
     | VariableIdentifierExpression
     | UnaryOperationExpression
-    | BinaryOperationExpression,
+    | BinaryOperationExpression
+    | TernaryOperationExpression,
     Discriminator("expression_type"),
 ]

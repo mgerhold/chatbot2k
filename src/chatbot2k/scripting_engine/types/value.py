@@ -17,9 +17,10 @@ from chatbot2k.scripting_engine.types.data_types import DataType
 class ValueKind(StrEnum):
     NUMBER = "number"
     STRING = "string"
+    BOOL = "bool"
 
 
-class BasicValue(ABC):
+class BasicValue(BaseModel, ABC):
     @abstractmethod
     def get_data_type(self) -> DataType: ...
 
@@ -28,7 +29,7 @@ class BasicValue(ABC):
 
 
 @final
-class NumberValue(BaseModel, BasicValue):
+class NumberValue(BasicValue):
     model_config = ConfigDict(frozen=True)
 
     kind: Literal[ValueKind.NUMBER] = ValueKind.NUMBER
@@ -46,7 +47,7 @@ class NumberValue(BaseModel, BasicValue):
 
 
 @final
-class StringValue(BaseModel, BasicValue):
+class StringValue(BasicValue):
     model_config = ConfigDict(frozen=True)
 
     kind: Literal[ValueKind.STRING] = ValueKind.STRING
@@ -61,4 +62,20 @@ class StringValue(BaseModel, BasicValue):
         return self.value
 
 
-type Value = Annotated[NumberValue | StringValue, Discriminator("kind")]
+@final
+class BoolValue(BasicValue):
+    model_config = ConfigDict(frozen=True)
+
+    kind: Literal[ValueKind.BOOL] = ValueKind.BOOL
+    value: bool
+
+    @override
+    def get_data_type(self) -> DataType:
+        return DataType.BOOL
+
+    @override
+    def to_string(self) -> str:
+        return str(self.value).lower()
+
+
+type Value = Annotated[NumberValue | StringValue | BoolValue, Discriminator("kind")]

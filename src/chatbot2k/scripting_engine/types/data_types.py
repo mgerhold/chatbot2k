@@ -6,3 +6,4 @@ from typing import final
 class DataType(StrEnum):
     NUMBER = "number"
     STRING = "string"
+    BOOL = "bool"

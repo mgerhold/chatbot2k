@@ -1,8 +1,10 @@
 from collections.abc import Callable
+from functools import lru_cache
 from typing import Annotated
 from typing import Final
 from typing import NamedTuple
 from typing import Optional
+from typing import Self
 from typing import final
 
 from chatbot2k.scripting_engine.precedence import Precedence
@@ -11,13 +13,16 @@ from chatbot2k.scripting_engine.token_types import TokenType
 from chatbot2k.scripting_engine.types.ast import Parameter
 from chatbot2k.scripting_engine.types.ast import Script
 from chatbot2k.scripting_engine.types.ast import Store
+from chatbot2k.scripting_engine.types.data_types import DataType
 from chatbot2k.scripting_engine.types.expressions import BinaryOperationExpression
 from chatbot2k.scripting_engine.types.expressions import BinaryOperator
+from chatbot2k.scripting_engine.types.expressions import BoolLiteralExpression
 from chatbot2k.scripting_engine.types.expressions import Expression
 from chatbot2k.scripting_engine.types.expressions import NumberLiteralExpression
 from chatbot2k.scripting_engine.types.expressions import ParameterIdentifierExpression
 from chatbot2k.scripting_engine.types.expressions import StoreIdentifierExpression
 from chatbot2k.scripting_engine.types.expressions import StringLiteralExpression
+from chatbot2k.scripting_engine.types.expressions import TernaryOperationExpression
 from chatbot2k.scripting_engine.types.expressions import UnaryOperationExpression
 from chatbot2k.scripting_engine.types.expressions import UnaryOperator
 from chatbot2k.scripting_engine.types.expressions import VariableIdentifierExpression
@@ -27,53 +32,68 @@ from chatbot2k.scripting_engine.types.statements import Statement
 from chatbot2k.scripting_engine.types.statements import VariableDefinitionStatement
 
 
+class ParserError(RuntimeError): ...
+
+
 @final
-class ExpectedTokenError(RuntimeError):
+class ExpectedTokenError(ParserError):
     def __init__(self, token: Token, message: str) -> None:
         start_position: Final = token.source_location.range.start
         super().__init__(f"Expected {message} at line {start_position.line}, column {start_position.column}.")
 
 
 @final
-class StoreRedefinitionError(RuntimeError):
+class StoreRedefinitionError(ParserError):
     def __init__(self, store_name: str) -> None:
         super().__init__(f"Store '{store_name}' is already defined.")
 
 
 @final
-class VariableRedefinitionError(RuntimeError):
+class VariableRedefinitionError(ParserError):
     def __init__(self, variable_name: str) -> None:
         super().__init__(f"Variable '{variable_name}' is already defined.")
 
 
 @final
-class UnknownVariableError(RuntimeError):
+class UnknownVariableError(ParserError):
     def __init__(self, variable_name: str) -> None:
         super().__init__(f"Variable '{variable_name}' is not defined.")
 
 
 @final
-class ParameterShadowsStoreError(RuntimeError):
+class ParameterShadowsStoreError(ParserError):
     def __init__(self, parameter_name: str) -> None:
         super().__init__(f"Parameter '{parameter_name}' shadows store with the same name.")
 
 
 @final
-class VariableShadowsParameterError(RuntimeError):
+class VariableShadowsParameterError(ParserError):
     def __init__(self, variable_name: str) -> None:
         super().__init__(f"Variable '{variable_name}' shadows parameter with the same name.")
 
 
 @final
-class VariableShadowsStoreError(RuntimeError):
+class VariableShadowsStoreError(ParserError):
     def __init__(self, variable_name: str) -> None:
         super().__init__(f"Variable '{variable_name}' shadows store with the same name.")
 
 
 @final
-class DuplicateParameterNameError(RuntimeError):
+class DuplicateParameterNameError(ParserError):
     def __init__(self, parameter_name: str) -> None:
         super().__init__(f"Parameter '{parameter_name}' is already defined.")
+
+
+@final
+class TernaryConditionTypeError(ParserError):
+    def __init__(self, condition_type: DataType) -> None:
+        super().__init__(f"Ternary operator condition must be of type 'bool', got '{condition_type}'.")
+
+
+@final
+class TernaryOperatorTypeError(ParserError):
+    def __init__(self, true_type: DataType, false_type: DataType) -> None:
+        super().__init__(f"Ternary operator branches must have the same type, got '{true_type}' and '{false_type}'.")
 
 
 type _UnaryParser = Callable[
@@ -96,12 +116,32 @@ type _BinaryParser = Callable[
     Expression,
 ]
 
+_BINARY_OPERATOR_BY_TOKEN_TYPE = {
+    # Arithmetic operators.
+    TokenType.PLUS: BinaryOperator.ADD,
+    TokenType.MINUS: BinaryOperator.SUBTRACT,
+    TokenType.ASTERISK: BinaryOperator.MULTIPLY,
+    TokenType.SLASH: BinaryOperator.DIVIDE,
+    # Relational operators.
+    TokenType.EQUALS_EQUALS: BinaryOperator.EQUALS,
+    TokenType.EXCLAMATION_MARK_EQUALS: BinaryOperator.NOT_EQUALS,
+    TokenType.LESS_THAN: BinaryOperator.LESS_THAN,
+    TokenType.LESS_THAN_EQUALS: BinaryOperator.LESS_THAN_OR_EQUAL,
+    TokenType.GREATER_THAN: BinaryOperator.GREATER_THAN,
+    TokenType.GREATER_THAN_EQUALS: BinaryOperator.GREATER_THAN_OR_EQUAL,
+}
+
 
 @final
 class _TableEntry(NamedTuple):
     prefix_parser: Optional[_UnaryParser]
     infix_parser: Optional[_BinaryParser]
     infix_precedence: Precedence
+
+    @classmethod
+    @lru_cache
+    def unused(cls) -> Self:
+        return cls(None, None, Precedence.UNKNOWN)
 
 
 @final
@@ -338,7 +378,7 @@ class Parser:
     def _number_literal(
         self,
         _stores: list[Store],
-        parameters: list[Parameter],
+        _parameters: list[Parameter],
         _variable_definitions: list[VariableDefinitionStatement],
     ) -> Expression:
         number_token: Final = self._expect(TokenType.NUMBER_LITERAL, "number literal")  # This is a double-check.
@@ -347,11 +387,29 @@ class Parser:
     def _string_literal(
         self,
         _stores: list[Store],
-        parameters: list[Parameter],
+        _parameters: list[Parameter],
         _variable_definitions: list[VariableDefinitionStatement],
     ) -> Expression:
         string_token: Final = self._expect(TokenType.STRING_LITERAL, "string literal")  # This is a double-check.
         return StringLiteralExpression.from_lexeme(string_token.source_location.lexeme)
+
+    def _bool_literal(
+        self,
+        _stores: list[Store],
+        _parameters: list[Parameter],
+        _variable_definitions: list[VariableDefinitionStatement],
+    ) -> Expression:
+        bool_token: Final = self._expect(TokenType.BOOL_LITERAL, "boolean literal")  # This is a double-check.
+        lexeme: Final = bool_token.source_location.lexeme.lower()
+        match lexeme:
+            case "true":
+                value = True
+            case "false":
+                value = False
+            case _:
+                msg: Final = f"unexpected boolean literal: {lexeme}"
+                raise AssertionError(msg)
+        return BoolLiteralExpression(value=value)
 
     def _unary_operation(
         self,
@@ -419,44 +477,71 @@ class Parser:
         parameters: list[Parameter],
         variable_definitions: list[VariableDefinitionStatement],
     ) -> Expression:
-        binary_operator: BinaryOperator
-        match self._current().type:
-            case TokenType.PLUS:
-                binary_operator = BinaryOperator.ADD
-            case TokenType.MINUS:
-                binary_operator = BinaryOperator.SUBTRACT
-            case TokenType.ASTERISK:
-                binary_operator = BinaryOperator.MULTIPLY
-            case TokenType.SLASH:
-                binary_operator = BinaryOperator.DIVIDE
-            case _:
-                msg = f"unexpected binary operator: {self._current().type}"
-                raise AssertionError(msg)
+        binary_operator: Final = _BINARY_OPERATOR_BY_TOKEN_TYPE.get(self._current().type)
+        if binary_operator is None:
+            msg = f"unexpected binary operator: {self._current().type}"
+            raise AssertionError(msg)
         precedence: Final = Parser._PARSER_TABLE[self._current().type].infix_precedence
         self._advance()
         right_operand: Final = self._expression(stores, parameters, variable_definitions, precedence)
         return BinaryOperationExpression(left=left_operand, operator=binary_operator, right=right_operand)
 
+    def _ternary_expression(
+        self,
+        left_operand: Expression,
+        stores: list[Store],
+        parameters: list[Parameter],
+        variable_definitions: list[VariableDefinitionStatement],
+    ) -> Expression:
+        if left_operand.get_data_type() != DataType.BOOL:
+            raise TernaryConditionTypeError(left_operand.get_data_type())
+
+        self._expect(TokenType.QUESTION_MARK, "'?' in ternary expression")  # This is a double-check.
+        true_expression: Final = self._expression(stores, parameters, variable_definitions, Precedence.TERNARY)
+        self._expect(TokenType.COLON, "':' in ternary expression")
+        false_expression: Final = self._expression(stores, parameters, variable_definitions, Precedence.TERNARY)
+
+        true_data_type: Final = true_expression.get_data_type()
+        false_data_type: Final = false_expression.get_data_type()
+        if true_data_type != false_data_type:
+            raise TernaryOperatorTypeError(true_data_type, false_data_type)
+
+        return TernaryOperationExpression(
+            condition=left_operand,
+            true_expression=true_expression,
+            false_expression=false_expression,
+            data_type=true_data_type,
+        )
+
     _PARSER_TABLE = {
-        TokenType.COMMA: _TableEntry(None, None, Precedence.UNKNOWN),
+        TokenType.COLON: _TableEntry.unused(),
+        TokenType.COMMA: _TableEntry.unused(),
         TokenType.DOLLAR: _TableEntry(_unary_operation, None, Precedence.UNARY),
         TokenType.EXCLAMATION_MARK: _TableEntry(_unary_operation, None, Precedence.UNARY),
-        TokenType.SEMICOLON: _TableEntry(None, None, Precedence.UNKNOWN),
-        TokenType.EQUALS: _TableEntry(None, None, Precedence.UNKNOWN),
+        TokenType.QUESTION_MARK: _TableEntry(None, _ternary_expression, Precedence.TERNARY),
+        TokenType.SEMICOLON: _TableEntry.unused(),
+        TokenType.EQUALS: _TableEntry.unused(),
+        TokenType.EQUALS_EQUALS: _TableEntry(None, _binary_expression, Precedence.EQUALITY),
+        TokenType.EXCLAMATION_MARK_EQUALS: _TableEntry(None, _binary_expression, Precedence.EQUALITY),
+        TokenType.LESS_THAN: _TableEntry(None, _binary_expression, Precedence.COMPARISON),
+        TokenType.LESS_THAN_EQUALS: _TableEntry(None, _binary_expression, Precedence.COMPARISON),
+        TokenType.GREATER_THAN: _TableEntry(None, _binary_expression, Precedence.COMPARISON),
+        TokenType.GREATER_THAN_EQUALS: _TableEntry(None, _binary_expression, Precedence.COMPARISON),
         TokenType.PLUS: _TableEntry(_unary_operation, _binary_expression, Precedence.SUM),
         TokenType.MINUS: _TableEntry(_unary_operation, _binary_expression, Precedence.SUM),
         TokenType.ASTERISK: _TableEntry(None, _binary_expression, Precedence.PRODUCT),
         TokenType.SLASH: _TableEntry(None, _binary_expression, Precedence.PRODUCT),
         TokenType.LEFT_PARENTHESIS: _TableEntry(_grouped_expression, None, Precedence.UNKNOWN),
-        TokenType.RIGHT_PARENTHESIS: _TableEntry(None, None, Precedence.UNKNOWN),
-        TokenType.STORE: _TableEntry(None, None, Precedence.UNKNOWN),
-        TokenType.PARAMS: _TableEntry(None, None, Precedence.UNKNOWN),
-        TokenType.PRINT: _TableEntry(None, None, Precedence.UNKNOWN),
-        TokenType.LET: _TableEntry(None, None, Precedence.UNKNOWN),
+        TokenType.RIGHT_PARENTHESIS: _TableEntry.unused(),
+        TokenType.STORE: _TableEntry.unused(),
+        TokenType.PARAMS: _TableEntry.unused(),
+        TokenType.PRINT: _TableEntry.unused(),
+        TokenType.LET: _TableEntry.unused(),
         TokenType.IDENTIFIER: _TableEntry(_identifier, None, Precedence.UNARY),
         TokenType.STRING_LITERAL: _TableEntry(_string_literal, None, Precedence.UNARY),
         TokenType.NUMBER_LITERAL: _TableEntry(_number_literal, None, Precedence.UNARY),
-        TokenType.END_OF_INPUT: _TableEntry(None, None, Precedence.UNKNOWN),
+        TokenType.BOOL_LITERAL: _TableEntry(_bool_literal, None, Precedence.UNARY),
+        TokenType.END_OF_INPUT: _TableEntry.unused(),
     }
 
     if set(_PARSER_TABLE) != set(TokenType):
