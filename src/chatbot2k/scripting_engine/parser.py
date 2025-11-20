@@ -415,7 +415,7 @@ class Parser:
         _variable_definitions: list[VariableDefinitionStatement],
     ) -> Expression:
         bool_token: Final = self._expect(TokenType.BOOL_LITERAL, "boolean literal")  # This is a double-check.
-        lexeme: Final = bool_token.source_location.lexeme.lower()
+        lexeme: Final = bool_token.source_location.lexeme
         match lexeme:
             case "true":
                 value = True
