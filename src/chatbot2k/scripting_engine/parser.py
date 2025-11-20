@@ -156,6 +156,7 @@ _UNARY_OPERATOR_BY_TOKEN_TYPE = {
     # Miscellaneous operators.
     TokenType.DOLLAR: UnaryOperator.TO_NUMBER,
     TokenType.EXCLAMATION_MARK: UnaryOperator.EVALUATE,
+    TokenType.HASH: UnaryOperator.TO_STRING,
 }
 
 
@@ -545,6 +546,7 @@ class Parser:
         TokenType.COMMA: _TableEntry.unused(),
         TokenType.DOLLAR: _TableEntry(_unary_operation, None, Precedence.UNARY),
         TokenType.EXCLAMATION_MARK: _TableEntry(_unary_operation, None, Precedence.UNARY),
+        TokenType.HASH: _TableEntry(_unary_operation, None, Precedence.UNARY),
         TokenType.QUESTION_MARK: _TableEntry(None, _ternary_expression, Precedence.TERNARY),
         TokenType.SEMICOLON: _TableEntry.unused(),
         TokenType.EQUALS: _TableEntry.unused(),

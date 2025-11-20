@@ -182,4 +182,5 @@ The following expressions are supported:
 - **String Concatenation**: Using the `+` operator to concatenate strings.
 - **Parentheses**: To group expressions and control the order of evaluation.
 - **Conversion to Number**: The prefix `$` operator converts a string to a number. The string must represent a number literal, possibly with a leading `+` or `-`. Applying the operator to a number has no effect.
+- **Conversion to String**: The prefix `#` operator converts a number to its string representation. Applying the operator to a string has no effect.
 - **Code Evaluation**: The prefix `!` operator evaluates a string as code and returns the result as a string. The evaluated source code must not contain any stores, or parameters. It cannot access any values from the surrounding script context.

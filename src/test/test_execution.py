@@ -1,10 +1,10 @@
-from chatbot2k.scripting_engine.parser import AssignmentTypeError
 from typing import Final
 from typing import Optional
 
 import pytest
 
 from chatbot2k.scripting_engine.lexer import Lexer
+from chatbot2k.scripting_engine.parser import AssignmentTypeError
 from chatbot2k.scripting_engine.parser import Parser
 from chatbot2k.scripting_engine.parser import UnknownVariableError
 from chatbot2k.scripting_engine.stores import StoreKey
@@ -635,3 +635,22 @@ def test_logical_operators() -> None:
     assert output == "truefalse"
     output = _execute("PRINT (5 > 10) or (10 < 20); PRINT (5 > 10) or (20 < 10);")
     assert output == "truefalse"
+
+
+def test_to_string() -> None:
+    output = _execute("PRINT #42;")
+    assert output == "42"
+    output = _execute("PRINT #'Hello';")
+    assert output == "Hello"
+    output = _execute("PRINT #true; PRINT #false;")
+    assert output == "truefalse"
+    output = _execute("PRINT #(5 + 10);")
+    assert output == "15"
+    output = _execute("PRINT #1 + #2 + #3;")
+    assert output == "123"
+    output = _execute("PRINT #3.14;")
+    assert output == "3.14"
+    output = _execute("PRINT #$'42';")
+    assert output == "42"
+    output = _execute("PRINT #$!'PRINT 42;';")
+    assert output == "42"

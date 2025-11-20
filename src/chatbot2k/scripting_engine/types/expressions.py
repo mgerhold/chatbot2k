@@ -268,6 +268,7 @@ class UnaryOperator(StrEnum):
     PLUS = "+"
     NEGATE = "-"
     TO_NUMBER = "$"
+    TO_STRING = "#"
     EVALUATE = "!"
     NOT = "not"
 
@@ -290,6 +291,8 @@ class UnaryOperationExpression(BaseExpression):
                 return DataType.BOOL
             case (UnaryOperator.TO_NUMBER, DataType.BOOL | DataType.NUMBER | DataType.STRING):
                 return DataType.NUMBER
+            case (UnaryOperator.TO_STRING, DataType.BOOL | DataType.NUMBER | DataType.STRING):
+                return DataType.STRING
             case (UnaryOperator.EVALUATE, DataType.STRING):
                 return DataType.STRING
             case (
@@ -359,6 +362,12 @@ class UnaryOperationExpression(BaseExpression):
                 if script_output is None:
                     raise ExecutionError("Evaluated script did not produce any output")
                 return StringValue(value=script_output)
+            case (UnaryOperator.TO_STRING, BoolValue(value=v)):
+                return StringValue(value="true" if v else "false")
+            case (UnaryOperator.TO_STRING, NumberValue(value=v)):
+                return StringValue(value=str(int(v)) if v.is_integer() else str(v))
+            case (UnaryOperator.TO_STRING, StringValue(value=v)):
+                return StringValue(value=v)
             case (
                 UnaryOperator.PLUS
                 | UnaryOperator.NEGATE

@@ -9,6 +9,7 @@ class TokenType(Enum):
     COMMA = auto()
     DOLLAR = auto()
     EXCLAMATION_MARK = auto()
+    HASH = auto()
     SEMICOLON = auto()
     EQUALS = auto()
     EQUALS_EQUALS = auto()

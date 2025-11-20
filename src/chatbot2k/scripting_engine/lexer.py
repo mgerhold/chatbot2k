@@ -31,6 +31,7 @@ _SINGLE_CHAR_TOKENS = {
     "/": TokenType.SLASH,
     "(": TokenType.LEFT_PARENTHESIS,
     ")": TokenType.RIGHT_PARENTHESIS,
+    "#": TokenType.HASH,
 }
 
 
