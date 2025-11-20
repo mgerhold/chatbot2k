@@ -111,9 +111,7 @@ class AssignmentTypeError(ParserError):
 type _UnaryParser = Callable[
     [
         Parser,
-        list[Store],
-        list[Parameter],
-        list[VariableDefinitionStatement],
+        _ParseContext,
     ],
     Expression,
 ]
@@ -121,9 +119,7 @@ type _BinaryParser = Callable[
     [
         Parser,
         Annotated[Expression, "left operand"],
-        list[Store],
-        list[Parameter],
-        list[VariableDefinitionStatement],
+        _ParseContext,
     ],
     Expression,
 ]
@@ -173,6 +169,13 @@ class _TableEntry(NamedTuple):
 
 
 @final
+class _ParseContext(NamedTuple):
+    stores: list[Store]
+    parameters: list[Parameter]
+    variable_definitions: list[VariableDefinitionStatement]
+
+
+@final
 class Parser:
     def __init__(self, script_name: str, tokens: list[Token]) -> None:
         self._script_name: Final = script_name
@@ -205,7 +208,14 @@ class Parser:
         if previous_definition is not None:
             raise StoreRedefinitionError(store_name)
         self._expect(TokenType.EQUALS, "'=' after store name")
-        value: Final = self._expression(stores, [], [], Precedence.UNKNOWN)
+        value: Final = self._expression(
+            _ParseContext(
+                stores=stores,
+                parameters=[],
+                variable_definitions=[],
+            ),
+            Precedence.UNKNOWN,
+        )
         store: Final = Store(
             name=store_name,
             value=value,
@@ -244,25 +254,23 @@ class Parser:
         # of concerns, but we don't want to add a separate semantic analysis phase.
         variable_definitions: Final[list[VariableDefinitionStatement]] = []
         while not self._is_at_end():
-            statements.append(self._statement(stores, parameters, variable_definitions))
+            statements.append(self._statement(_ParseContext(stores, parameters, variable_definitions)))
         if not statements:
             raise ExpectedTokenError(self._current(), "at least one statement")
         return statements
 
     def _statement(
         self,
-        stores: list[Store],
-        parameters: list[Parameter],
-        variable_definitions: list[VariableDefinitionStatement],
+        environment: _ParseContext,
     ) -> Statement:
         statement: Statement
         match self._current().type:
             case TokenType.PRINT:
-                statement = self._print_statement(stores, parameters, variable_definitions)
+                statement = self._print_statement(environment)
             case TokenType.IDENTIFIER:
-                statement = self._assignment(stores, parameters, variable_definitions)
+                statement = self._assignment(environment)
             case TokenType.LET:
-                statement = self._variable_definition(stores, parameters, variable_definitions)
+                statement = self._variable_definition(environment)
             case _:
                 raise ExpectedTokenError(self._current(), "statement")
         self._expect(TokenType.SEMICOLON, "';' after statement")
@@ -270,12 +278,10 @@ class Parser:
 
     def _print_statement(
         self,
-        stores: list[Store],
-        parameters: list[Parameter],
-        variable_definitions: list[VariableDefinitionStatement],
+        context: _ParseContext,
     ) -> Statement:
         self._expect(TokenType.PRINT, "'print' keyword")  # This is a double-check.
-        expression: Final = self._expression(stores, parameters, variable_definitions, Precedence.UNKNOWN)
+        expression: Final = self._expression(context, Precedence.UNKNOWN)
         expression_type: Final = expression.get_data_type()
         if expression_type not in (DataType.NUMBER, DataType.STRING, DataType.BOOL):
             raise ParserTypeError(expression_type)
@@ -283,15 +289,13 @@ class Parser:
 
     def _assignment(
         self,
-        stores: list[Store],
-        parameters: list[Parameter],
-        variable_definitions: list[VariableDefinitionStatement],
+        context: _ParseContext,
     ) -> Statement:
         identifier_token: Final = self._expect(TokenType.IDENTIFIER, "assignment target")
         identifier_name: Final = identifier_token.source_location.lexeme
 
         # Check if it's a store.
-        if (store := next((store for store in stores if store.name == identifier_name), None)) is not None:
+        if (store := next((store for store in context.stores if store.name == identifier_name), None)) is not None:
             lvalue: StoreIdentifierExpression | ParameterIdentifierExpression | VariableIdentifierExpression = (
                 StoreIdentifierExpression(
                     store_name=identifier_name,
@@ -299,11 +303,16 @@ class Parser:
                 )
             )
         # Check if it's a parameter.
-        elif next((parameter for parameter in parameters if parameter.name == identifier_name), None) is not None:
+        elif (
+            next((parameter for parameter in context.parameters if parameter.name == identifier_name), None) is not None
+        ):
             lvalue = ParameterIdentifierExpression(parameter_name=identifier_name)
         # Check if it's a variable.
         elif (
-            variable := next((var for var in variable_definitions if var.variable_name == identifier_name), None)
+            variable := next(
+                (var for var in context.variable_definitions if var.variable_name == identifier_name),
+                None,
+            )
         ) is not None:
             lvalue = VariableIdentifierExpression(
                 variable_name=identifier_name,
@@ -313,7 +322,7 @@ class Parser:
             raise UnknownVariableError(identifier_name)
 
         self._expect(TokenType.EQUALS, "'=' in assignment")
-        rvalue: Final = self._expression(stores, parameters, variable_definitions, Precedence.UNKNOWN)
+        rvalue: Final = self._expression(context, Precedence.UNKNOWN)
 
         lvalue_type: Final = lvalue.get_data_type()
         rvalue_type: Final = rvalue.get_data_type()
@@ -327,28 +336,27 @@ class Parser:
 
     def _variable_definition(
         self,
-        stores: list[Store],
-        parameters: list[Parameter],
-        variable_definitions: list[VariableDefinitionStatement],
+        context: _ParseContext,
     ) -> Statement:
         self._expect(TokenType.LET, "'let' keyword")  # This is a double-check.
         identifier_token: Final = self._expect(TokenType.IDENTIFIER, "variable name")
         identifier_name: Final = identifier_token.source_location.lexeme
-        if next((store.name for store in stores if store.name == identifier_name), None) is not None:
+        if next((store.name for store in context.stores if store.name == identifier_name), None) is not None:
             raise VariableShadowsStoreError(identifier_name)
-        if next((parameter.name for parameter in parameters if parameter.name == identifier_name), None) is not None:
+        if (
+            next((parameter.name for parameter in context.parameters if parameter.name == identifier_name), None)
+            is not None
+        ):
             raise VariableShadowsParameterError(identifier_name)
         previous_definition: Final = next(
-            (definition for definition in variable_definitions if definition.variable_name == identifier_name),
+            (definition for definition in context.variable_definitions if definition.variable_name == identifier_name),
             None,
         )
         if previous_definition is not None:
             raise VariableRedefinitionError(identifier_name)
         self._expect(TokenType.EQUALS, "'=' in variable definition")
         initial_value: Final = self._expression(
-            stores,
-            parameters,
-            variable_definitions,
+            context,
             Precedence.UNKNOWN,
         )
         definition: Final = VariableDefinitionStatement(
@@ -356,38 +364,34 @@ class Parser:
             data_type=initial_value.get_data_type(),
             initial_value=initial_value,
         )
-        variable_definitions.append(definition)
+        context.variable_definitions.append(definition)
         return definition
 
     def _expression(
         self,
-        stores: list[Store],
-        parameters: list[Parameter],
-        variable_definitions: list[VariableDefinitionStatement],
+        context: _ParseContext,
         precedence: Precedence,
     ) -> Expression:
         table_entry = Parser._PARSER_TABLE[self._current().type]
         prefix_parser: Final = table_entry.prefix_parser
         if prefix_parser is None:
             raise ExpectedTokenError(self._current(), "expression")
-        left_operand = prefix_parser(self, stores, parameters, variable_definitions)
+        left_operand = prefix_parser(self, context)
 
         while True:
             table_entry = Parser._PARSER_TABLE[self._current().type]
             if table_entry.infix_precedence <= precedence or table_entry.infix_parser is None:
                 return left_operand
-            left_operand = table_entry.infix_parser(self, left_operand, stores, parameters, variable_definitions)
+            left_operand = table_entry.infix_parser(self, left_operand, context)
 
     def _identifier(
         self,
-        stores: list[Store],
-        parameters: list[Parameter],
-        variable_definitions: list[VariableDefinitionStatement],
+        context: _ParseContext,
     ) -> Expression:
         identifier_token: Final = self._expect(TokenType.IDENTIFIER, "identifier")  # This is a double-check.
         identifier_name: Final = identifier_token.source_location.lexeme
         store: Final = next(
-            (store for store in stores if store.name == identifier_name),
+            (store for store in context.stores if store.name == identifier_name),
             None,
         )
         if store is not None:
@@ -396,13 +400,13 @@ class Parser:
                 data_type=store.data_type,
             )
         parameter: Final = next(
-            (parameter for parameter in parameters if parameter.name == identifier_name),
+            (parameter for parameter in context.parameters if parameter.name == identifier_name),
             None,
         )
         if parameter is not None:
             return ParameterIdentifierExpression(parameter_name=parameter.name)
         variable_definition: Final = next(
-            (definition for definition in variable_definitions if definition.variable_name == identifier_name),
+            (definition for definition in context.variable_definitions if definition.variable_name == identifier_name),
             None,
         )
         if variable_definition is not None:
@@ -414,27 +418,21 @@ class Parser:
 
     def _number_literal(
         self,
-        _stores: list[Store],
-        _parameters: list[Parameter],
-        _variable_definitions: list[VariableDefinitionStatement],
+        _context: _ParseContext,
     ) -> Expression:
         number_token: Final = self._expect(TokenType.NUMBER_LITERAL, "number literal")  # This is a double-check.
         return NumberLiteralExpression(value=float(number_token.source_location.lexeme))
 
     def _string_literal(
         self,
-        _stores: list[Store],
-        _parameters: list[Parameter],
-        _variable_definitions: list[VariableDefinitionStatement],
+        _context: _ParseContext,
     ) -> Expression:
         string_token: Final = self._expect(TokenType.STRING_LITERAL, "string literal")  # This is a double-check.
         return StringLiteralExpression.from_lexeme(string_token.source_location.lexeme)
 
     def _bool_literal(
         self,
-        _stores: list[Store],
-        _parameters: list[Parameter],
-        _variable_definitions: list[VariableDefinitionStatement],
+        _context: _ParseContext,
     ) -> Expression:
         bool_token: Final = self._expect(TokenType.BOOL_LITERAL, "boolean literal")  # This is a double-check.
         lexeme: Final = bool_token.source_location.lexeme
@@ -450,26 +448,22 @@ class Parser:
 
     def _unary_operation(
         self,
-        stores: list[Store],
-        parameters: list[Parameter],
-        variable_definitions: list[VariableDefinitionStatement],
+        context: _ParseContext,
     ) -> Expression:
         unary_operator: Final = _UNARY_OPERATOR_BY_TOKEN_TYPE.get(self._current().type)
         if unary_operator is None:
             msg: Final = f"unexpected unary operator: {self._current().type}"
             raise AssertionError(msg)
         self._advance()
-        operand: Final = self._expression(stores, parameters, variable_definitions, Precedence.UNARY)
+        operand: Final = self._expression(context, Precedence.UNARY)
         return UnaryOperationExpression(operator=unary_operator, operand=operand)
 
     def _grouped_expression(
         self,
-        stores: list[Store],
-        parameters: list[Parameter],
-        variable_definitions: list[VariableDefinitionStatement],
+        context: _ParseContext,
     ) -> Expression:
         self._expect(TokenType.LEFT_PARENTHESIS, "'('")  # This is a double-check.
-        expression: Final = self._expression(stores, parameters, variable_definitions, Precedence.UNKNOWN)
+        expression: Final = self._expression(context, Precedence.UNKNOWN)
         self._expect(TokenType.RIGHT_PARENTHESIS, "')' after grouped expression")
         return expression
 
@@ -501,9 +495,7 @@ class Parser:
     def _binary_expression(
         self,
         left_operand: Expression,
-        stores: list[Store],
-        parameters: list[Parameter],
-        variable_definitions: list[VariableDefinitionStatement],
+        context: _ParseContext,
     ) -> Expression:
         binary_operator: Final = _BINARY_OPERATOR_BY_TOKEN_TYPE.get(self._current().type)
         if binary_operator is None:
@@ -511,23 +503,21 @@ class Parser:
             raise AssertionError(msg)
         precedence: Final = Parser._PARSER_TABLE[self._current().type].infix_precedence
         self._advance()
-        right_operand: Final = self._expression(stores, parameters, variable_definitions, precedence)
+        right_operand: Final = self._expression(context, precedence)
         return BinaryOperationExpression(left=left_operand, operator=binary_operator, right=right_operand)
 
     def _ternary_expression(
         self,
         left_operand: Expression,
-        stores: list[Store],
-        parameters: list[Parameter],
-        variable_definitions: list[VariableDefinitionStatement],
+        context: _ParseContext,
     ) -> Expression:
         if left_operand.get_data_type() != DataType.BOOL:
             raise TernaryConditionTypeError(left_operand.get_data_type())
 
         self._expect(TokenType.QUESTION_MARK, "'?' in ternary expression")  # This is a double-check.
-        true_expression: Final = self._expression(stores, parameters, variable_definitions, Precedence.TERNARY)
+        true_expression: Final = self._expression(context, Precedence.TERNARY)
         self._expect(TokenType.COLON, "':' in ternary expression")
-        false_expression: Final = self._expression(stores, parameters, variable_definitions, Precedence.TERNARY)
+        false_expression: Final = self._expression(context, Precedence.TERNARY)
 
         true_data_type: Final = true_expression.get_data_type()
         false_data_type: Final = false_expression.get_data_type()
@@ -540,6 +530,13 @@ class Parser:
             false_expression=false_expression,
             data_type=true_data_type,
         )
+
+    def _call_operation(
+        self,
+        left_operand: Expression,
+        context: _ParseContext,
+    ) -> Expression:
+        raise NotImplementedError
 
     _PARSER_TABLE = {
         TokenType.COLON: _TableEntry.unused(),
@@ -560,7 +557,7 @@ class Parser:
         TokenType.MINUS: _TableEntry(_unary_operation, _binary_expression, Precedence.SUM),
         TokenType.ASTERISK: _TableEntry(None, _binary_expression, Precedence.PRODUCT),
         TokenType.SLASH: _TableEntry(None, _binary_expression, Precedence.PRODUCT),
-        TokenType.LEFT_PARENTHESIS: _TableEntry(_grouped_expression, None, Precedence.UNKNOWN),
+        TokenType.LEFT_PARENTHESIS: _TableEntry(_grouped_expression, _call_operation, Precedence.UNKNOWN),
         TokenType.RIGHT_PARENTHESIS: _TableEntry.unused(),
         TokenType.STORE: _TableEntry.unused(),
         TokenType.PARAMS: _TableEntry.unused(),
