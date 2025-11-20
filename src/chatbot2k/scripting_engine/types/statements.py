@@ -22,7 +22,7 @@ from chatbot2k.scripting_engine.types.expressions import VariableIdentifierExpre
 from chatbot2k.scripting_engine.types.value import Value
 
 
-class BaseStatement(ABC):
+class BaseStatement(BaseModel, ABC):
     @abstractmethod
     def execute(
         self,
@@ -41,7 +41,7 @@ class StatementKind(StrEnum):
 
 
 @final
-class PrintStatement(BaseModel, BaseStatement):
+class PrintStatement(BaseStatement):
     model_config = ConfigDict(frozen=True)
 
     kind: Literal[StatementKind.PRINT] = StatementKind.PRINT
@@ -60,7 +60,7 @@ class PrintStatement(BaseModel, BaseStatement):
 
 
 @final
-class AssignmentStatement(BaseModel, BaseStatement):
+class AssignmentStatement(BaseStatement):
     model_config = ConfigDict(frozen=True)
 
     kind: Literal[StatementKind.ASSIGNMENT] = StatementKind.ASSIGNMENT
@@ -123,7 +123,7 @@ class AssignmentStatement(BaseModel, BaseStatement):
 
 
 @final
-class VariableDefinitionStatement(BaseModel, BaseStatement):
+class VariableDefinitionStatement(BaseStatement):
     model_config = ConfigDict(frozen=True)
 
     kind: Literal[StatementKind.VARIABLE_DEFINITION] = StatementKind.VARIABLE_DEFINITION
