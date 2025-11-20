@@ -96,6 +96,18 @@ class TernaryOperatorTypeError(ParserError):
         super().__init__(f"Ternary operator branches must have the same type, got '{true_type}' and '{false_type}'.")
 
 
+@final
+class ParserTypeError(ParserError):
+    def __init__(self, invalid_type: DataType) -> None:
+        super().__init__(f"Invalid type for operation: '{invalid_type}'.")
+
+
+@final
+class AssignmentTypeError(ParserError):
+    def __init__(self, lvalue_type: DataType, rvalue_type: DataType) -> None:
+        super().__init__(f"Cannot assign value of type '{rvalue_type}' to target of type '{lvalue_type}'.")
+
+
 type _UnaryParser = Callable[
     [
         Parser,
@@ -263,6 +275,9 @@ class Parser:
     ) -> Statement:
         self._expect(TokenType.PRINT, "'print' keyword")  # This is a double-check.
         expression: Final = self._expression(stores, parameters, variable_definitions, Precedence.UNKNOWN)
+        expression_type: Final = expression.get_data_type()
+        if expression_type not in (DataType.NUMBER, DataType.STRING, DataType.BOOL):
+            raise ParserTypeError(expression_type)
         return PrintStatement(argument=expression)
 
     def _assignment(
@@ -298,6 +313,12 @@ class Parser:
 
         self._expect(TokenType.EQUALS, "'=' in assignment")
         rvalue: Final = self._expression(stores, parameters, variable_definitions, Precedence.UNKNOWN)
+
+        lvalue_type: Final = lvalue.get_data_type()
+        rvalue_type: Final = rvalue.get_data_type()
+        if lvalue_type != rvalue_type:
+            raise AssignmentTypeError(lvalue_type, rvalue_type)
+
         return AssignmentStatement(
             assignment_target=lvalue,
             expression=rvalue,

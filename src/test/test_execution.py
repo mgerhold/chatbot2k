@@ -1,3 +1,4 @@
+from chatbot2k.scripting_engine.parser import AssignmentTypeError
 from typing import Final
 from typing import Optional
 
@@ -563,8 +564,8 @@ def test_variable_type_consistency() -> None:
 
 def test_variable_type_change_raises() -> None:
     with pytest.raises(
-        ExecutionError,
-        match="Type mismatch when assigning to variable 'x': expected number, got string",
+        AssignmentTypeError,
+        match="Cannot assign value of type 'string' to target of type 'number'",
     ):
         _execute("LET x = 5; x = 'string';")
 

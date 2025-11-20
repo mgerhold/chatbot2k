@@ -283,10 +283,25 @@ class UnaryOperationExpression(BaseExpression):
     @override
     def get_data_type(self) -> DataType:
         operand_type: Final = self.operand.get_data_type()
-        if operand_type == DataType.NUMBER:
-            return DataType.NUMBER
-        msg: Final = f"Unary operator {self.operator} is not supported for {operand_type} operands"
-        raise TypeError(msg)
+        match self.operator, operand_type:
+            case (UnaryOperator.PLUS | UnaryOperator.NEGATE, DataType.NUMBER):
+                return DataType.NUMBER
+            case (UnaryOperator.NOT, DataType.BOOL):
+                return DataType.BOOL
+            case (UnaryOperator.TO_NUMBER, DataType.BOOL | DataType.NUMBER | DataType.STRING):
+                return DataType.NUMBER
+            case (UnaryOperator.EVALUATE, DataType.STRING):
+                return DataType.STRING
+            case (
+                UnaryOperator.PLUS
+                | UnaryOperator.NEGATE
+                | UnaryOperator.TO_NUMBER
+                | UnaryOperator.EVALUATE
+                | UnaryOperator.NOT,
+                _,
+            ):
+                msg: Final = f"Unary operator {self.operator} is not supported for {operand_type} operands"
+                raise TypeError(msg)
 
     @override
     def evaluate(
