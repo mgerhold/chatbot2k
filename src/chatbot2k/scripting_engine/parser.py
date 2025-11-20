@@ -108,6 +108,12 @@ class AssignmentTypeError(ParserError):
         super().__init__(f"Cannot assign value of type '{rvalue_type}' to target of type '{lvalue_type}'.")
 
 
+@final
+class TypeNotCallableError(ParserError):
+    def __init__(self, type_: DataType) -> None:
+        super().__init__(f"Value of type '{type_}' is not callable.")
+
+
 type _UnaryParser = Callable[
     [
         Parser,
@@ -534,8 +540,13 @@ class Parser:
     def _call_operation(
         self,
         left_operand: Expression,
-        context: _ParseContext,
+        _context: _ParseContext,
     ) -> Expression:
+        self._expect(TokenType.LEFT_PARENTHESIS, "'(' in function call")  # This is a double-check.
+        self._expect(TokenType.RIGHT_PARENTHESIS, "')' in function call")
+        operand_type: Final = left_operand.get_data_type()
+        if operand_type != DataType.STRING:
+            raise TypeNotCallableError(operand_type)
         raise NotImplementedError
 
     _PARSER_TABLE = {
@@ -557,7 +568,7 @@ class Parser:
         TokenType.MINUS: _TableEntry(_unary_operation, _binary_expression, Precedence.SUM),
         TokenType.ASTERISK: _TableEntry(None, _binary_expression, Precedence.PRODUCT),
         TokenType.SLASH: _TableEntry(None, _binary_expression, Precedence.PRODUCT),
-        TokenType.LEFT_PARENTHESIS: _TableEntry(_grouped_expression, _call_operation, Precedence.UNKNOWN),
+        TokenType.LEFT_PARENTHESIS: _TableEntry(_grouped_expression, _call_operation, Precedence.CALL),
         TokenType.RIGHT_PARENTHESIS: _TableEntry.unused(),
         TokenType.STORE: _TableEntry.unused(),
         TokenType.PARAMS: _TableEntry.unused(),

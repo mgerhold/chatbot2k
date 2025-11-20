@@ -6,8 +6,10 @@ import pytest
 from chatbot2k.scripting_engine.lexer import Lexer
 from chatbot2k.scripting_engine.parser import AssignmentTypeError
 from chatbot2k.scripting_engine.parser import Parser
+from chatbot2k.scripting_engine.parser import TypeNotCallableError
 from chatbot2k.scripting_engine.parser import UnknownVariableError
 from chatbot2k.scripting_engine.stores import StoreKey
+from chatbot2k.scripting_engine.types.execution_context import ExecutionContext
 from chatbot2k.scripting_engine.types.execution_error import ExecutionError
 from chatbot2k.scripting_engine.types.value import NumberValue
 from chatbot2k.scripting_engine.types.value import StringValue
@@ -34,7 +36,14 @@ def _execute_with_store(
     initial_data: Final[dict[StoreKey, Value]] = {}
     for store in script.stores:
         key = StoreKey(script_name, store.name)
-        value = store.value.evaluate(script_name, initial_data, {}, {})
+        value = store.value.evaluate(
+            ExecutionContext(
+                call_stack=[script_name],
+                stores=initial_data,
+                parameters={},
+                variables={},
+            )
+        )
         initial_data[key] = value
 
     if store_overrides is not None:
@@ -654,3 +663,16 @@ def test_to_string() -> None:
     assert output == "42"
     output = _execute("PRINT #$!'PRINT 42;';")
     assert output == "42"
+
+
+def test_cannot_execute_non_string_values() -> None:
+    with pytest.raises(TypeNotCallableError, match="Value of type 'number' is not callable"):
+        _execute("PRINT 42();")
+    with pytest.raises(TypeNotCallableError, match="Value of type 'bool' is not callable"):
+        _execute("PRINT true();")
+    with pytest.raises(TypeNotCallableError, match="Value of type 'number' is not callable"):
+        _execute("LET x = 10; PRINT x();")
+
+
+def test_call_operator() -> None:
+    _execute("PRINT 'other'();")

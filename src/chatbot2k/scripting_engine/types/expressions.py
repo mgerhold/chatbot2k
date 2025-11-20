@@ -18,6 +18,7 @@ from chatbot2k.scripting_engine.stores import AlwaysEmptyPersistentStore
 from chatbot2k.scripting_engine.stores import StoreKey
 from chatbot2k.scripting_engine.token_types import TokenType
 from chatbot2k.scripting_engine.types.data_types import DataType
+from chatbot2k.scripting_engine.types.execution_context import ExecutionContext
 from chatbot2k.scripting_engine.types.execution_error import ExecutionError
 from chatbot2k.scripting_engine.types.value import BoolValue
 from chatbot2k.scripting_engine.types.value import NumberValue
@@ -36,6 +37,7 @@ class ExpressionType(StrEnum):
     UNARY_OPERATION = "unary_operation"
     BINARY_OPERATION = "binary_operation"
     TERNARY_OPERATION = "ternary_operation"
+    CALL_OPERATION = "call_operation"
 
 
 class BaseExpression(BaseModel, ABC):
@@ -45,10 +47,7 @@ class BaseExpression(BaseModel, ABC):
     @abstractmethod
     def evaluate(
         self,
-        script_name: str,
-        stores: dict[StoreKey, Value],
-        parameters: dict[str, Value],
-        variables: dict[str, Value],
+        context: ExecutionContext,
     ) -> Value: ...
 
 
@@ -64,13 +63,7 @@ class StringLiteralExpression(BaseExpression):
         return DataType.STRING
 
     @override
-    def evaluate(
-        self,
-        script_name: str,
-        stores: dict[StoreKey, Value],
-        parameters: dict[str, Value],
-        variables: dict[str, Value],
-    ) -> Value:
+    def evaluate(self, context: ExecutionContext) -> Value:
         return StringValue(value=self.value)
 
     @classmethod
@@ -112,10 +105,7 @@ class NumberLiteralExpression(BaseExpression):
     @override
     def evaluate(
         self,
-        script_name: str,
-        stores: dict[StoreKey, Value],
-        parameters: dict[str, Value],
-        variables: dict[str, Value],
+        context: ExecutionContext,
     ) -> Value:
         return NumberValue(value=self.value)
 
@@ -134,10 +124,7 @@ class BoolLiteralExpression(BaseExpression):
     @override
     def evaluate(
         self,
-        script_name: str,
-        stores: dict[StoreKey, Value],
-        parameters: dict[str, Value],
-        variables: dict[str, Value],
+        context: ExecutionContext,
     ) -> Value:
         return BoolValue(value=self.value)
 
@@ -157,16 +144,13 @@ class StoreIdentifierExpression(BaseExpression):
     @override
     def evaluate(
         self,
-        script_name: str,
-        stores: dict[StoreKey, Value],
-        parameters: dict[str, Value],
-        variables: dict[str, Value],
+        context: ExecutionContext,
     ) -> Value:
         store_key: Final = StoreKey(
-            script_name=script_name,
+            script_name=context.call_stack[-1],
             store_name=self.store_name,
         )
-        value: Final = stores.get(store_key)
+        value: Final = context.stores.get(store_key)
         if value is None:
             msg = f"Store '{self.store_name}' not found."
             raise ExecutionError(msg)
@@ -194,12 +178,9 @@ class ParameterIdentifierExpression(BaseExpression):
     @override
     def evaluate(
         self,
-        script_name: str,
-        stores: dict[StoreKey, Value],
-        parameters: dict[str, Value],
-        variables: dict[str, Value],
+        context: ExecutionContext,
     ) -> Value:
-        value: Final = parameters.get(self.parameter_name)
+        value: Final = context.parameters.get(self.parameter_name)
         if value is None:
             msg = f"Parameter '{self.parameter_name}' not defined."
             raise ExecutionError(msg)
@@ -227,12 +208,9 @@ class VariableIdentifierExpression(BaseExpression):
     @override
     def evaluate(
         self,
-        script_name: str,
-        stores: dict[StoreKey, Value],
-        parameters: dict[str, Value],
-        variables: dict[str, Value],
+        context: ExecutionContext,
     ) -> Value:
-        value: Final = variables.get(self.variable_name)
+        value: Final = context.variables.get(self.variable_name)
         if value is None:
             msg = f"Variable '{self.variable_name}' not defined."
             raise ExecutionError(msg)
@@ -309,15 +287,12 @@ class UnaryOperationExpression(BaseExpression):
     @override
     def evaluate(
         self,
-        script_name: str,
-        stores: dict[StoreKey, Value],
-        parameters: dict[str, Value],
-        variables: dict[str, Value],
+        context: ExecutionContext,
     ) -> Value:
         from chatbot2k.scripting_engine.lexer import Lexer
         from chatbot2k.scripting_engine.parser import Parser
 
-        operand_value: Final = self.operand.evaluate(script_name, stores, parameters, variables)
+        operand_value: Final = self.operand.evaluate(context)
         match self.operator, operand_value:
             case UnaryOperator.PLUS | UnaryOperator.TO_NUMBER, NumberValue(value=v):
                 return NumberValue(value=v)
@@ -434,13 +409,10 @@ class BinaryOperationExpression(BaseExpression):
     @override
     def evaluate(
         self,
-        script_name: str,
-        stores: dict[StoreKey, Value],
-        parameters: dict[str, Value],
-        variables: dict[str, Value],
+        context: ExecutionContext,
     ) -> Value:
-        left_value: Final = self.left.evaluate(script_name, stores, parameters, variables)
-        right_value: Final = self.right.evaluate(script_name, stores, parameters, variables)
+        left_value: Final = self.left.evaluate(context)
+        right_value: Final = self.right.evaluate(context)
         match left_value, self.operator, right_value:
             case (
                 (BoolValue(value=l), BinaryOperator.EQUALS, BoolValue(value=r))
@@ -512,19 +484,35 @@ class TernaryOperationExpression(BaseExpression):
     @override
     def evaluate(
         self,
-        script_name: str,
-        stores: dict[StoreKey, Value],
-        parameters: dict[str, Value],
-        variables: dict[str, Value],
+        context: ExecutionContext,
     ) -> Value:
-        predicate: Final = self.condition.evaluate(script_name, stores, parameters, variables)
+        predicate: Final = self.condition.evaluate(context)
         if predicate.get_data_type() != DataType.BOOL:
             msg = f"Ternary condition must be a boolean, got {predicate.get_data_type()}"
             raise ExecutionError(msg)
         assert isinstance(predicate, BoolValue)
         if predicate.value:
-            return self.true_expression.evaluate(script_name, stores, parameters, variables)
-        return self.false_expression.evaluate(script_name, stores, parameters, variables)
+            return self.true_expression.evaluate(context)
+        return self.false_expression.evaluate(context)
+
+
+@final
+class CallOperationExpression(BaseExpression):
+    model_config = ConfigDict(frozen=True)
+
+    expression_type: Literal[ExpressionType.CALL_OPERATION] = ExpressionType.CALL_OPERATION
+    callee: str
+
+    @override
+    def get_data_type(self) -> DataType:
+        return DataType.STRING
+
+    @override
+    def evaluate(
+        self,
+        context: ExecutionContext,
+    ) -> Value:
+        raise NotImplementedError
 
 
 type Expression = Annotated[
@@ -536,6 +524,7 @@ type Expression = Annotated[
     | VariableIdentifierExpression
     | UnaryOperationExpression
     | BinaryOperationExpression
-    | TernaryOperationExpression,
+    | TernaryOperationExpression
+    | CallOperationExpression,
     Discriminator("expression_type"),
 ]

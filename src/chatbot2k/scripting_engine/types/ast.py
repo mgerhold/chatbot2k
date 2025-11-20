@@ -11,6 +11,7 @@ from pydantic import Field
 from chatbot2k.scripting_engine.stores import BasicPersistentStore
 from chatbot2k.scripting_engine.stores import StoreKey
 from chatbot2k.scripting_engine.types.data_types import DataType
+from chatbot2k.scripting_engine.types.execution_context import ExecutionContext
 from chatbot2k.scripting_engine.types.execution_error import ExecutionError
 from chatbot2k.scripting_engine.types.expressions import Expression
 from chatbot2k.scripting_engine.types.statements import Statement
@@ -52,24 +53,21 @@ class Script(BaseModel):
         if len(arguments) != arity:
             msg: Final = f"Script '{self.name}' expects {arity} arguments, but got {len(arguments)}."
             raise ExecutionError(msg)
-        stores: Final = persistent_store.read_values(self._collect_required_stores())
         parameters: Final[dict[str, Value]] = {
             parameter.name: StringValue(value=argument_value)
             for parameter, argument_value in zip(self.parameters, arguments, strict=True)
         }
-        variables: Final[dict[str, Value]] = {}
         output: Optional[str] = None
+        execution_context: Final = ExecutionContext(
+            call_stack=[self.name],
+            stores=persistent_store.read_values(self._collect_required_stores()),
+            parameters=parameters,
+            variables={},
+        )
         for statement in self.statements:
-            if (
-                result := statement.execute(
-                    self.name,
-                    stores,
-                    parameters,
-                    variables,
-                )
-            ) is not None:
+            if (result := statement.execute(execution_context)) is not None:
                 output = result if output is None else f"{output}{result}"
-        persistent_store.store_values(stores)
+        persistent_store.store_values(execution_context.stores)
         return output
 
     def _collect_required_stores(self) -> set[StoreKey]:

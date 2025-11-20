@@ -15,3 +15,4 @@ class Precedence(IntEnum):
     SUM = auto()
     PRODUCT = auto()
     UNARY = auto()
+    CALL = auto()

@@ -10,7 +10,7 @@ from chatbot2k.database.engine import ScriptStoreData
 from chatbot2k.scripting_engine.lexer import Lexer
 from chatbot2k.scripting_engine.parser import Parser
 from chatbot2k.scripting_engine.stores import StoreKey
-from chatbot2k.scripting_engine.types.value import Value
+from chatbot2k.scripting_engine.types.expressions import ExecutionContext
 from chatbot2k.translation_key import TranslationKey
 from chatbot2k.types.chat_command import ChatCommand
 from chatbot2k.types.chat_response import ChatResponse
@@ -221,7 +221,12 @@ class CommandManagementCommand(CommandHandler):
 
             # Evaluate store initial values.
             store_data: Final[list[ScriptStoreData]] = []
-            initial_store_values: Final[dict[StoreKey, Value]] = {}
+            execution_context: Final = ExecutionContext(
+                call_stack=[script.name],
+                stores={},
+                parameters={},  # Empty dict because parameter definitions do not access values.
+                variables={},  # Empty dict because variables cannot be defined before stores.
+            )
 
             for store in script.stores:
                 store_key = StoreKey(
@@ -230,13 +235,8 @@ class CommandManagementCommand(CommandHandler):
                 )
                 # Evaluate the initial value expression.
                 try:
-                    value = store.value.evaluate(
-                        script_name=script.name,
-                        stores=initial_store_values,
-                        parameters={},  # Empty dict because parameter definitions do not access values.
-                        variables={},  # Empty dict because variables cannot be defined before stores.
-                    )
-                    initial_store_values[store_key] = value
+                    value = store.value.evaluate(execution_context)
+                    execution_context.stores[store_key] = value
 
                     # Serialize to JSON.
                     store_json = store.model_dump_json()
