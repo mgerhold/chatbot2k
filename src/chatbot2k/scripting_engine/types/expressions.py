@@ -259,6 +259,9 @@ class BinaryOperator(StrEnum):
     GREATER_THAN = ">"
     GREATER_THAN_OR_EQUAL = ">="
 
+    AND = "and"
+    OR = "or"
+
 
 @final
 class UnaryOperator(StrEnum):
@@ -266,6 +269,7 @@ class UnaryOperator(StrEnum):
     NEGATE = "-"
     TO_NUMBER = "$"
     EVALUATE = "!"
+    NOT = "not"
 
 
 @final
@@ -301,6 +305,8 @@ class UnaryOperationExpression(BaseExpression):
                 return NumberValue(value=v)
             case UnaryOperator.NEGATE, NumberValue(value=v):
                 return NumberValue(value=-v)
+            case UnaryOperator.NOT, BoolValue(value=v):
+                return BoolValue(value=not v)
             case UnaryOperator.TO_NUMBER, BoolValue(value=value):
                 return NumberValue(value=1 if value else 0)
             case UnaryOperator.TO_NUMBER, StringValue(value=value):
@@ -338,7 +344,14 @@ class UnaryOperationExpression(BaseExpression):
                 if script_output is None:
                     raise ExecutionError("Evaluated script did not produce any output")
                 return StringValue(value=script_output)
-            case UnaryOperator.PLUS | UnaryOperator.NEGATE | UnaryOperator.TO_NUMBER | UnaryOperator.EVALUATE, _:
+            case (
+                UnaryOperator.PLUS
+                | UnaryOperator.NEGATE
+                | UnaryOperator.TO_NUMBER
+                | UnaryOperator.EVALUATE
+                | UnaryOperator.NOT,
+                _,
+            ):
                 msg = f"Unary operator {self.operator} is not supported for {operand_value.get_data_type()} operands"
                 raise ExecutionError(msg)
 
@@ -372,6 +385,8 @@ class BinaryOperationExpression(BaseExpression):
                 | (DataType.STRING, BinaryOperator.GREATER_THAN_OR_EQUAL, DataType.STRING)
             ):
                 return DataType.BOOL
+            case (DataType.BOOL, BinaryOperator.AND, DataType.BOOL) | (DataType.BOOL, BinaryOperator.OR, DataType.BOOL):
+                return DataType.BOOL
             case (
                 (DataType.NUMBER, BinaryOperator.ADD, DataType.NUMBER)
                 | (DataType.NUMBER, BinaryOperator.SUBTRACT, DataType.NUMBER)
@@ -381,10 +396,14 @@ class BinaryOperationExpression(BaseExpression):
                 return DataType.NUMBER
             case (DataType.STRING, BinaryOperator.ADD, DataType.STRING):
                 return DataType.STRING
+            case (DataType.NUMBER, _, _) | (_, _, DataType.NUMBER):
+                msg = f"Operator {self.operator} is not supported for number operands"
+                raise TypeError(msg)
             case (DataType.STRING, _, _) | (_, _, DataType.STRING):
                 msg = f"Operator {self.operator} is not supported for string operands"
                 raise TypeError(msg)
-            case (DataType.BOOL, _, _) | (_, _, DataType.BOOL):
+            # TODO: Create minimal example and file a Pyright issue about this false positive.
+            case (DataType.BOOL, _, _) | (_, _, DataType.BOOL):  # type: ignore[reportUnnecessaryComparison]
                 msg = f"Operator {self.operator} is not supported for boolean operands"
                 raise TypeError(msg)
 
@@ -427,6 +446,10 @@ class BinaryOperationExpression(BaseExpression):
                 return BoolValue(value=l > r)
             case StringValue(value=l), BinaryOperator.GREATER_THAN_OR_EQUAL, StringValue(value=r):
                 return BoolValue(value=l >= r)
+            case BoolValue(value=l), BinaryOperator.AND, BoolValue(value=r):
+                return BoolValue(value=l and r)
+            case BoolValue(value=l), BinaryOperator.OR, BoolValue(value=r):
+                return BoolValue(value=l or r)
             case NumberValue(value=l), BinaryOperator.ADD, NumberValue(value=r):
                 return NumberValue(value=l + r)
             case NumberValue(value=l), BinaryOperator.SUBTRACT, NumberValue(value=r):

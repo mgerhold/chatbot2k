@@ -48,6 +48,7 @@ See below for details on each section.
 
 Currently, the language supports the following data types:
 
+- **Booleans**: The literals `true` and `false`.
 - **Numbers**: Integral or floating-point numbers, possibly negative. They are mapped to Python's `float` type.
 - **Strings**: Sequences of characters enclosed in single quotes (`'`). They are mapped to Python's `str` type and
   support UTF-8. The allowed escape sequences are:
@@ -59,10 +60,15 @@ Currently, the language supports the following data types:
 
 The following keywords are reserved in the scripting language:
 
+- `and`
+- `false`
 - `LET`
-- `PARAM`
+- `not`
+- `or`
+- `PARAMS`
 - `PRINT`
 - `STORE`
+- `true`
 
 ## Identifiers
 
@@ -170,7 +176,9 @@ The following expressions are supported:
 
 - **Literals**: Numbers (e.g., `42`, `3.14`, `-7`) and strings (e.g., `'Hello, world!'`)
 - **Variable, Parameter and Store References**: Using the name of a variable, parameter, or store to get its current value.
-- **Arithmetic Operations**: Addition (`+`), subtraction (`-`), multiplication (`*`), and division (`/`) for numbers.
+- **Arithmetic Operations**: Addition (`+`), subtraction (`-`), multiplication (`*`), and division (`/`) for numbers. The language supports both `+` and `-` in their unary and binary forms.
+- **Comparison Operations**: Equal (`==`), not equal (`!=`), less than (`<`), less than or equal (`<=`), greater than (`>`), greater than or equal (`>=`) for all data types.
+- **Logical Operations**: And (`and`), or (`or`), and not (`not`) for boolean values.
 - **String Concatenation**: Using the `+` operator to concatenate strings.
 - **Parentheses**: To group expressions and control the order of evaluation.
 - **Conversion to Number**: The prefix `$` operator converts a string to a number. The string must represent a number literal, possibly with a leading `+` or `-`. Applying the operator to a number has no effect.

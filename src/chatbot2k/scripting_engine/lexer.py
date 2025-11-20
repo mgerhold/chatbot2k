@@ -14,6 +14,9 @@ _BUILTIN_KEYWORDS = {
     "LET": TokenType.LET,
     "true": TokenType.BOOL_LITERAL,
     "false": TokenType.BOOL_LITERAL,
+    "and": TokenType.AND,
+    "or": TokenType.OR,
+    "not": TokenType.NOT,
 }
 
 _SINGLE_CHAR_TOKENS = {

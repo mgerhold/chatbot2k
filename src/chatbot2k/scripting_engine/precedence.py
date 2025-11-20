@@ -8,6 +8,8 @@ class Precedence(IntEnum):
     # From weakest to strongest.
     UNKNOWN = auto()
     TERNARY = auto()
+    OR = auto()
+    AND = auto()
     EQUALITY = auto()
     COMPARISON = auto()
     SUM = auto()

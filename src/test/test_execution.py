@@ -621,3 +621,16 @@ def test_comparison_operators() -> None:
     assert output == "truefalse"
     output = _execute("PRINT 'banana' > 'apple'; PRINT 'apple' > 'banana';")
     assert output == "truefalse"
+
+
+def test_logical_operators() -> None:
+    output = _execute("PRINT true and true; PRINT true and false; PRINT false and false;")
+    assert output == "truefalsefalse"
+    output = _execute("PRINT true or false; PRINT false or false; PRINT false or true;")
+    assert output == "truefalsetrue"
+    output = _execute("PRINT not true; PRINT not false;")
+    assert output == "falsetrue"
+    output = _execute("PRINT (5 < 10) and (10 < 20); PRINT (5 < 10) and (20 < 10);")
+    assert output == "truefalse"
+    output = _execute("PRINT (5 > 10) or (10 < 20); PRINT (5 > 10) or (20 < 10);")
+    assert output == "truefalse"

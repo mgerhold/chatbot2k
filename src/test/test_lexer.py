@@ -17,7 +17,7 @@ def _tokenize_source(source: str) -> list[Token]:
 def test_tokenize_can_analyze_all_token_types() -> None:
     source: Final = (
         r";=+-*/()STORE PRINT some_identifier_123 'my string 🐍\'quoted\'\ntext on second line' 3.14 "
-        + "LET PARAMS,$!:?true false== != < <= > >="
+        + "LET PARAMS,$!:?true false== != < <= > >= and or not"
     )
     tokens: Final = _tokenize_source(source)
 
@@ -135,9 +135,21 @@ def test_tokenize_can_analyze_all_token_types() -> None:
     assert tokens[27].source_location == SourceLocation(source, offset=128, length=2)
     assert tokens[27].source_location.lexeme == ">="
 
-    assert tokens[28].type == TokenType.END_OF_INPUT
-    assert tokens[28].source_location == SourceLocation(source, offset=130, length=1)
-    assert tokens[28].source_location.lexeme == ""
+    assert tokens[28].type == TokenType.AND
+    assert tokens[28].source_location == SourceLocation(source, offset=131, length=3)
+    assert tokens[28].source_location.lexeme == "and"
+
+    assert tokens[29].type == TokenType.OR
+    assert tokens[29].source_location == SourceLocation(source, offset=135, length=2)
+    assert tokens[29].source_location.lexeme == "or"
+
+    assert tokens[30].type == TokenType.NOT
+    assert tokens[30].source_location == SourceLocation(source, offset=138, length=3)
+    assert tokens[30].source_location.lexeme == "not"
+
+    assert tokens[31].type == TokenType.END_OF_INPUT
+    assert tokens[31].source_location == SourceLocation(source, offset=141, length=1)
+    assert tokens[31].source_location.lexeme == ""
 
 
 def test_invalid_escape_sequence_raises() -> None:

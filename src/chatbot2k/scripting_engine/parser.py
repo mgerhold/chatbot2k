@@ -129,6 +129,21 @@ _BINARY_OPERATOR_BY_TOKEN_TYPE = {
     TokenType.LESS_THAN_EQUALS: BinaryOperator.LESS_THAN_OR_EQUAL,
     TokenType.GREATER_THAN: BinaryOperator.GREATER_THAN,
     TokenType.GREATER_THAN_EQUALS: BinaryOperator.GREATER_THAN_OR_EQUAL,
+    # Logical operators.
+    TokenType.AND: BinaryOperator.AND,
+    TokenType.OR: BinaryOperator.OR,
+}
+
+
+_UNARY_OPERATOR_BY_TOKEN_TYPE = {
+    # Arithmetic operators.
+    TokenType.PLUS: UnaryOperator.PLUS,
+    TokenType.MINUS: UnaryOperator.NEGATE,
+    # Logical operators.
+    TokenType.NOT: UnaryOperator.NOT,
+    # Miscellaneous operators.
+    TokenType.DOLLAR: UnaryOperator.TO_NUMBER,
+    TokenType.EXCLAMATION_MARK: UnaryOperator.EVALUATE,
 }
 
 
@@ -417,19 +432,10 @@ class Parser:
         parameters: list[Parameter],
         variable_definitions: list[VariableDefinitionStatement],
     ) -> Expression:
-        unary_operator: UnaryOperator
-        match self._current().type:
-            case TokenType.PLUS:
-                unary_operator = UnaryOperator.PLUS
-            case TokenType.MINUS:
-                unary_operator = UnaryOperator.NEGATE
-            case TokenType.DOLLAR:
-                unary_operator = UnaryOperator.TO_NUMBER
-            case TokenType.EXCLAMATION_MARK:
-                unary_operator = UnaryOperator.EVALUATE
-            case _:
-                msg: Final = f"unexpected unary operator: {self._current().type}"
-                raise AssertionError(msg)
+        unary_operator: Final = _UNARY_OPERATOR_BY_TOKEN_TYPE.get(self._current().type)
+        if unary_operator is None:
+            msg: Final = f"unexpected unary operator: {self._current().type}"
+            raise AssertionError(msg)
         self._advance()
         operand: Final = self._expression(stores, parameters, variable_definitions, Precedence.UNARY)
         return UnaryOperationExpression(operator=unary_operator, operand=operand)
@@ -541,6 +547,9 @@ class Parser:
         TokenType.STRING_LITERAL: _TableEntry(_string_literal, None, Precedence.UNARY),
         TokenType.NUMBER_LITERAL: _TableEntry(_number_literal, None, Precedence.UNARY),
         TokenType.BOOL_LITERAL: _TableEntry(_bool_literal, None, Precedence.UNARY),
+        TokenType.AND: _TableEntry(None, _binary_expression, Precedence.AND),
+        TokenType.OR: _TableEntry(None, _binary_expression, Precedence.OR),
+        TokenType.NOT: _TableEntry(_unary_operation, None, Precedence.UNARY),
         TokenType.END_OF_INPUT: _TableEntry.unused(),
     }
 
