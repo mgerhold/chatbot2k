@@ -8,6 +8,7 @@ import pytest
 from chatbot2k.scripting_engine.lexer import Lexer
 from chatbot2k.scripting_engine.parser import AssignmentTypeError
 from chatbot2k.scripting_engine.parser import Parser
+from chatbot2k.scripting_engine.parser import SubscriptOperatorTypeError
 from chatbot2k.scripting_engine.parser import TypeNotCallableError
 from chatbot2k.scripting_engine.parser import UnknownVariableError
 from chatbot2k.scripting_engine.stores import StoreKey
@@ -894,3 +895,22 @@ async def test_recursion() -> None:
 
     output: Final = await _script_caller("fibonacci", "8")
     assert output == "34"
+
+
+@pytest.mark.asyncio
+async def test_subscript_operator() -> None:
+    output = await _execute("PRINT 'Hello'[0];")
+    assert output == "H"
+    output = await _execute("PRINT 'Hello'[4];")
+    assert output == "o"
+    with pytest.raises(ExecutionError, match="String index 5 out of range"):
+        await _execute("PRINT 'Hello'[5];")
+    with pytest.raises(ExecutionError, match="String index -1 out of range"):
+        await _execute("PRINT 'Hello'[-1];")
+    with pytest.raises(ExecutionError, match="String index must be an integer"):
+        await _execute("PRINT 'Hello'[1.5];")
+    with pytest.raises(
+        SubscriptOperatorTypeError,
+        match="Cannot subscript value of type 'number' with index of type 'number'",
+    ):
+        await _execute("PRINT 42[0];")

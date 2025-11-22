@@ -23,6 +23,7 @@ from chatbot2k.scripting_engine.types.expressions import NumberLiteralExpression
 from chatbot2k.scripting_engine.types.expressions import ParameterIdentifierExpression
 from chatbot2k.scripting_engine.types.expressions import StoreIdentifierExpression
 from chatbot2k.scripting_engine.types.expressions import StringLiteralExpression
+from chatbot2k.scripting_engine.types.expressions import SubscriptOperationExpression
 from chatbot2k.scripting_engine.types.expressions import TernaryOperationExpression
 from chatbot2k.scripting_engine.types.expressions import UnaryOperationExpression
 from chatbot2k.scripting_engine.types.expressions import UnaryOperator
@@ -101,6 +102,12 @@ class TernaryOperatorTypeError(ParserError):
 class ParserTypeError(ParserError):
     def __init__(self, invalid_type: DataType) -> None:
         super().__init__(f"Invalid type for operation: '{invalid_type}'.")
+
+
+@final
+class SubscriptOperatorTypeError(ParserError):
+    def __init__(self, operand_type: DataType, index_type: DataType) -> None:
+        super().__init__(f"Cannot subscript value of type '{operand_type}' with index of type '{index_type}'.")
 
 
 @final
@@ -560,6 +567,26 @@ class Parser:
             arguments=arguments,
         )
 
+    def _subscript_operator(
+        self,
+        left_operand: Expression,
+        context: _ParseContext,
+    ) -> Expression:
+        self._expect(TokenType.LEFT_SQUARE_BRACKET, "'[' in subscript operation")  # This is a double-check.
+        index_expression: Final = self._expression(context, Precedence.UNKNOWN)
+        self._expect(TokenType.RIGHT_SQUARE_BRACKET, "']' after subscript index")
+        operand_type: Final = left_operand.get_data_type()
+        index_type: Final = index_expression.get_data_type()
+        match operand_type, index_type:
+            case DataType.STRING, DataType.NUMBER:
+                return SubscriptOperationExpression(
+                    operand=left_operand,
+                    index=index_expression,
+                    data_type=DataType.STRING,
+                )
+            case _, _:
+                raise SubscriptOperatorTypeError(operand_type, index_type)
+
     _PARSER_TABLE = {
         TokenType.COLON: _TableEntry.unused(),
         TokenType.COMMA: _TableEntry.unused(),
@@ -581,6 +608,8 @@ class Parser:
         TokenType.SLASH: _TableEntry(None, _binary_expression, Precedence.PRODUCT),
         TokenType.LEFT_PARENTHESIS: _TableEntry(_grouped_expression, _call_operation, Precedence.CALL),
         TokenType.RIGHT_PARENTHESIS: _TableEntry.unused(),
+        TokenType.LEFT_SQUARE_BRACKET: _TableEntry(None, _subscript_operator, Precedence.CALL),
+        TokenType.RIGHT_SQUARE_BRACKET: _TableEntry.unused(),
         TokenType.STORE: _TableEntry.unused(),
         TokenType.PARAMS: _TableEntry.unused(),
         TokenType.PRINT: _TableEntry.unused(),

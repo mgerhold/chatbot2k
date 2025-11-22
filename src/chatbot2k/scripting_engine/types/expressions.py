@@ -38,6 +38,7 @@ class ExpressionType(StrEnum):
     BINARY_OPERATION = "binary_operation"
     TERNARY_OPERATION = "ternary_operation"
     CALL_OPERATION = "call_operation"
+    SUBSCRIPT_OPERATION = "subscript_operation"
 
 
 class BaseExpression(BaseModel, ABC):
@@ -531,6 +532,44 @@ class CallOperationExpression(BaseExpression):
         return StringValue(value=return_value)
 
 
+@final
+class SubscriptOperationExpression(BaseExpression):
+    model_config = ConfigDict(frozen=True)
+
+    expression_type: Literal[ExpressionType.SUBSCRIPT_OPERATION] = ExpressionType.SUBSCRIPT_OPERATION
+    operand: "Expression"
+    index: "Expression"
+    data_type: DataType
+
+    @override
+    def get_data_type(self) -> DataType:
+        return self.data_type
+
+    @override
+    async def evaluate(
+        self,
+        context: ExecutionContext,
+    ) -> Value:
+        operand_value: Final = await self.operand.evaluate(context)
+        index_value: Final = await self.index.evaluate(context)
+        match operand_value, index_value:
+            case (StringValue(value=s), NumberValue(value=i)):
+                if not i.is_integer():
+                    msg = f"String index must be an integer, got non-integer {i}"
+                    raise ExecutionError(msg)
+                int_index: Final = int(i)
+                if int_index not in range(len(s)):
+                    msg = f"String index {int_index} out of range for string of length {len(s)}"
+                    raise ExecutionError(msg)
+                return StringValue(value=s[int_index])
+            case _, _:
+                msg = (
+                    f"Subscript operation not supported for operand type '{operand_value.get_data_type()}' "
+                    + f"and index type '{index_value.get_data_type()}'"
+                )
+                raise ExecutionError(msg)
+
+
 type Expression = Annotated[
     StringLiteralExpression
     | NumberLiteralExpression
@@ -541,7 +580,8 @@ type Expression = Annotated[
     | UnaryOperationExpression
     | BinaryOperationExpression
     | TernaryOperationExpression
-    | CallOperationExpression,
+    | CallOperationExpression
+    | SubscriptOperationExpression,
     Discriminator("expression_type"),
 ]
 
@@ -557,3 +597,4 @@ UnaryOperationExpression.model_rebuild()
 BinaryOperationExpression.model_rebuild()
 TernaryOperationExpression.model_rebuild()
 CallOperationExpression.model_rebuild()
+SubscriptOperationExpression.model_rebuild()

@@ -25,6 +25,8 @@ class TokenType(Enum):
     SLASH = auto()
     LEFT_PARENTHESIS = auto()
     RIGHT_PARENTHESIS = auto()
+    LEFT_SQUARE_BRACKET = auto()
+    RIGHT_SQUARE_BRACKET = auto()
 
     STORE = auto()
     PARAMS = auto()
