@@ -24,7 +24,7 @@ from chatbot2k.scripting_engine.types.expressions import VariableIdentifierExpre
 
 class BaseStatement(BaseModel, ABC):
     @abstractmethod
-    def execute(
+    async def execute(
         self,
         context: ExecutionContext,
     ) -> Optional[str]: ...
@@ -45,11 +45,11 @@ class PrintStatement(BaseStatement):
     argument: Expression
 
     @override
-    def execute(
+    async def execute(
         self,
         context: ExecutionContext,
     ) -> Optional[str]:
-        value: Final = self.argument.evaluate(context)
+        value: Final = await self.argument.evaluate(context)
         return value.to_string()
 
 
@@ -62,7 +62,7 @@ class AssignmentStatement(BaseStatement):
     expression: Expression  # The rvalue.
 
     @override
-    def execute(self, context: ExecutionContext) -> Optional[str]:
+    async def execute(self, context: ExecutionContext) -> Optional[str]:
         match self.assignment_target:
             case StoreIdentifierExpression(store_name=store_name):
                 store_key: Final = StoreKey(
@@ -79,7 +79,7 @@ class AssignmentStatement(BaseStatement):
                         + f"expected {value.get_data_type()}, got {self.expression.get_data_type()}"
                     )
                     raise ExecutionError(msg)
-                context.stores[store_key] = self.expression.evaluate(context)
+                context.stores[store_key] = await self.expression.evaluate(context)
                 return None
             case ParameterIdentifierExpression(parameter_name=parameter_name):
                 if parameter_name not in context.parameters:
@@ -92,7 +92,7 @@ class AssignmentStatement(BaseStatement):
                         + f"expected {value.get_data_type()}, got {self.expression.get_data_type()}"
                     )
                     raise ExecutionError(msg)
-                context.parameters[parameter_name] = self.expression.evaluate(context)
+                context.parameters[parameter_name] = await self.expression.evaluate(context)
                 print(f"Assigned '{context.parameters[parameter_name]}' to parameter {parameter_name}")
                 return None
             case VariableIdentifierExpression(variable_name=variable_name):
@@ -106,7 +106,7 @@ class AssignmentStatement(BaseStatement):
                         + f"expected {value.get_data_type()}, got {self.expression.get_data_type()}"
                     )
                     raise ExecutionError(msg)
-                context.variables[variable_name] = self.expression.evaluate(context)
+                context.variables[variable_name] = await self.expression.evaluate(context)
                 return None
 
 
@@ -120,7 +120,7 @@ class VariableDefinitionStatement(BaseStatement):
     initial_value: Expression
 
     @override
-    def execute(self, context: ExecutionContext) -> Optional[str]:
+    async def execute(self, context: ExecutionContext) -> Optional[str]:
         if self.variable_name in context.variables:
             msg = f"Variable '{self.variable_name}' already defined"
             raise ExecutionError(msg)
@@ -130,7 +130,7 @@ class VariableDefinitionStatement(BaseStatement):
                 + f"expected {self.data_type}, got {self.initial_value.get_data_type()}"
             )
             raise ExecutionError(msg)
-        context.variables[self.variable_name] = self.initial_value.evaluate(context)
+        context.variables[self.variable_name] = await self.initial_value.evaluate(context)
         return None
 
 

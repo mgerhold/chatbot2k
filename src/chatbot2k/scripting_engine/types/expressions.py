@@ -45,7 +45,7 @@ class BaseExpression(BaseModel, ABC):
     def get_data_type(self) -> DataType: ...
 
     @abstractmethod
-    def evaluate(
+    async def evaluate(
         self,
         context: ExecutionContext,
     ) -> Value: ...
@@ -63,7 +63,7 @@ class StringLiteralExpression(BaseExpression):
         return DataType.STRING
 
     @override
-    def evaluate(self, context: ExecutionContext) -> Value:
+    async def evaluate(self, context: ExecutionContext) -> Value:
         return StringValue(value=self.value)
 
     @classmethod
@@ -103,7 +103,7 @@ class NumberLiteralExpression(BaseExpression):
         return DataType.NUMBER
 
     @override
-    def evaluate(
+    async def evaluate(
         self,
         context: ExecutionContext,
     ) -> Value:
@@ -122,7 +122,7 @@ class BoolLiteralExpression(BaseExpression):
         return DataType.BOOL
 
     @override
-    def evaluate(
+    async def evaluate(
         self,
         context: ExecutionContext,
     ) -> Value:
@@ -142,7 +142,7 @@ class StoreIdentifierExpression(BaseExpression):
         return self.data_type
 
     @override
-    def evaluate(
+    async def evaluate(
         self,
         context: ExecutionContext,
     ) -> Value:
@@ -176,7 +176,7 @@ class ParameterIdentifierExpression(BaseExpression):
         return DataType.STRING
 
     @override
-    def evaluate(
+    async def evaluate(
         self,
         context: ExecutionContext,
     ) -> Value:
@@ -206,7 +206,7 @@ class VariableIdentifierExpression(BaseExpression):
         return self.data_type
 
     @override
-    def evaluate(
+    async def evaluate(
         self,
         context: ExecutionContext,
     ) -> Value:
@@ -285,14 +285,14 @@ class UnaryOperationExpression(BaseExpression):
                 raise TypeError(msg)
 
     @override
-    def evaluate(
+    async def evaluate(
         self,
         context: ExecutionContext,
     ) -> Value:
         from chatbot2k.scripting_engine.lexer import Lexer
         from chatbot2k.scripting_engine.parser import Parser
 
-        operand_value: Final = self.operand.evaluate(context)
+        operand_value: Final = await self.operand.evaluate(context)
         match self.operator, operand_value:
             case UnaryOperator.PLUS | UnaryOperator.TO_NUMBER, NumberValue(value=v):
                 return NumberValue(value=v)
@@ -333,7 +333,11 @@ class UnaryOperationExpression(BaseExpression):
                     raise ExecutionError("Stores inside evaluated code are not supported")
                 if script.parameters:
                     raise ExecutionError("Parameters inside evaluated code are not supported")
-                script_output: Final = script.execute(AlwaysEmptyPersistentStore(), [])
+                script_output: Final = await script.execute(
+                    AlwaysEmptyPersistentStore(),
+                    [],
+                    call_script=context.call_script,
+                )
                 if script_output is None:
                     raise ExecutionError("Evaluated script did not produce any output")
                 return StringValue(value=script_output)
@@ -407,12 +411,12 @@ class BinaryOperationExpression(BaseExpression):
                 raise TypeError(msg)
 
     @override
-    def evaluate(
+    async def evaluate(
         self,
         context: ExecutionContext,
     ) -> Value:
-        left_value: Final = self.left.evaluate(context)
-        right_value: Final = self.right.evaluate(context)
+        left_value: Final = await self.left.evaluate(context)
+        right_value: Final = await self.right.evaluate(context)
         match left_value, self.operator, right_value:
             case (
                 (BoolValue(value=l), BinaryOperator.EQUALS, BoolValue(value=r))
@@ -482,18 +486,18 @@ class TernaryOperationExpression(BaseExpression):
         return self.data_type
 
     @override
-    def evaluate(
+    async def evaluate(
         self,
         context: ExecutionContext,
     ) -> Value:
-        predicate: Final = self.condition.evaluate(context)
+        predicate: Final = await self.condition.evaluate(context)
         if predicate.get_data_type() != DataType.BOOL:
             msg = f"Ternary condition must be a boolean, got {predicate.get_data_type()}"
             raise ExecutionError(msg)
         assert isinstance(predicate, BoolValue)
         if predicate.value:
-            return self.true_expression.evaluate(context)
-        return self.false_expression.evaluate(context)
+            return await self.true_expression.evaluate(context)
+        return await self.false_expression.evaluate(context)
 
 
 @final
@@ -501,18 +505,30 @@ class CallOperationExpression(BaseExpression):
     model_config = ConfigDict(frozen=True)
 
     expression_type: Literal[ExpressionType.CALL_OPERATION] = ExpressionType.CALL_OPERATION
-    callee: str
+    callee: "Expression"
+    arguments: "list[Expression]"
 
     @override
     def get_data_type(self) -> DataType:
         return DataType.STRING
 
     @override
-    def evaluate(
+    async def evaluate(
         self,
         context: ExecutionContext,
     ) -> Value:
-        raise NotImplementedError
+        callee_name: Final = await self.callee.evaluate(context)
+        if not isinstance(callee_name, StringValue):
+            msg: Final = f"Callee must be a string, got {callee_name.get_data_type()}."
+            raise ExecutionError(msg)
+        context.call_stack.append(callee_name.value)
+        evaluated_arguments: Final = [await argument.evaluate(context) for argument in self.arguments]
+        return_value: Final = await context.call_script(
+            callee_name.value,
+            *(argument.to_string() for argument in evaluated_arguments),
+        )
+        context.call_stack.pop()
+        return StringValue(value=return_value)
 
 
 type Expression = Annotated[
@@ -528,3 +544,16 @@ type Expression = Annotated[
     | CallOperationExpression,
     Discriminator("expression_type"),
 ]
+
+
+# Rebuild all models because of forward references.
+StringLiteralExpression.model_rebuild()
+NumberLiteralExpression.model_rebuild()
+BoolLiteralExpression.model_rebuild()
+StoreIdentifierExpression.model_rebuild()
+ParameterIdentifierExpression.model_rebuild()
+VariableIdentifierExpression.model_rebuild()
+UnaryOperationExpression.model_rebuild()
+BinaryOperationExpression.model_rebuild()
+TernaryOperationExpression.model_rebuild()
+CallOperationExpression.model_rebuild()

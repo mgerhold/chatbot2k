@@ -17,6 +17,7 @@ from chatbot2k.scripting_engine.types.data_types import DataType
 from chatbot2k.scripting_engine.types.expressions import BinaryOperationExpression
 from chatbot2k.scripting_engine.types.expressions import BinaryOperator
 from chatbot2k.scripting_engine.types.expressions import BoolLiteralExpression
+from chatbot2k.scripting_engine.types.expressions import CallOperationExpression
 from chatbot2k.scripting_engine.types.expressions import Expression
 from chatbot2k.scripting_engine.types.expressions import NumberLiteralExpression
 from chatbot2k.scripting_engine.types.expressions import ParameterIdentifierExpression
@@ -540,14 +541,24 @@ class Parser:
     def _call_operation(
         self,
         left_operand: Expression,
-        _context: _ParseContext,
+        context: _ParseContext,
     ) -> Expression:
         self._expect(TokenType.LEFT_PARENTHESIS, "'(' in function call")  # This is a double-check.
-        self._expect(TokenType.RIGHT_PARENTHESIS, "')' in function call")
+        arguments: Final[list[Expression]] = []
+        while True:
+            if self._match(TokenType.RIGHT_PARENTHESIS) is not None:
+                break
+            arguments.append(self._expression(context, Precedence.UNKNOWN))
+            if self._match(TokenType.COMMA) is None:
+                self._expect(TokenType.RIGHT_PARENTHESIS, "')' after function call arguments")
+                break
         operand_type: Final = left_operand.get_data_type()
         if operand_type != DataType.STRING:
             raise TypeNotCallableError(operand_type)
-        raise NotImplementedError
+        return CallOperationExpression(
+            callee=left_operand,
+            arguments=arguments,
+        )
 
     _PARSER_TABLE = {
         TokenType.COLON: _TableEntry.unused(),

@@ -1,3 +1,5 @@
+import asyncio
+import logging
 from typing import Annotated
 from typing import Final
 from typing import Optional
@@ -14,10 +16,13 @@ from chatbot2k.scripting_engine.types.data_types import DataType
 from chatbot2k.scripting_engine.types.execution_context import ExecutionContext
 from chatbot2k.scripting_engine.types.execution_error import ExecutionError
 from chatbot2k.scripting_engine.types.expressions import Expression
+from chatbot2k.scripting_engine.types.script_caller import ScriptCaller
 from chatbot2k.scripting_engine.types.statements import Statement
 from chatbot2k.scripting_engine.types.statements import is_not_empty
 from chatbot2k.scripting_engine.types.value import StringValue
 from chatbot2k.scripting_engine.types.value import Value
+
+logger: Final = logging.getLogger(__name__)
 
 
 @final
@@ -48,7 +53,12 @@ class Script(BaseModel):
     parameters: Annotated[list[Parameter], Field(default_factory=list)]  # Maybe empty.
     statements: Annotated[list[Statement], AfterValidator(is_not_empty)]
 
-    def execute(self, persistent_store: BasicPersistentStore, arguments: list[str]) -> Optional[str]:
+    async def execute(
+        self,
+        persistent_store: BasicPersistentStore,
+        arguments: list[str],
+        call_script: ScriptCaller,
+    ) -> Optional[str]:
         arity: Final = len(self.parameters)
         if len(arguments) != arity:
             msg: Final = f"Script '{self.name}' expects {arity} arguments, but got {len(arguments)}."
@@ -58,14 +68,17 @@ class Script(BaseModel):
             for parameter, argument_value in zip(self.parameters, arguments, strict=True)
         }
         output: Optional[str] = None
+
         execution_context: Final = ExecutionContext(
             call_stack=[self.name],
             stores=persistent_store.read_values(self._collect_required_stores()),
             parameters=parameters,
             variables={},
+            call_script=call_script,
         )
         for statement in self.statements:
-            if (result := statement.execute(execution_context)) is not None:
+            await asyncio.sleep(0)  # Allow cancellation to occur
+            if (result := await statement.execute(execution_context)) is not None:
                 output = result if output is None else f"{output}{result}"
         persistent_store.store_values(execution_context.stores)
         return output

@@ -48,7 +48,7 @@ class CommandManagementCommand(CommandHandler):
                     chat_command,
                 )
             case CommandManagementCommand._ADD_SCRIPT_SUBCOMMAND if argc >= 3:
-                success, response = CommandManagementCommand._add_script_command(
+                success, response = await CommandManagementCommand._add_script_command(
                     self._app_state,
                     chat_command,
                 )
@@ -187,7 +187,7 @@ class CommandManagementCommand(CommandHandler):
         )
 
     @staticmethod
-    def _add_script_command(
+    async def _add_script_command(
         app_state: AppState,
         chat_command: ChatCommand,
     ) -> tuple[bool, str]:
@@ -221,11 +221,16 @@ class CommandManagementCommand(CommandHandler):
 
             # Evaluate store initial values.
             store_data: Final[list[ScriptStoreData]] = []
+
+            async def _script_caller(script_name: str, *args: str) -> str:
+                raise NotImplementedError
+
             execution_context: Final = ExecutionContext(
                 call_stack=[script.name],
                 stores={},
                 parameters={},  # Empty dict because parameter definitions do not access values.
                 variables={},  # Empty dict because variables cannot be defined before stores.
+                call_script=_script_caller,
             )
 
             for store in script.stores:
@@ -235,7 +240,7 @@ class CommandManagementCommand(CommandHandler):
                 )
                 # Evaluate the initial value expression.
                 try:
-                    value = store.value.evaluate(execution_context)
+                    value = await store.value.evaluate(execution_context)
                     execution_context.stores[store_key] = value
 
                     # Serialize to JSON.
