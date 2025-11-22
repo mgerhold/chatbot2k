@@ -17,6 +17,7 @@ from chatbot2k.scripting_engine.lexer import LexerError
 from chatbot2k.scripting_engine.stores import AlwaysEmptyPersistentStore
 from chatbot2k.scripting_engine.stores import StoreKey
 from chatbot2k.scripting_engine.token_types import TokenType
+from chatbot2k.scripting_engine.types.builtins import BUILTIN_FUNCTIONS
 from chatbot2k.scripting_engine.types.data_types import DataType
 from chatbot2k.scripting_engine.types.execution_context import ExecutionContext
 from chatbot2k.scripting_engine.types.execution_error import ExecutionError
@@ -522,6 +523,11 @@ class CallOperationExpression(BaseExpression):
         if not isinstance(callee_name, StringValue):
             msg: Final = f"Callee must be a string, got {callee_name.get_data_type()}."
             raise ExecutionError(msg)
+
+        builtin_function: Final = BUILTIN_FUNCTIONS.get(callee_name.value)
+        if builtin_function is not None:
+            return StringValue(value=await builtin_function(*self.arguments))
+
         context.call_stack.append(callee_name.value)
         evaluated_arguments: Final = [await argument.evaluate(context) for argument in self.arguments]
         return_value: Final = await context.call_script(

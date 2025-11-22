@@ -914,3 +914,17 @@ async def test_subscript_operator() -> None:
         match="Cannot subscript value of type 'number' with index of type 'number'",
     ):
         await _execute("PRINT 42[0];")
+
+
+@pytest.mark.asyncio
+async def test_builtin_functions() -> None:
+    output = await _execute("PRINT 'type'('Hello');")
+    assert output == "string"
+    output = await _execute("PRINT 'type'(42);")
+    assert output == "number"
+    output = await _execute("PRINT 'type'(true);")
+    assert output == "bool"
+    with pytest.raises(ExecutionError, match="'type' expected 1 argument, got 2"):
+        await _execute("PRINT 'type'(1, 2);")
+    with pytest.raises(ExecutionError, match="'type' expected 1 argument, got 0"):
+        await _execute("PRINT 'type'();")
