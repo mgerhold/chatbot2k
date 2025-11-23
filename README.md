@@ -184,3 +184,38 @@ The following expressions are supported:
 - **Conversion to Number**: The prefix `$` operator converts a string to a number. The string must represent a number literal, possibly with a leading `+` or `-`. Applying the operator to a number has no effect.
 - **Conversion to String**: The prefix `#` operator converts a number to its string representation. Applying the operator to a string has no effect.
 - **Code Evaluation**: The prefix `!` operator evaluates a string as code and returns the result as a string. The evaluated source code must not contain any stores, or parameters. It cannot access any values from the surrounding script context.
+- **Function Calls**: Call builtin functions using the syntax `'function_name'(arg1, arg2, ...)`. See the Builtin Functions section below for available functions.
+
+## Builtin Functions
+
+The scripting language provides several builtin functions that can be called using the syntax `'function_name'(arguments...)`. All function names must be specified as string literals. All builtin functions return their result as a string value. This keeps them consistent with calling scripts.
+
+### String Functions
+
+- **`'type'(value)`**: Returns the data type of the value as a string (`'string'`, `'number'`, or `'bool'`).
+- **`'length'(str)`**: Returns the length of a string as a number. Requires a string argument.
+- **`'upper'(str)`**: Converts a string to uppercase. Requires a string argument.
+- **`'lower'(str)`**: Converts a string to lowercase. Requires a string argument.
+- **`'trim'(str)`**: Removes whitespace from both ends of a string. Requires a string argument.
+- **`'replace'(str, old, new)`**: Replaces all occurrences of `old` with `new` in the string. All arguments must be strings.
+- **`'contains'(str, substring)`**: Returns `true` if the string contains the substring, otherwise `false`. Both arguments must be strings.
+- **`'starts_with'(str, prefix)`**: Returns `true` if the string starts with the prefix, otherwise `false`. Both arguments must be strings.
+- **`'ends_with'(str, suffix)`**: Returns `true` if the string ends with the suffix, otherwise `false`. Both arguments must be strings.
+
+### Math Functions
+
+- **`'abs'(num)`**: Returns the absolute value of a number.
+- **`'min'(num1, num2, ...)`**: Returns the minimum of one or more numbers. Accepts any number of arguments.
+- **`'max'(num1, num2, ...)`**: Returns the maximum of one or more numbers. Accepts any number of arguments.
+- **`'round'(num)`**: Rounds a number to the nearest integer.
+- **`'floor'(num)`**: Rounds a number down to the nearest integer.
+- **`'ceil'(num)`**: Rounds a number up to the nearest integer.
+- **`'sqrt'(num)`**: Returns the square root of a non-negative number.
+- **`'pow'(base, exponent)`**: Returns base raised to the power of exponent.
+
+### Utility Functions
+
+- **`'random'(min, max)`**: Returns a random floating-point number between min and max.
+- **`'timestamp'()`**: Returns the current Unix timestamp (seconds since epoch) as a number.
+- **`'date'(format)`**: Returns the current UTC date/time formatted according to the format string (using Python's `strftime()` format codes).
+

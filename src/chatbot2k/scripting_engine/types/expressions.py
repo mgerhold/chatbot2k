@@ -526,7 +526,7 @@ class CallOperationExpression(BaseExpression):
 
         builtin_function: Final = BUILTIN_FUNCTIONS.get(callee_name.value)
         if builtin_function is not None:
-            return StringValue(value=await builtin_function(*self.arguments))
+            return StringValue(value=await builtin_function(*self.arguments, context=context))
 
         context.call_stack.append(callee_name.value)
         evaluated_arguments: Final = [await argument.evaluate(context) for argument in self.arguments]

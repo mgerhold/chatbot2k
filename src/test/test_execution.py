@@ -1,3 +1,4 @@
+import re
 from typing import Final
 from typing import NamedTuple
 from typing import Optional
@@ -14,6 +15,7 @@ from chatbot2k.scripting_engine.parser import UnknownVariableError
 from chatbot2k.scripting_engine.stores import StoreKey
 from chatbot2k.scripting_engine.types.ast import Script
 from chatbot2k.scripting_engine.types.builtins import BUILTIN_FUNCTIONS
+from chatbot2k.scripting_engine.types.builtins import _Variadic  # type: ignore[reportPrivateUsage]
 from chatbot2k.scripting_engine.types.execution_context import ExecutionContext
 from chatbot2k.scripting_engine.types.execution_error import ExecutionError
 from chatbot2k.scripting_engine.types.script_caller import ScriptCaller
@@ -934,3 +936,362 @@ async def test_builtin_functions() -> None:
 def test_builtin_function_arity() -> None:
     type_function: Final = BUILTIN_FUNCTIONS["type"]
     assert type_function.arity == 1
+    min_function: Final = BUILTIN_FUNCTIONS["min"]
+    assert min_function.arity == _Variadic.with_min_num_arguments(1)
+    max_function: Final = BUILTIN_FUNCTIONS["max"]
+    assert max_function.arity == _Variadic.with_min_num_arguments(1)
+
+
+@pytest.mark.asyncio
+async def test_string_functions_success() -> None:
+    # length
+    output = await _execute("PRINT 'length'('hello');")
+    assert output == "5"
+    output = await _execute("PRINT 'length'('');")
+    assert output == "0"
+
+    # upper
+    output = await _execute("PRINT 'upper'('hello');")
+    assert output == "HELLO"
+    output = await _execute("PRINT 'upper'('HeLLo');")
+    assert output == "HELLO"
+
+    # lower
+    output = await _execute("PRINT 'lower'('HELLO');")
+    assert output == "hello"
+    output = await _execute("PRINT 'lower'('HeLLo');")
+    assert output == "hello"
+
+    # trim
+    output = await _execute("PRINT 'trim'('  hello  ');")
+    assert output == "hello"
+    output = await _execute("PRINT 'trim'('hello');")
+    assert output == "hello"
+
+    # replace
+    output = await _execute("PRINT 'replace'('hello world', 'world', 'there');")
+    assert output == "hello there"
+    output = await _execute("PRINT 'replace'('aaa', 'a', 'b');")
+    assert output == "bbb"
+
+    # contains
+    output = await _execute("PRINT 'contains'('hello world', 'world');")
+    assert output == "true"
+    output = await _execute("PRINT 'contains'('hello world', 'foo');")
+    assert output == "false"
+
+    # starts_with
+    output = await _execute("PRINT 'starts_with'('hello world', 'hello');")
+    assert output == "true"
+    output = await _execute("PRINT 'starts_with'('hello world', 'world');")
+    assert output == "false"
+
+    # ends_with
+    output = await _execute("PRINT 'ends_with'('hello world', 'world');")
+    assert output == "true"
+    output = await _execute("PRINT 'ends_with'('hello world', 'hello');")
+    assert output == "false"
+
+
+@pytest.mark.asyncio
+async def test_string_functions_type_errors() -> None:
+    # length requires string
+    with pytest.raises(ExecutionError, match="'length' requires a string argument, got 'number'"):
+        await _execute("PRINT 'length'(42);")
+
+    # upper requires string
+    with pytest.raises(ExecutionError, match="'upper' requires a string argument, got 'number'"):
+        await _execute("PRINT 'upper'(42);")
+
+    # lower requires string
+    with pytest.raises(ExecutionError, match="'lower' requires a string argument, got 'number'"):
+        await _execute("PRINT 'lower'(42);")
+
+    # trim requires string
+    with pytest.raises(ExecutionError, match="'trim' requires a string argument, got 'bool'"):
+        await _execute("PRINT 'trim'(true);")
+
+    # replace requires all string arguments
+    with pytest.raises(
+        ExecutionError, match="'replace' can only replace substrings in string arguments, got 'number' instead"
+    ):
+        await _execute("PRINT 'replace'(42, 'a', 'b');")
+    with pytest.raises(
+        ExecutionError,
+        match=(
+            "'replace' requires a string as the second argument for the substring to be replaced, got 'number' instead"
+        ),
+    ):
+        await _execute("PRINT 'replace'('hello', 42, 'b');")
+    with pytest.raises(
+        ExecutionError,
+        match="'replace' requires a string as the third argument for the replacement substring, got 'number' instead",
+    ):
+        await _execute("PRINT 'replace'('hello', 'l', 42);")
+
+    # contains requires string arguments
+    with pytest.raises(ExecutionError, match="'contains' requires string arguments, got 'number' and 'string'"):
+        await _execute("PRINT 'contains'(42, 'a');")
+    with pytest.raises(ExecutionError, match="'contains' requires string arguments, got 'string' and 'bool'"):
+        await _execute("PRINT 'contains'('hello', true);")
+
+    # starts_with requires string arguments
+    with pytest.raises(ExecutionError, match="'starts_with' requires string arguments, got 'number' and 'string'"):
+        await _execute("PRINT 'starts_with'(42, 'a');")
+    with pytest.raises(ExecutionError, match="'starts_with' requires string arguments, got 'string' and 'number'"):
+        await _execute("PRINT 'starts_with'('hello', 42);")
+
+    # ends_with requires string arguments
+    with pytest.raises(ExecutionError, match="'ends_with' requires string arguments, got 'number' and 'string'"):
+        await _execute("PRINT 'ends_with'(42, 'a');")
+    with pytest.raises(ExecutionError, match="'ends_with' requires string arguments, got 'string' and 'number'"):
+        await _execute("PRINT 'ends_with'('hello', 42);")
+
+    # date requires string argument
+    with pytest.raises(ExecutionError, match="'date' requires a string argument, got number"):
+        await _execute("PRINT 'date'(42);")
+
+
+@pytest.mark.asyncio
+async def test_variadic_min_max() -> None:
+    # min with single argument
+    output = await _execute("PRINT 'min'(5);")
+    assert output == "5"
+
+    # min with two arguments
+    output = await _execute("PRINT 'min'(5, 3);")
+    assert output == "3"
+
+    # min with multiple arguments
+    output = await _execute("PRINT 'min'(5, 3, 8, 1, 9);")
+    assert output == "1"
+
+    # max with single argument
+    output = await _execute("PRINT 'max'(5);")
+    assert output == "5"
+
+    # max with two arguments
+    output = await _execute("PRINT 'max'(5, 3);")
+    assert output == "5"
+
+    # max with multiple arguments
+    output = await _execute("PRINT 'max'(5, 3, 8, 1, 9);")
+    assert output == "9"
+
+    # min requires at least one argument
+    with pytest.raises(ExecutionError, match="Expected at least 1 argument\\(s\\), got 0"):
+        await _execute("PRINT 'min'();")
+
+    # max requires at least one argument
+    with pytest.raises(ExecutionError, match="Expected at least 1 argument\\(s\\), got 0"):
+        await _execute("PRINT 'max'();")
+
+    # min requires all number arguments
+    with pytest.raises(ExecutionError, match="'min' requires number arguments, got string at position 1"):
+        await _execute("PRINT 'min'('hello', 3);")
+    with pytest.raises(ExecutionError, match="'min' requires number arguments, got bool at position 2"):
+        await _execute("PRINT 'min'(5, true);")
+    with pytest.raises(ExecutionError, match="'min' requires number arguments, got string at position 3"):
+        await _execute("PRINT 'min'(1, 2, 'three');")
+
+    # max requires all number arguments
+    with pytest.raises(ExecutionError, match="'max' requires number arguments, got string at position 1"):
+        await _execute("PRINT 'max'('hello', 3);")
+    with pytest.raises(ExecutionError, match="'max' requires number arguments, got bool at position 2"):
+        await _execute("PRINT 'max'(5, false);")
+    with pytest.raises(ExecutionError, match="'max' requires number arguments, got string at position 3"):
+        await _execute("PRINT 'max'(1, 2, 'three');")
+
+
+@pytest.mark.asyncio
+async def test_abs_function() -> None:
+    # Test positive number
+    output = await _execute("PRINT 'abs'(5);")
+    assert output == "5"
+
+    # Test negative number
+    output = await _execute("PRINT 'abs'(-5);")
+    assert output == "5"
+
+    # Test zero
+    output = await _execute("PRINT 'abs'(0);")
+    assert output == "0"
+
+    # Test decimal
+    output = await _execute("PRINT 'abs'(-3.14);")
+    assert output == "3.14"
+
+    # Test type error
+    with pytest.raises(ExecutionError, match="'abs' requires a number argument, got string"):
+        await _execute("PRINT 'abs'('hello');")
+
+
+@pytest.mark.asyncio
+async def test_round_function() -> None:
+    # Test rounding down
+    output = await _execute("PRINT 'round'(3.4);")
+    assert output == "3"
+
+    # Test rounding up
+    output = await _execute("PRINT 'round'(3.6);")
+    assert output == "4"
+
+    # Test rounding .5
+    output = await _execute("PRINT 'round'(3.5);")
+    assert output == "4"
+
+    # Test negative
+    output = await _execute("PRINT 'round'(-3.6);")
+    assert output == "-4"
+
+    # Test type error
+    with pytest.raises(ExecutionError, match="'round' requires a number argument, got string"):
+        await _execute("PRINT 'round'('hello');")
+
+
+@pytest.mark.asyncio
+async def test_floor_function() -> None:
+    # Test floor of positive
+    output = await _execute("PRINT 'floor'(3.9);")
+    assert output == "3"
+
+    # Test floor of integer
+    output = await _execute("PRINT 'floor'(5);")
+    assert output == "5"
+
+    # Test floor of negative
+    output = await _execute("PRINT 'floor'(-3.1);")
+    assert output == "-4"
+
+    # Test type error
+    with pytest.raises(ExecutionError, match="'floor' requires a number argument, got bool"):
+        await _execute("PRINT 'floor'(true);")
+
+
+@pytest.mark.asyncio
+async def test_ceil_function() -> None:
+    # Test ceil of positive
+    output = await _execute("PRINT 'ceil'(3.1);")
+    assert output == "4"
+
+    # Test ceil of integer
+    output = await _execute("PRINT 'ceil'(5);")
+    assert output == "5"
+
+    # Test ceil of negative
+    output = await _execute("PRINT 'ceil'(-3.9);")
+    assert output == "-3"
+
+    # Test type error
+    with pytest.raises(ExecutionError, match="'ceil' requires a number argument, got string"):
+        await _execute("PRINT 'ceil'('test');")
+
+
+@pytest.mark.asyncio
+async def test_sqrt_function() -> None:
+    # Test square root of perfect square
+    output = await _execute("PRINT 'sqrt'(16);")
+    assert output == "4"
+
+    # Test square root of non-perfect square
+    output = await _execute("PRINT 'sqrt'(2);")
+    assert output is not None
+    assert float(output) == pytest.approx(1.4142135623730951)  # type: ignore[reportUnknownMemberType]
+
+    # Test square root of zero
+    output = await _execute("PRINT 'sqrt'(0);")
+    assert output == "0"
+
+    # Test type error
+    with pytest.raises(ExecutionError, match="'sqrt' requires a number argument, got string"):
+        await _execute("PRINT 'sqrt'('hello');")
+
+    # Test negative number error
+    with pytest.raises(ExecutionError, match="'sqrt' requires a non-negative argument, got -4"):
+        await _execute("PRINT 'sqrt'(-4);")
+
+
+@pytest.mark.asyncio
+async def test_pow_function() -> None:
+    # Test basic power
+    output = await _execute("PRINT 'pow'(2, 3);")
+    assert output == "8"
+
+    # Test power of zero
+    output = await _execute("PRINT 'pow'(5, 0);")
+    assert output == "1"
+
+    # Test negative exponent
+    output = await _execute("PRINT 'pow'(2, -1);")
+    assert output == "0.5"
+
+    # Test decimal exponent
+    output = await _execute("PRINT 'pow'(4, 0.5);")
+    assert output == "2"
+
+    # Test type error on base
+    with pytest.raises(ExecutionError, match="'pow' requires number arguments, got string at position 1"):
+        await _execute("PRINT 'pow'('hello', 2);")
+
+    # Test type error on exponent
+    with pytest.raises(ExecutionError, match="'pow' requires number arguments, got bool at position 2"):
+        await _execute("PRINT 'pow'(2, true);")
+
+
+@pytest.mark.asyncio
+async def test_random_function() -> None:
+    # Test random returns a number in range
+    output = await _execute("PRINT 'random'(1, 10);")
+    assert output is not None
+    value = float(output)
+    assert 1.0 <= value <= 10.0
+
+    # Test random with same min and max
+    output = await _execute("PRINT 'random'(5, 5);")
+    assert output is not None
+    assert float(output) == pytest.approx(5)  # type: ignore[reportUnknownMemberType]
+
+    # Test random with negative range
+    output = await _execute("PRINT 'random'(-10, -5);")
+    assert output is not None
+    value = float(output)
+    assert -10.0 <= value <= -5.0
+
+    # Test type error on min
+    with pytest.raises(ExecutionError, match="'random' requires number arguments, got string at position 1"):
+        await _execute("PRINT 'random'('hello', 10);")
+
+    # Test type error on max
+    with pytest.raises(ExecutionError, match="'random' requires number arguments, got bool at position 2"):
+        await _execute("PRINT 'random'(1, false);")
+
+
+@pytest.mark.asyncio
+async def test_timestamp_function() -> None:
+    # Test timestamp returns a number
+    output = await _execute("PRINT 'timestamp'();")
+    assert output is not None
+    value = float(output)
+    # Should be a reasonable timestamp (after 2020)
+    assert value > 1577836800  # 2020-01-01 00:00:00 UTC
+
+
+@pytest.mark.asyncio
+async def test_date_function() -> None:
+    # Test date with simple format
+    output = await _execute("PRINT 'date'('%Y');")
+    assert output is not None
+    # Should return a 4-digit year
+    assert len(output) == 4
+    assert output.isdigit()
+    assert int(output) >= 2025
+
+    # Test date with more complex format
+    output = await _execute("PRINT 'date'('%Y-%m-%d');")
+    assert output is not None
+    # Should match pattern YYYY-MM-DD
+    assert re.match(r"\d{4}-\d{2}-\d{2}", output)
+
+    # Test type error
+    with pytest.raises(ExecutionError, match="'date' requires a string argument, got number"):
+        await _execute("PRINT 'date'(42);")
