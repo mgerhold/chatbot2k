@@ -102,7 +102,7 @@ STORE greeting = 'Hello, world!';
 Parameters are defined like this:
 
 ```
-PARAM <param_name>, <param_name>, ...;
+PARAMS <param_name>, <param_name>, ...;
 ```
 
 `<param_name>` can be any valid identifier that has not been used as a store name or parameter name in this script before. The data type for every parameter is string.  
@@ -182,8 +182,9 @@ The following expressions are supported:
 - **Ternary Operator**: The conditional expression `condition ? value_if_true : value_if_false` evaluates the condition and returns `value_if_true` if the condition is true, otherwise returns `value_if_false`. Both branches must have the same type.
 - **String Concatenation**: Using the `+` operator to concatenate strings.
 - **Parentheses**: To group expressions and control the order of evaluation.
-- **Conversion to Number**: The prefix `$` operator converts a string to a number. The string must represent a number literal, possibly with a leading `+` or `-`. Applying the operator to a number has no effect.
-- **Conversion to String**: The prefix `#` operator converts a number to its string representation. Applying the operator to a string has no effect.
+- **Subscript Operator**: Access individual characters in a string using the syntax `string[index]`, where `index` is a zero-based integer. The index must be a non-negative integer within the string's length.
+- **Conversion to Number**: The prefix `$` operator converts a value to a number. For strings, the string must represent a number literal, possibly with a leading `+` or `-`. For booleans, `true` is converted to `1` and `false` to `0`. Applying the operator to a number has no effect.
+- **Conversion to String**: The prefix `#` operator converts a value to its string representation. For numbers, it formats the number (removing unnecessary decimal points for whole numbers). For booleans, it converts to `'true'` or `'false'`. Applying the operator to a string has no effect.
 - **Conversion to Boolean**: The prefix `?` operator converts a value to a boolean. For numbers, `0` is converted to `false`, all other numbers to `true`. For strings, only the literals `'true'` and `'false'` can be converted to their respective boolean values. Applying the operator to a boolean has no effect.
 - **Code Evaluation**: The prefix `!` operator evaluates a string as code and returns the result as a string. The evaluated source code must not contain any stores, or parameters. It cannot access any values from the surrounding script context.
 - **Function Calls**: Call builtin functions using the syntax `'function_name'(arg1, arg2, ...)`. See the Builtin Functions section below for available functions.
