@@ -31,6 +31,20 @@ class CallableScript(NamedTuple):
     store: MockStore
 
 
+@final
+class _Success(NamedTuple):
+    output: str
+
+
+@final
+class _Error(NamedTuple):
+    error_type: type[Exception]
+    error_match: str
+
+
+type _Result = _Success | _Error
+
+
 async def _execute(
     source: str,
     store_overrides: Optional[dict[str, Value]] = None,
@@ -118,753 +132,430 @@ async def _create_callable_script(script_name: str, source: str) -> CallableScri
 
 
 @pytest.mark.asyncio
-async def test_hello_world() -> None:
-    output: Final = await _execute("PRINT 'Hello, world!';")
-    assert output == "Hello, world!"
-
-
-@pytest.mark.asyncio
-async def test_counter() -> None:
-    output: Final = await _execute("STORE counter = 0; counter = counter + 1; PRINT counter;")
-    assert output == "1"
-
-
-@pytest.mark.asyncio
-async def test_calculation() -> None:
-    output: Final = await _execute("STORE a = 40; PRINT a + 2;")
-    assert output == "42"
-
-
-# String operations
-@pytest.mark.asyncio
-async def test_string_concatenation() -> None:
-    output: Final = await _execute("PRINT 'Hello' + ', ' + 'world!';")
-    assert output == "Hello, world!"
-
-
-@pytest.mark.asyncio
-async def test_string_concatenation_with_store() -> None:
-    output: Final = await _execute("STORE greeting = 'Hello'; PRINT greeting + ', world!';")
-    assert output == "Hello, world!"
-
-
-@pytest.mark.asyncio
-async def test_string_with_escape_sequences() -> None:
-    output: Final = await _execute(r"PRINT 'Line 1\nLine 2';")
-    assert output == "Line 1\nLine 2"
-
-
-@pytest.mark.asyncio
-async def test_string_with_escaped_quote() -> None:
-    output: Final = await _execute(r"PRINT 'It\'s working!';")
-    assert output == "It's working!"
-
-
-@pytest.mark.asyncio
-async def test_string_with_escaped_backslash() -> None:
-    output: Final = await _execute(r"PRINT 'Path: C:\\Users\\John';")
-    assert output == r"Path: C:\Users\John"
-
-
-# Number operations
-@pytest.mark.asyncio
-async def test_addition() -> None:
-    output: Final = await _execute("PRINT 10 + 5;")
-    assert output == "15"
-
-
-@pytest.mark.asyncio
-async def test_subtraction() -> None:
-    output: Final = await _execute("PRINT 10 - 3;")
-    assert output == "7"
-
-
-@pytest.mark.asyncio
-async def test_multiplication() -> None:
-    output: Final = await _execute("PRINT 6 * 7;")
-    assert output == "42"
-
-
-@pytest.mark.asyncio
-async def test_division() -> None:
-    output: Final = await _execute("PRINT 20 / 4;")
-    assert output == "5"
-
-
-@pytest.mark.asyncio
-async def test_float_division() -> None:
-    output: Final = await _execute("PRINT 7 / 2;")
-    assert output == "3.5"
-
-
-@pytest.mark.asyncio
-async def test_operator_precedence() -> None:
-    output: Final = await _execute("PRINT 2 + 3 * 4;")
-    assert output == "14"
-
-
-@pytest.mark.asyncio
-async def test_operator_precedence_with_parentheses() -> None:
-    output: Final = await _execute("PRINT (2 + 3) * 4;")
-    assert output == "20"
-
-
-@pytest.mark.asyncio
-async def test_complex_arithmetic() -> None:
-    output: Final = await _execute("PRINT 10 + 5 * 2 - 3 / 3;")
-    assert output == "19"
-
-
-# Unary operations
-@pytest.mark.asyncio
-async def test_unary_plus() -> None:
-    output: Final = await _execute("PRINT +42;")
-    assert output == "42"
-
-
-@pytest.mark.asyncio
-async def test_unary_minus() -> None:
-    output: Final = await _execute("PRINT -42;")
-    assert output == "-42"
-
-
-@pytest.mark.asyncio
-async def test_double_negation() -> None:
-    output: Final = await _execute("PRINT --5;")
-    assert output == "5"
-
-
-@pytest.mark.asyncio
-async def test_unary_in_expression() -> None:
-    output: Final = await _execute("PRINT 10 + -5;")
-    assert output == "5"
-
-
-# String to number conversion tests
-@pytest.mark.asyncio
-async def test_string_to_number_with_integer_string() -> None:
-    output: Final = await _execute("PRINT $'42';")
-    assert output == "42"
-
-
-@pytest.mark.asyncio
-async def test_string_to_number_with_float_string() -> None:
-    output: Final = await _execute("PRINT $'3.14';")
-    assert output == "3.14"
-
-
-@pytest.mark.asyncio
-async def test_string_to_number_with_negative_string() -> None:
-    output: Final = await _execute("PRINT $'-17';")
-    assert output == "-17"
-
-
-@pytest.mark.asyncio
-async def test_string_to_number_with_zero_string() -> None:
-    output: Final = await _execute("PRINT $'0';")
-    assert output == "0"
-
-
-@pytest.mark.asyncio
-async def test_string_to_number_with_store() -> None:
-    output: Final = await _execute("STORE num_str = '123'; PRINT $num_str;")
-    assert output == "123"
-
-
-@pytest.mark.asyncio
-async def test_string_to_number_with_concatenated_strings() -> None:
-    output: Final = await _execute("PRINT $('3' + '.14');")
-    assert output == "3.14"
-
-
-@pytest.mark.asyncio
-async def test_string_to_number_in_arithmetic_expression() -> None:
-    output: Final = await _execute("PRINT $'10' + $'20';")
-    assert output == "30"
-
-
-@pytest.mark.asyncio
-async def test_string_to_number_with_variable() -> None:
-    output: Final = await _execute("LET x = '99'; PRINT $x;")
-    assert output == "99"
-
-
-@pytest.mark.asyncio
-async def test_string_to_number_with_invalid_string_raises_error() -> None:
-    with pytest.raises(ExecutionError, match="String 'not a number' does not represent a valid number"):
-        await _execute("PRINT $'not a number';")
-
-
-@pytest.mark.asyncio
-async def test_string_to_number_with_empty_string_raises_error() -> None:
-    with pytest.raises(ExecutionError, match="String '' does not represent a valid number"):
-        await _execute("PRINT $'';")
-
-
-@pytest.mark.asyncio
-async def test_string_to_number_with_partial_number_raises_error() -> None:
-    with pytest.raises(ExecutionError, match="String '12abc' does not represent a valid number"):
-        await _execute("PRINT $'12abc';")
-
-
-# Evaluate string as code tests
-@pytest.mark.asyncio
-async def test_evaluate_simple_expression() -> None:
-    output: Final = await _execute("PRINT !'PRINT 5;';")
-    assert output == "5"
-
-
-@pytest.mark.asyncio
-async def test_evaluate_string_literal() -> None:
-    output: Final = await _execute("PRINT !'PRINT \\'Hello\\';';")
-    assert output == "Hello"
-
-
-@pytest.mark.asyncio
-async def test_evaluate_arithmetic_expression() -> None:
-    output: Final = await _execute("PRINT !'PRINT 2 + 3;';")
-    assert output == "5"
-
-
-@pytest.mark.asyncio
-async def test_evaluate_complex_expression() -> None:
-    output: Final = await _execute("PRINT !'PRINT (10 + 5) * 2;';")
-    assert output == "30"
-
-
-@pytest.mark.asyncio
-async def test_evaluate_with_store() -> None:
-    output: Final = await _execute("STORE code = 'PRINT 42;'; PRINT !code;")
-    assert output == "42"
-
-
-@pytest.mark.asyncio
-async def test_evaluate_with_concatenated_code() -> None:
-    output: Final = await _execute("PRINT !('PRINT ' + '99;');")
-    assert output == "99"
-
-
-@pytest.mark.asyncio
-async def test_evaluate_with_variable() -> None:
-    output: Final = await _execute("LET script = 'PRINT 123;'; PRINT !script;")
-    assert output == "123"
-
-
-@pytest.mark.asyncio
-async def test_evaluate_multiple_statements() -> None:
-    output: Final = await _execute("PRINT !'PRINT 1; PRINT 2; PRINT 3;';")
-    assert output == "123"
-
-
-@pytest.mark.asyncio
-async def test_evaluate_with_string_concatenation_in_code() -> None:
-    output: Final = await _execute("PRINT !'PRINT \\'Hello\\' + \\' World\\';';")
-    assert output == "Hello World"
-
-
-@pytest.mark.asyncio
-async def test_evaluate_invalid_syntax_raises_error() -> None:
-    with pytest.raises(ExecutionError, match="Failed to parse code for evaluation"):
-        await _execute("PRINT !'PRINT ;';")
-
-
-@pytest.mark.asyncio
-async def test_evaluate_code_with_stores_raises_error() -> None:
-    with pytest.raises(ExecutionError, match="Stores inside evaluated code are not supported"):
-        await _execute("PRINT !'STORE x = 5; PRINT x;';")
-
-
-@pytest.mark.asyncio
-async def test_evaluate_code_with_parameters_raises_error() -> None:
-    with pytest.raises(ExecutionError, match="Parameters inside evaluated code are not supported"):
-        await _execute("PRINT !'PARAMS x; PRINT 5;';")
-
-
-@pytest.mark.asyncio
-async def test_evaluate_code_without_output_raises_error() -> None:
-    with pytest.raises(ExecutionError, match="Evaluated script did not produce any output"):
-        await _execute("PRINT !'LET x = 5;';")
-
-
-@pytest.mark.asyncio
-async def test_evaluate_nested_evaluation() -> None:
-    # Test evaluating code that itself contains evaluation
-    output: Final = await _execute("PRINT !'PRINT !\\'PRINT 7;\\';';")
-    assert output == "7"
-
-
-# Combined tests for string to number and evaluate
-@pytest.mark.asyncio
-async def test_string_to_number_and_evaluate_combined() -> None:
-    output: Final = await _execute("PRINT $!'PRINT \\'42\\';';")
-    assert output == "42"
-
-
-@pytest.mark.asyncio
-async def test_evaluate_expression_with_string_to_number() -> None:
-    output: Final = await _execute("PRINT !'PRINT $\\'25\\';';")
-    assert output == "25"
-
-
-# Store operations
-@pytest.mark.asyncio
-async def test_store_update() -> None:
-    output: Final = await _execute("STORE x = 10; x = x * 2; PRINT x;")
-    assert output == "20"
-
-
-@pytest.mark.asyncio
-async def test_multiple_stores() -> None:
-    output: Final = await _execute("STORE a = 5; STORE b = 3; PRINT a + b;")
-    assert output == "8"
-
-
-@pytest.mark.asyncio
-async def test_store_string_update() -> None:
-    output: Final = await _execute("STORE msg = 'Hello'; msg = msg + ' world'; PRINT msg;")
-    assert output == "Hello world"
-
-
-@pytest.mark.asyncio
-async def test_store_with_expression() -> None:
-    """Test that store definitions can use expressions."""
-    output: Final = await _execute("STORE x = 5 + 3; PRINT x;")
-    assert output == "8"
-
-
-@pytest.mark.asyncio
-async def test_store_with_complex_expression() -> None:
-    """Test that store definitions can use complex expressions."""
-    output: Final = await _execute("STORE result = (10 + 5) * 2; PRINT result;")
-    assert output == "30"
-
-
-@pytest.mark.asyncio
-async def test_store_referencing_another_store() -> None:
-    """Test that store definitions can reference previously defined stores."""
-    output: Final = await _execute("STORE a = 10; STORE b = a + 5; PRINT b;")
-    assert output == "15"
-
-
-@pytest.mark.asyncio
-async def test_store_referencing_multiple_stores() -> None:
-    """Test that store definitions can reference multiple previously defined stores."""
-    output: Final = await _execute("STORE x = 3; STORE y = 4; STORE z = x * x + y * y; PRINT z;")
-    assert output == "25"
-
-
-@pytest.mark.asyncio
-async def test_store_with_string_expression() -> None:
-    """Test that store definitions can use string expressions."""
-    output: Final = await _execute("STORE greeting = 'Hello' + ' World'; PRINT greeting;")
-    assert output == "Hello World"
-
-
-@pytest.mark.asyncio
-async def test_store_referencing_store_with_string() -> None:
-    """Test that store definitions can reference stores with string values."""
-    output: Final = await _execute("STORE name = 'Alice'; STORE message = 'Hello, ' + name; PRINT message;")
-    assert output == "Hello, Alice"
-
-
-@pytest.mark.asyncio
-async def test_store_chain_references() -> None:
-    """Test that stores can form a chain of references."""
-    output: Final = await _execute("STORE a = 1; STORE b = a + 1; STORE c = b + 1; STORE d = c + 1; PRINT d;")
-    assert output == "4"
-
-
-# Variable operations
-@pytest.mark.asyncio
-async def test_variable_definition() -> None:
-    output: Final = await _execute("LET x = 42; PRINT x;")
-    assert output == "42"
-
-
-@pytest.mark.asyncio
-async def test_variable_string_definition() -> None:
-    output: Final = await _execute("LET msg = 'Test'; PRINT msg;")
-    assert output == "Test"
-
-
-@pytest.mark.asyncio
-async def test_variable_reassignment() -> None:
-    output: Final = await _execute("LET x = 10; x = 20; PRINT x;")
-    assert output == "20"
-
-
-@pytest.mark.asyncio
-async def test_variable_reassignment_with_expression() -> None:
-    output: Final = await _execute("LET x = 5; x = x + 10; PRINT x;")
-    assert output == "15"
-
-
-@pytest.mark.asyncio
-async def test_variable_reassignment_string() -> None:
-    output: Final = await _execute("LET msg = 'Hello'; msg = msg + ' World'; PRINT msg;")
-    assert output == "Hello World"
-
-
-@pytest.mark.asyncio
-async def test_variable_multiple_reassignments() -> None:
-    output: Final = await _execute("LET x = 1; x = 2; x = 3; x = 4; PRINT x;")
-    assert output == "4"
-
-
-@pytest.mark.asyncio
-async def test_variable_in_expression() -> None:
-    output: Final = await _execute("LET a = 5; LET b = 3; PRINT a * b;")
-    assert output == "15"
-
-
-@pytest.mark.asyncio
-async def test_variable_and_store_interaction() -> None:
-    output: Final = await _execute("STORE s = 10; LET v = 5; PRINT s + v;")
-    assert output == "15"
-
-
-@pytest.mark.asyncio
-async def test_store_value_persists_after_variable_assignment() -> None:
-    """Verify that assigning a store to a variable creates a copy, not a reference."""
-    output, store = await _execute_with_store("STORE counter = 10; LET x = counter; x = 20; PRINT counter;")
-    assert output == "10"  # counter should still be 10
-    # Verify the store itself wasn't changed
-    key = StoreKey("!test-script", "counter")
-    assert store.get_value(key) == NumberValue(value=10.0)
-
-
-@pytest.mark.asyncio
-async def test_store_assignment_modifies_store() -> None:
-    """Verify that directly assigning to a store does modify the store."""
-    output, store = await _execute_with_store("STORE counter = 10; counter = 20; PRINT counter;")
-    assert output == "20"
-    # Verify the store was changed
-    key = StoreKey("!test-script", "counter")
-    assert store.get_value(key) == NumberValue(value=20.0)
-
-
-@pytest.mark.asyncio
-async def test_store_modification_with_expression() -> None:
-    """Verify that modifying a store with an expression updates the store."""
-    output, store = await _execute_with_store("STORE value = 5; value = value * 3 + 2; PRINT value;")
-    assert output == "17"
-    # Verify the store was changed
-    key = StoreKey("!test-script", "value")
-    assert store.get_value(key) == NumberValue(value=17.0)
-
-
-@pytest.mark.asyncio
-async def test_multiple_store_modifications() -> None:
-    """Verify that multiple modifications to a store all persist."""
-    output, store = await _execute_with_store("STORE x = 1; x = x + 1; x = x + 1; x = x + 1; PRINT x;")
-    assert output == "4"
-    # Verify the store was changed
-    key = StoreKey("!test-script", "x")
-    assert store.get_value(key) == NumberValue(value=4.0)
-
-
-@pytest.mark.asyncio
-async def test_string_store_modification() -> None:
-    """Verify that string store modifications persist."""
-    output, store = await _execute_with_store("STORE msg = 'Hello'; msg = msg + ' World'; PRINT msg;")
-    assert output == "Hello World"
-    # Verify the store was changed
-    key = StoreKey("!test-script", "msg")
-    assert store.get_value(key) == StringValue(value="Hello World")
-
-
-@pytest.mark.asyncio
-async def test_mixed_store_and_variable_assignments() -> None:
-    """Verify that stores are modified but variables copied from stores are independent."""
-    output, store = await _execute_with_store("STORE a = 10; LET b = a; a = 20; b = 30; PRINT a; PRINT b;")
-    assert output == "2030"
-    # Verify the store 'a' was changed to 20, not affected by variable b
-    key = StoreKey("!test-script", "a")
-    assert store.get_value(key) == NumberValue(value=20.0)
-
-
-# Multiple statements
-@pytest.mark.asyncio
-async def test_multiple_print_statements() -> None:
-    # All print outputs are concatenated
-    output: Final = await _execute("PRINT 'First'; PRINT 'Second'; PRINT 'Third';")
-    assert output == "FirstSecondThird"
-
-
-@pytest.mark.asyncio
-async def test_complex_script() -> None:
-    output: Final = await _execute(
-        "STORE counter = 0; counter = counter + 1; counter = counter + 1; LET double = counter * 2; PRINT double;"
-    )
-    assert output == "4"
-
-
-@pytest.mark.asyncio
-async def test_string_building() -> None:
-    output: Final = await _execute(
-        "STORE name = 'Alice'; LET greeting = 'Hello, '; LET message = greeting + name; PRINT message;"
-    )
-    assert output == "Hello, Alice"
-
-
-# Edge cases
-@pytest.mark.asyncio
-async def test_zero_result() -> None:
-    output: Final = await _execute("PRINT 5 - 5;")
-    assert output == "0"
-
-
-@pytest.mark.asyncio
-async def test_negative_result() -> None:
-    output: Final = await _execute("PRINT 3 - 10;")
-    assert output == "-7"
-
-
-@pytest.mark.asyncio
-async def test_decimal_numbers() -> None:
-    output: Final = await _execute("PRINT 3.14 + 2.86;")
-    assert output == "6"
-
-
-@pytest.mark.asyncio
-async def test_empty_string() -> None:
-    output: Final = await _execute("PRINT '';")
-    assert output == ""
-
-
-@pytest.mark.asyncio
-async def test_nested_parentheses() -> None:
-    output: Final = await _execute("PRINT ((2 + 3) * (4 + 1));")
-    assert output == "25"
-
-
-# Error handling tests
-@pytest.mark.asyncio
-async def test_division_by_zero() -> None:
-    with pytest.raises(ExecutionError, match="Division by zero"):
-        await _execute("PRINT 10 / 0;")
-
-
-@pytest.mark.asyncio
-async def test_division_by_zero_in_variable() -> None:
-    with pytest.raises(ExecutionError, match="Division by zero"):
-        await _execute("LET x = 0; PRINT 5 / x;")
-
-
-# Integration tests
-@pytest.mark.asyncio
-async def test_fibonacci_calculation() -> None:
-    output: Final = await _execute("LET a = 1; LET b = 1; LET c = a + b; LET d = b + c; LET e = c + d; PRINT e;")
-    assert output == "5"
-
-
-@pytest.mark.asyncio
-async def test_multiple_operations_with_stores_and_variables() -> None:
-    output: Final = await _execute("STORE x = 10; LET y = 5; LET z = x * y; PRINT z + 50;")
-    assert output == "100"
-
-
-@pytest.mark.asyncio
-async def test_concatenate_multiple_strings() -> None:
-    output: Final = await _execute("PRINT 'a' + 'b' + 'c' + 'd' + 'e';")
-    assert output == "abcde"
-
-
-@pytest.mark.asyncio
-async def test_store_string_concatenation_complex() -> None:
-    output: Final = await _execute("STORE first = 'Hello'; STORE last = 'World'; PRINT first + ' ' + last + '!';")
-    assert output == "Hello World!"
-
-
-# Variable reassignment and complex scenarios
-@pytest.mark.asyncio
-async def test_variable_with_store_in_expression() -> None:
-    output: Final = await _execute("STORE s = 5; LET v = 3; v = v + s; PRINT v;")
-    assert output == "8"
-
-
-@pytest.mark.asyncio
-async def test_swap_like_pattern() -> None:
-    output: Final = await _execute("LET a = 10; LET b = 20; LET temp = a; a = b; b = temp; PRINT a; PRINT b;")
-    assert output == "2010"
-
-
-@pytest.mark.asyncio
-async def test_variable_reassignment_in_loop_like_pattern() -> None:
-    output: Final = await _execute("LET sum = 0; sum = sum + 1; sum = sum + 2; sum = sum + 3; PRINT sum;")
-    assert output == "6"
-
-
-@pytest.mark.asyncio
-async def test_variable_string_building() -> None:
-    output: Final = await _execute("LET result = 'a'; result = result + 'b'; result = result + 'c'; PRINT result;")
-    assert output == "abc"
-
-
-@pytest.mark.asyncio
-async def test_mixed_stores_and_variables() -> None:
-    output: Final = await _execute("STORE x = 10; LET y = 5; y = y + x; x = x + y; PRINT x; PRINT y;")
-    assert output == "2515"
-
-
-# Error cases for variables
-@pytest.mark.asyncio
-async def test_reassign_undefined_variable_raises() -> None:
-    with pytest.raises(UnknownVariableError, match="Variable 'x' is not defined"):
-        await _execute("x = 10; PRINT x;")
-
-
-@pytest.mark.asyncio
-async def test_use_undefined_variable_in_expression_raises() -> None:
-    with pytest.raises(UnknownVariableError, match="Variable 'undefined' is not defined"):
-        await _execute("LET x = 5; PRINT x + undefined;")
-
-
-@pytest.mark.asyncio
-async def test_variable_type_consistency() -> None:
-    # Variables maintain their type through reassignment
-    output: Final = await _execute("LET x = 5; x = 10; x = 15; PRINT x + 5;")
-    assert output == "20"
-
-
-@pytest.mark.asyncio
-async def test_variable_type_change_raises() -> None:
-    with pytest.raises(
-        AssignmentTypeError,
-        match="Cannot assign value of type 'string' to target of type 'number'",
-    ):
-        await _execute("LET x = 5; x = 'string';")
-
-
-@pytest.mark.asyncio
-async def test_print_bool_literals() -> None:
-    output: Final = await _execute("PRINT true; PRINT false;")
-    assert output == "truefalse"
-
-
-@pytest.mark.asyncio
-async def test_ternary_operator() -> None:
-    output = await _execute("PRINT true ? 'Greater' : 'Lesser';")
-    assert output == "Greater"
-    output = await _execute("PRINT false ? 'Greater' : 'Lesser';")
-    assert output == "Lesser"
-    output = await _execute("PRINT true ? 42 : 0;")
-    assert output == "42"
-    output = await _execute("PRINT false ? 42 : 0;")
-    assert output == "0"
-
-
-@pytest.mark.asyncio
-async def test_convert_bool_to_number() -> None:
-    output: Final = await _execute("PRINT $true; PRINT $false;")
-    assert output == "10"  # true -> 1, false -> 0
-
-
-@pytest.mark.asyncio
-async def test_equals_operator() -> None:
-    output = await _execute("PRINT true == true; PRINT true == false; PRINT false == false;")
-    assert output == "truefalsetrue"
-    output = await _execute("PRINT 5 == 5; PRINT 5 == 10;")
-    assert output == "truefalse"
-    output = await _execute("PRINT 'test' == 'test'; PRINT 'test' == 'TEST';")
-    assert output == "truefalse"
-
-
-@pytest.mark.asyncio
-async def test_not_equals_operator() -> None:
-    output = await _execute("PRINT true != false; PRINT true != true; PRINT false != false;")
-    assert output == "truefalsefalse"
-    output = await _execute("PRINT 5 != 10; PRINT 5 != 5;")
-    assert output == "truefalse"
-    output = await _execute("PRINT 'test' != 'TEST'; PRINT 'test' != 'test';")
-    assert output == "truefalse"
-
-
-@pytest.mark.asyncio
-async def test_comparison_operators() -> None:
-    output = await _execute("PRINT 5 < 10; PRINT 10 < 5; PRINT 5 <= 5; PRINT 6 <= 5;")
-    assert output == "truefalsetruefalse"
-    output = await _execute("PRINT 10 > 5; PRINT 5 > 10; PRINT 5 >= 5; PRINT 4 >= 5;")
-    assert output == "truefalsetruefalse"
-    output = await _execute("PRINT 'apple' <= 'banana'; PRINT 'banana' <= 'apple';")
-    assert output == "truefalse"
-    output = await _execute("PRINT 'banana' >= 'apple'; PRINT 'apple' >= 'banana';")
-    assert output == "truefalse"
-    output = await _execute("PRINT 'apple' < 'banana'; PRINT 'banana' < 'apple';")
-    assert output == "truefalse"
-    output = await _execute("PRINT 'banana' > 'apple'; PRINT 'apple' > 'banana';")
-    assert output == "truefalse"
-
-
-@pytest.mark.asyncio
-async def test_logical_operators() -> None:
-    output = await _execute("PRINT true and true; PRINT true and false; PRINT false and false;")
-    assert output == "truefalsefalse"
-    output = await _execute("PRINT true or false; PRINT false or false; PRINT false or true;")
-    assert output == "truefalsetrue"
-    output = await _execute("PRINT not true; PRINT not false;")
-    assert output == "falsetrue"
-    output = await _execute("PRINT (5 < 10) and (10 < 20); PRINT (5 < 10) and (20 < 10);")
-    assert output == "truefalse"
-    output = await _execute("PRINT (5 > 10) or (10 < 20); PRINT (5 > 10) or (20 < 10);")
-    assert output == "truefalse"
-
-
-@pytest.mark.asyncio
-async def test_to_string() -> None:
-    output = await _execute("PRINT #42;")
-    assert output == "42"
-    output = await _execute("PRINT #'Hello';")
-    assert output == "Hello"
-    output = await _execute("PRINT #true; PRINT #false;")
-    assert output == "truefalse"
-    output = await _execute("PRINT #(5 + 10);")
-    assert output == "15"
-    output = await _execute("PRINT #1 + #2 + #3;")
-    assert output == "123"
-    output = await _execute("PRINT #3.14;")
-    assert output == "3.14"
-    output = await _execute("PRINT #$'42';")
-    assert output == "42"
-    output = await _execute("PRINT #$!'PRINT 42;';")
-    assert output == "42"
-
-
-@pytest.mark.asyncio
-async def test_cannot_execute_non_string_values() -> None:
-    with pytest.raises(TypeNotCallableError, match="Value of type 'number' is not callable"):
-        await _execute("PRINT 42();")
-    with pytest.raises(TypeNotCallableError, match="Value of type 'bool' is not callable"):
-        await _execute("PRINT true();")
-    with pytest.raises(TypeNotCallableError, match="Value of type 'number' is not callable"):
-        await _execute("LET x = 10; PRINT x();")
+@pytest.mark.parametrize(
+    ("source", "expected"),
+    [
+        # Basic execution
+        ("PRINT 'Hello, world!';", _Success("Hello, world!")),
+        ("STORE counter = 0; counter = counter + 1; PRINT counter;", _Success("1")),
+        ("STORE a = 40; PRINT a + 2;", _Success("42")),
+        ("PRINT 'Hello' + ', ' + 'world!';", _Success("Hello, world!")),
+        ("STORE greeting = 'Hello'; PRINT greeting + ', world!';", _Success("Hello, world!")),
+        (r"PRINT 'Line 1\nLine 2';", _Success("Line 1\nLine 2")),
+        (r"PRINT 'It\'s working!';", _Success("It's working!")),
+        (r"PRINT 'Path: C:\\Users\\John';", _Success(r"Path: C:\Users\John")),
+        # Arithmetic
+        ("PRINT 10 + 5;", _Success("15")),
+        ("PRINT 10 - 3;", _Success("7")),
+        ("PRINT 6 * 7;", _Success("42")),
+        ("PRINT 20 / 4;", _Success("5")),
+        ("PRINT 7 / 2;", _Success("3.5")),
+        ("PRINT 2 + 3 * 4;", _Success("14")),
+        ("PRINT (2 + 3) * 4;", _Success("20")),
+        ("PRINT 10 + 5 * 2 - 3 / 3;", _Success("19")),
+        # Unary
+        ("PRINT +42;", _Success("42")),
+        ("PRINT -42;", _Success("-42")),
+        ("PRINT --5;", _Success("5")),
+        ("PRINT 10 + -5;", _Success("5")),
+        # String to number - success
+        ("PRINT $'42';", _Success("42")),
+        ("PRINT $'3.14';", _Success("3.14")),
+        ("PRINT $'-17';", _Success("-17")),
+        ("PRINT $'0';", _Success("0")),
+        ("STORE num_str = '123'; PRINT $num_str;", _Success("123")),
+        ("PRINT $('3' + '.14');", _Success("3.14")),
+        ("PRINT $'10' + $'20';", _Success("30")),
+        ("LET x = '99'; PRINT $x;", _Success("99")),
+        # String to number - errors
+        (
+            "PRINT $'not a number';",
+            _Error(ExecutionError, "String 'not a number' does not represent a valid number"),
+        ),
+        ("PRINT $'';", _Error(ExecutionError, "String '' does not represent a valid number")),
+        ("PRINT $'12abc';", _Error(ExecutionError, "String '12abc' does not represent a valid number")),
+        # Code evaluation - success
+        ("PRINT !'PRINT 5;';", _Success("5")),
+        ("PRINT !'PRINT \\'Hello\\';';", _Success("Hello")),
+        ("PRINT !'PRINT 2 + 3;';", _Success("5")),
+        ("PRINT !'PRINT (10 + 5) * 2;';", _Success("30")),
+        ("STORE code = 'PRINT 42;'; PRINT !code;", _Success("42")),
+        ("PRINT !('PRINT ' + '99;');", _Success("99")),
+        ("LET script = 'PRINT 123;'; PRINT !script;", _Success("123")),
+        ("PRINT !'PRINT 1; PRINT 2; PRINT 3;';", _Success("123")),
+        ("PRINT !'PRINT \\'Hello\\' + \\' World\\';';", _Success("Hello World")),
+        ("PRINT !'PRINT !\\'PRINT 7;\\';';", _Success("7")),
+        # Code evaluation - errors
+        ("PRINT !'PRINT ;';", _Error(ExecutionError, "Failed to parse code for evaluation")),
+        ("PRINT !'STORE x = 5; PRINT x;';", _Error(ExecutionError, "Stores inside evaluated code are not supported")),
+        ("PRINT !'PARAMS x; PRINT 5;';", _Error(ExecutionError, "Parameters inside evaluated code are not supported")),
+        ("PRINT !'LET x = 5;';", _Error(ExecutionError, "Evaluated script did not produce any output")),
+        # Combined conversions
+        ("PRINT $!'PRINT \\'42\\';';", _Success("42")),
+        ("PRINT !'PRINT $\\'25\\';';", _Success("25")),
+        # Store operations
+        ("STORE x = 10; x = x * 2; PRINT x;", _Success("20")),
+        ("STORE a = 5; STORE b = 3; PRINT a + b;", _Success("8")),
+        ("STORE msg = 'Hello'; msg = msg + ' world'; PRINT msg;", _Success("Hello world")),
+        ("STORE x = 5 + 3; PRINT x;", _Success("8")),
+        ("STORE result = (10 + 5) * 2; PRINT result;", _Success("30")),
+        ("STORE a = 10; STORE b = a + 5; PRINT b;", _Success("15")),
+        ("STORE x = 3; STORE y = 4; STORE z = x * x + y * y; PRINT z;", _Success("25")),
+        ("STORE greeting = 'Hello' + ' World'; PRINT greeting;", _Success("Hello World")),
+        ("STORE name = 'Alice'; STORE message = 'Hello, ' + name; PRINT message;", _Success("Hello, Alice")),
+        ("STORE a = 1; STORE b = a + 1; STORE c = b + 1; STORE d = c + 1; PRINT d;", _Success("4")),
+        # Variable operations
+        ("LET x = 42; PRINT x;", _Success("42")),
+        ("LET msg = 'Test'; PRINT msg;", _Success("Test")),
+        ("LET x = 10; x = 20; PRINT x;", _Success("20")),
+        ("LET x = 5; x = x + 10; PRINT x;", _Success("15")),
+        ("LET msg = 'Hello'; msg = msg + ' World'; PRINT msg;", _Success("Hello World")),
+        ("LET x = 1; x = 2; x = 3; x = 4; PRINT x;", _Success("4")),
+        ("LET a = 5; LET b = 3; PRINT a * b;", _Success("15")),
+        ("STORE s = 10; LET v = 5; PRINT s + v;", _Success("15")),
+        ("STORE s = 5; LET v = 3; v = v + s; PRINT v;", _Success("8")),
+        ("LET a = 10; LET b = 20; LET temp = a; a = b; b = temp; PRINT a; PRINT b;", _Success("2010")),
+        ("LET sum = 0; sum = sum + 1; sum = sum + 2; sum = sum + 3; PRINT sum;", _Success("6")),
+        ("LET result = 'a'; result = result + 'b'; result = result + 'c'; PRINT result;", _Success("abc")),
+        ("STORE x = 10; LET y = 5; y = y + x; x = x + y; PRINT x; PRINT y;", _Success("2515")),
+        ("LET x = 5; x = 10; x = 15; PRINT x + 5;", _Success("20")),
+        # Integration
+        ("PRINT 'First'; PRINT 'Second'; PRINT 'Third';", _Success("FirstSecondThird")),
+        (
+            "STORE counter = 0; counter = counter + 1; counter = counter + 1; LET double = counter * 2; PRINT double;",
+            _Success("4"),
+        ),
+        (
+            "STORE name = 'Alice'; LET greeting = 'Hello, '; LET message = greeting + name; PRINT message;",
+            _Success("Hello, Alice"),
+        ),
+        ("LET a = 1; LET b = 1; LET c = a + b; LET d = b + c; LET e = c + d; PRINT e;", _Success("5")),
+        ("STORE x = 10; LET y = 5; LET z = x * y; PRINT z + 50;", _Success("100")),
+        ("PRINT 'a' + 'b' + 'c' + 'd' + 'e';", _Success("abcde")),
+        ("STORE first = 'Hello'; STORE last = 'World'; PRINT first + ' ' + last + '!';", _Success("Hello World!")),
+        # Edge cases
+        ("PRINT 5 - 5;", _Success("0")),
+        ("PRINT 3 - 10;", _Success("-7")),
+        ("PRINT 3.14 + 2.86;", _Success("6")),
+        ("PRINT '';", _Success("")),
+        ("PRINT ((2 + 3) * (4 + 1));", _Success("25")),
+        # Error handling
+        ("PRINT 10 / 0;", _Error(ExecutionError, "Division by zero")),
+        ("LET x = 0; PRINT 5 / x;", _Error(ExecutionError, "Division by zero")),
+        ("x = 10; PRINT x;", _Error(UnknownVariableError, "Variable 'x' is not defined")),
+        ("LET x = 5; PRINT x + undefined;", _Error(UnknownVariableError, "Variable 'undefined' is not defined")),
+        (
+            "LET x = 5; x = 'string';",
+            _Error(AssignmentTypeError, "Cannot assign value of type 'string' to target of type 'number'"),
+        ),
+        # Boolean operations
+        ("PRINT true; PRINT false;", _Success("truefalse")),
+        ("PRINT true ? 'Greater' : 'Lesser';", _Success("Greater")),
+        ("PRINT false ? 'Greater' : 'Lesser';", _Success("Lesser")),
+        ("PRINT true ? 42 : 0;", _Success("42")),
+        ("PRINT false ? 42 : 0;", _Success("0")),
+        ("PRINT $true; PRINT $false;", _Success("10")),
+        ("PRINT true == true; PRINT true == false; PRINT false == false;", _Success("truefalsetrue")),
+        ("PRINT 5 == 5; PRINT 5 == 10;", _Success("truefalse")),
+        ("PRINT 'test' == 'test'; PRINT 'test' == 'TEST';", _Success("truefalse")),
+        ("PRINT true != false; PRINT true != true; PRINT false != false;", _Success("truefalsefalse")),
+        ("PRINT 5 != 10; PRINT 5 != 5;", _Success("truefalse")),
+        ("PRINT 'test' != 'TEST'; PRINT 'test' != 'test';", _Success("truefalse")),
+        # Comparison operators
+        ("PRINT 5 < 10; PRINT 10 < 5; PRINT 5 <= 5; PRINT 6 <= 5;", _Success("truefalsetruefalse")),
+        ("PRINT 10 > 5; PRINT 5 > 10; PRINT 5 >= 5; PRINT 4 >= 5;", _Success("truefalsetruefalse")),
+        ("PRINT 'apple' <= 'banana'; PRINT 'banana' <= 'apple';", _Success("truefalse")),
+        ("PRINT 'banana' >= 'apple'; PRINT 'apple' >= 'banana';", _Success("truefalse")),
+        ("PRINT 'apple' < 'banana'; PRINT 'banana' < 'apple';", _Success("truefalse")),
+        ("PRINT 'banana' > 'apple'; PRINT 'apple' > 'banana';", _Success("truefalse")),
+        # Logical operators
+        ("PRINT true and true; PRINT true and false; PRINT false and false;", _Success("truefalsefalse")),
+        ("PRINT true or false; PRINT false or false; PRINT false or true;", _Success("truefalsetrue")),
+        ("PRINT not true; PRINT not false;", _Success("falsetrue")),
+        ("PRINT (5 < 10) and (10 < 20); PRINT (5 < 10) and (20 < 10);", _Success("truefalse")),
+        ("PRINT (5 > 10) or (10 < 20); PRINT (5 > 10) or (20 < 10);", _Success("truefalse")),
+        # To-string conversion
+        ("PRINT #42;", _Success("42")),
+        ("PRINT #'Hello';", _Success("Hello")),
+        ("PRINT #true; PRINT #false;", _Success("truefalse")),
+        ("PRINT #(5 + 10);", _Success("15")),
+        ("PRINT #1 + #2 + #3;", _Success("123")),
+        ("PRINT #3.14;", _Success("3.14")),
+        ("PRINT #$'42';", _Success("42")),
+        ("PRINT #$!'PRINT 42;';", _Success("42")),
+        # To-bool conversion - success
+        ("PRINT ?true;", _Success("true")),
+        ("PRINT ?false;", _Success("false")),
+        ("PRINT ?1;", _Success("true")),
+        ("PRINT ?0;", _Success("false")),
+        ("PRINT ?3.14;", _Success("true")),
+        ("PRINT ?0.0;", _Success("false")),
+        ("PRINT ?'true';", _Success("true")),
+        ("PRINT ?'false';", _Success("false")),
+        # To-bool conversion - error
+        ("PRINT ?'hello';", _Error(ExecutionError, "String 'hello' cannot be converted to boolean")),
+        # Type errors for non-callable values
+        ("PRINT 42();", _Error(TypeNotCallableError, "Value of type 'number' is not callable")),
+        ("PRINT true();", _Error(TypeNotCallableError, "Value of type 'bool' is not callable")),
+        ("LET x = 10; PRINT x();", _Error(TypeNotCallableError, "Value of type 'number' is not callable")),
+        # Subscript operator
+        ("PRINT 'Hello'[0];", _Success("H")),
+        ("PRINT 'Hello'[4];", _Success("o")),
+        ("PRINT 'Hello'[5];", _Error(ExecutionError, "String index 5 out of range")),
+        ("PRINT 'Hello'[-1];", _Error(ExecutionError, "String index -1 out of range")),
+        ("PRINT 'Hello'[1.5];", _Error(ExecutionError, "String index must be an integer")),
+        (
+            "PRINT 42[0];",
+            _Error(SubscriptOperatorTypeError, "Cannot subscript value of type 'number' with index of type 'number'"),
+        ),
+        # Builtin type function
+        ("PRINT 'type'('Hello');", _Success("string")),
+        ("PRINT 'type'(42);", _Success("number")),
+        ("PRINT 'type'(true);", _Success("bool")),
+        ("PRINT 'type'(1, 2);", _Error(ExecutionError, "Expected 1 argument\\(s\\), got 2")),
+        ("PRINT 'type'();", _Error(ExecutionError, "Expected 1 argument\\(s\\), got 0")),
+        # String functions - length
+        ("PRINT 'length'('hello');", _Success("5")),
+        ("PRINT 'length'('');", _Success("0")),
+        ("PRINT 'length'(42);", _Error(ExecutionError, "'length' requires a string argument, got 'number'")),
+        # String functions - upper
+        ("PRINT 'upper'('hello');", _Success("HELLO")),
+        ("PRINT 'upper'('HeLLo');", _Success("HELLO")),
+        ("PRINT 'upper'(42);", _Error(ExecutionError, "'upper' requires a string argument, got 'number'")),
+        # String functions - lower
+        ("PRINT 'lower'('HELLO');", _Success("hello")),
+        ("PRINT 'lower'('HeLLo');", _Success("hello")),
+        ("PRINT 'lower'(42);", _Error(ExecutionError, "'lower' requires a string argument, got 'number'")),
+        # String functions - trim
+        ("PRINT 'trim'('  hello  ');", _Success("hello")),
+        ("PRINT 'trim'('hello');", _Success("hello")),
+        ("PRINT 'trim'(true);", _Error(ExecutionError, "'trim' requires a string argument, got 'bool'")),
+        # String functions - replace
+        ("PRINT 'replace'('hello world', 'world', 'there');", _Success("hello there")),
+        ("PRINT 'replace'('aaa', 'a', 'b');", _Success("bbb")),
+        (
+            "PRINT 'replace'(42, 'a', 'b');",
+            _Error(ExecutionError, "'replace' can only replace substrings in string arguments, got 'number' instead"),
+        ),
+        (
+            "PRINT 'replace'('hello', 42, 'b');",
+            _Error(
+                ExecutionError,
+                "'replace' requires a string as the second argument for the substring to be replaced, "
+                + "got 'number' instead",
+            ),
+        ),
+        (
+            "PRINT 'replace'('hello', 'l', 42);",
+            _Error(
+                ExecutionError,
+                "'replace' requires a string as the third argument for the replacement substring, got 'number' instead",
+            ),
+        ),
+        # String functions - contains
+        ("PRINT 'contains'('hello world', 'world');", _Success("true")),
+        ("PRINT 'contains'('hello world', 'foo');", _Success("false")),
+        (
+            "PRINT 'contains'(42, 'a');",
+            _Error(ExecutionError, "'contains' requires string arguments, got 'number' and 'string'"),
+        ),
+        (
+            "PRINT 'contains'('hello', true);",
+            _Error(ExecutionError, "'contains' requires string arguments, got 'string' and 'bool'"),
+        ),
+        # String functions - starts_with
+        ("PRINT 'starts_with'('hello world', 'hello');", _Success("true")),
+        ("PRINT 'starts_with'('hello world', 'world');", _Success("false")),
+        (
+            "PRINT 'starts_with'(42, 'a');",
+            _Error(ExecutionError, "'starts_with' requires string arguments, got 'number' and 'string'"),
+        ),
+        (
+            "PRINT 'starts_with'('hello', 42);",
+            _Error(ExecutionError, "'starts_with' requires string arguments, got 'string' and 'number'"),
+        ),
+        # String functions - ends_with
+        ("PRINT 'ends_with'('hello world', 'world');", _Success("true")),
+        ("PRINT 'ends_with'('hello world', 'hello');", _Success("false")),
+        (
+            "PRINT 'ends_with'(42, 'a');",
+            _Error(ExecutionError, "'ends_with' requires string arguments, got 'number' and 'string'"),
+        ),
+        (
+            "PRINT 'ends_with'('hello', 42);",
+            _Error(ExecutionError, "'ends_with' requires string arguments, got 'string' and 'number'"),
+        ),
+        # Min/max - success
+        ("PRINT 'min'(5);", _Success("5")),
+        ("PRINT 'min'(5, 3);", _Success("3")),
+        ("PRINT 'min'(5, 3, 8, 1, 9);", _Success("1")),
+        ("PRINT 'max'(5);", _Success("5")),
+        ("PRINT 'max'(5, 3);", _Success("5")),
+        ("PRINT 'max'(5, 3, 8, 1, 9);", _Success("9")),
+        # Min/max - errors
+        ("PRINT 'min'();", _Error(ExecutionError, "Expected at least 1 argument\\(s\\), got 0")),
+        ("PRINT 'max'();", _Error(ExecutionError, "Expected at least 1 argument\\(s\\), got 0")),
+        (
+            "PRINT 'min'('hello', 3);",
+            _Error(ExecutionError, "'min' requires number arguments, got string at position 1"),
+        ),
+        ("PRINT 'min'(5, true);", _Error(ExecutionError, "'min' requires number arguments, got bool at position 2")),
+        (
+            "PRINT 'min'(1, 2, 'three');",
+            _Error(ExecutionError, "'min' requires number arguments, got string at position 3"),
+        ),
+        (
+            "PRINT 'max'('hello', 3);",
+            _Error(ExecutionError, "'max' requires number arguments, got string at position 1"),
+        ),
+        ("PRINT 'max'(5, false);", _Error(ExecutionError, "'max' requires number arguments, got bool at position 2")),
+        (
+            "PRINT 'max'(1, 2, 'three');",
+            _Error(ExecutionError, "'max' requires number arguments, got string at position 3"),
+        ),
+        # Math functions - abs
+        ("PRINT 'abs'(5);", _Success("5")),
+        ("PRINT 'abs'(-5);", _Success("5")),
+        ("PRINT 'abs'(0);", _Success("0")),
+        ("PRINT 'abs'(-3.14);", _Success("3.14")),
+        ("PRINT 'abs'('hello');", _Error(ExecutionError, "'abs' requires a number argument, got string")),
+        # Math functions - round
+        ("PRINT 'round'(3.4);", _Success("3")),
+        ("PRINT 'round'(3.6);", _Success("4")),
+        ("PRINT 'round'(3.5);", _Success("4")),
+        ("PRINT 'round'(-3.6);", _Success("-4")),
+        ("PRINT 'round'('hello');", _Error(ExecutionError, "'round' requires a number argument, got string")),
+        # Math functions - floor
+        ("PRINT 'floor'(3.9);", _Success("3")),
+        ("PRINT 'floor'(5);", _Success("5")),
+        ("PRINT 'floor'(-3.1);", _Success("-4")),
+        ("PRINT 'floor'(true);", _Error(ExecutionError, "'floor' requires a number argument, got bool")),
+        # Math functions - ceil
+        ("PRINT 'ceil'(3.1);", _Success("4")),
+        ("PRINT 'ceil'(5);", _Success("5")),
+        ("PRINT 'ceil'(-3.9);", _Success("-3")),
+        ("PRINT 'ceil'('test');", _Error(ExecutionError, "'ceil' requires a number argument, got string")),
+        # Math functions - sqrt
+        ("PRINT 'sqrt'(16);", _Success("4")),
+        ("PRINT 'sqrt'(0);", _Success("0")),
+        ("PRINT 'sqrt'('hello');", _Error(ExecutionError, "'sqrt' requires a number argument, got string")),
+        ("PRINT 'sqrt'(-4);", _Error(ExecutionError, "'sqrt' requires a non-negative argument, got -4")),
+        # Math functions - pow
+        ("PRINT 'pow'(2, 3);", _Success("8")),
+        ("PRINT 'pow'(5, 0);", _Success("1")),
+        ("PRINT 'pow'(2, -1);", _Success("0.5")),
+        ("PRINT 'pow'(4, 0.5);", _Success("2")),
+        (
+            "PRINT 'pow'('hello', 2);",
+            _Error(ExecutionError, "'pow' requires number arguments, got string at position 1"),
+        ),
+        ("PRINT 'pow'(2, true);", _Error(ExecutionError, "'pow' requires number arguments, got bool at position 2")),
+        # Math functions - random (range validation)
+        (
+            "PRINT 'random'('hello', 10);",
+            _Error(ExecutionError, "'random' requires number arguments, got string at position 1"),
+        ),
+        (
+            "PRINT 'random'(1, false);",
+            _Error(ExecutionError, "'random' requires number arguments, got bool at position 2"),
+        ),
+        # Date function
+        ("PRINT 'date'(42);", _Error(ExecutionError, "'date' requires a string argument, got number")),
+    ],
+)
+async def test_script_execution(source: str, expected: _Result) -> None:
+    match expected:
+        case _Success(output):
+            result = await _execute(source)
+            assert result == output
+        case _Error(error_type, error_match):
+            with pytest.raises(error_type, match=error_match):
+                await _execute(source)
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    ("source", "expected_output", "store_name", "expected_value"),
+    [
+        ("STORE counter = 10; LET x = counter; x = 20; PRINT counter;", "10", "counter", NumberValue(value=10.0)),
+        ("STORE counter = 10; counter = 20; PRINT counter;", "20", "counter", NumberValue(value=20.0)),
+        ("STORE value = 5; value = value * 3 + 2; PRINT value;", "17", "value", NumberValue(value=17.0)),
+        ("STORE x = 1; x = x + 1; x = x + 1; x = x + 1; PRINT x;", "4", "x", NumberValue(value=4.0)),
+        (
+            "STORE msg = 'Hello'; msg = msg + ' World'; PRINT msg;",
+            "Hello World",
+            "msg",
+            StringValue(value="Hello World"),
+        ),
+        ("STORE a = 10; LET b = a; a = 20; b = 30; PRINT a; PRINT b;", "2030", "a", NumberValue(value=20.0)),
+    ],
+)
+async def test_store_state_validation(
+    source: str, expected_output: str, store_name: str, expected_value: Value
+) -> None:
+    output, store = await _execute_with_store(source)
+    assert output == expected_output
+    key = StoreKey("!test-script", store_name)
+    assert store.get_value(key) == expected_value
+
+
+@pytest.mark.asyncio
+async def test_sqrt_with_approximation() -> None:
+    output = await _execute("PRINT 'sqrt'(2);")
+    assert output is not None
+    assert float(output) == pytest.approx(1.4142135623730951)  # type: ignore[reportUnknownMemberType]
+
+
+@pytest.mark.asyncio
+async def test_random_in_range() -> None:
+    output = await _execute("PRINT 'random'(1, 10);")
+    assert output is not None
+    value = float(output)
+    assert 1 <= value <= 10
+
+    output = await _execute("PRINT 'random'(5, 5);")
+    assert output is not None
+    assert float(output) == pytest.approx(5)  # type: ignore[reportUnknownMemberType]
+
+    output = await _execute("PRINT 'random'(-10, -5);")
+    assert output is not None
+    value = float(output)
+    assert -10 <= value <= -5
+
+
+@pytest.mark.asyncio
+async def test_timestamp_function() -> None:
+    output = await _execute("PRINT 'timestamp'();")
+    assert output is not None
+    value = float(output)
+    assert value > 1577836800  # 2020-01-01 00:00:00 UTC
+
+
+@pytest.mark.asyncio
+async def test_date_function() -> None:
+    output = await _execute("PRINT 'date'('%Y');")
+    assert output is not None
+    assert len(output) == 4
+    assert output.isdigit()
+    assert int(output) >= 2025
+
+    output = await _execute("PRINT 'date'('%Y-%m-%d');")
+    assert output is not None
+    assert re.match(r"\d{4}-\d{2}-\d{2}", output)
 
 
 @pytest.mark.asyncio
 async def test_call_operator() -> None:
-    other_script = await _create_callable_script(
-        "other",
-        "PRINT 'Hello from other script!';",
-    )
-    output = await _execute(
-        "PRINT 'other'();",
-        callable_scripts={"other": other_script},
-    )
+    other_script = await _create_callable_script("other", "PRINT 'Hello from other script!';")
+    output = await _execute("PRINT 'other'();", callable_scripts={"other": other_script})
     assert output == "Hello from other script!"
 
-    addition_script = await _create_callable_script(
-        "add",
-        "PARAMS a, b; PRINT $a + $b;",
-    )
-    output = await _execute(
-        "PRINT 'add'( '10', '32' );",
-        callable_scripts={"add": addition_script},
-    )
+    addition_script = await _create_callable_script("add", "PARAMS a, b; PRINT $a + $b;")
+    output = await _execute("PRINT 'add'( '10', '32' );", callable_scripts={"add": addition_script})
     assert output == "42"
 
     fibonacci_script = await _create_callable_script(
-        "fibonacci",
-        "STORE a = 0; STORE b = 1; LET temp = a; a = b; b = temp + b; PRINT b;",
+        "fibonacci", "STORE a = 0; STORE b = 1; LET temp = a; a = b; b = temp + b; PRINT b;"
     )
     output = await _execute(
         "PRINT 'fibonacci'() + ', ' + 'fibonacci'() + ', ' + 'fibonacci'() + ', ' + 'fibonacci'();",
@@ -886,11 +577,8 @@ async def test_recursion() -> None:
     async def _script_caller(script_name: str, *args: str) -> str:
         if script_name != "fibonacci":
             raise ExecutionError(f"Called script '{script_name}' not found")
-
         return_value: Final = await script.execute(
-            persistent_store=MockStore(initial_data={}),
-            arguments=list(args),
-            call_script=_script_caller,
+            persistent_store=MockStore(initial_data={}), arguments=list(args), call_script=_script_caller
         )
         if return_value is None:
             raise ExecutionError(f"Called script '{script_name}' did not return a value")
@@ -900,39 +588,6 @@ async def test_recursion() -> None:
     assert output == "34"
 
 
-@pytest.mark.asyncio
-async def test_subscript_operator() -> None:
-    output = await _execute("PRINT 'Hello'[0];")
-    assert output == "H"
-    output = await _execute("PRINT 'Hello'[4];")
-    assert output == "o"
-    with pytest.raises(ExecutionError, match="String index 5 out of range"):
-        await _execute("PRINT 'Hello'[5];")
-    with pytest.raises(ExecutionError, match="String index -1 out of range"):
-        await _execute("PRINT 'Hello'[-1];")
-    with pytest.raises(ExecutionError, match="String index must be an integer"):
-        await _execute("PRINT 'Hello'[1.5];")
-    with pytest.raises(
-        SubscriptOperatorTypeError,
-        match="Cannot subscript value of type 'number' with index of type 'number'",
-    ):
-        await _execute("PRINT 42[0];")
-
-
-@pytest.mark.asyncio
-async def test_builtin_functions() -> None:
-    output = await _execute("PRINT 'type'('Hello');")
-    assert output == "string"
-    output = await _execute("PRINT 'type'(42);")
-    assert output == "number"
-    output = await _execute("PRINT 'type'(true);")
-    assert output == "bool"
-    with pytest.raises(ExecutionError, match="Expected 1 argument\\(s\\), got 2"):
-        await _execute("PRINT 'type'(1, 2);")
-    with pytest.raises(ExecutionError, match="Expected 1 argument\\(s\\), got 0"):
-        await _execute("PRINT 'type'();")
-
-
 def test_builtin_function_arity() -> None:
     type_function: Final = BUILTIN_FUNCTIONS["type"]
     assert type_function.arity == 1
@@ -940,380 +595,3 @@ def test_builtin_function_arity() -> None:
     assert min_function.arity == _Variadic.with_min_num_arguments(1)
     max_function: Final = BUILTIN_FUNCTIONS["max"]
     assert max_function.arity == _Variadic.with_min_num_arguments(1)
-
-
-@pytest.mark.asyncio
-async def test_string_functions_success() -> None:
-    # length
-    output = await _execute("PRINT 'length'('hello');")
-    assert output == "5"
-    output = await _execute("PRINT 'length'('');")
-    assert output == "0"
-
-    # upper
-    output = await _execute("PRINT 'upper'('hello');")
-    assert output == "HELLO"
-    output = await _execute("PRINT 'upper'('HeLLo');")
-    assert output == "HELLO"
-
-    # lower
-    output = await _execute("PRINT 'lower'('HELLO');")
-    assert output == "hello"
-    output = await _execute("PRINT 'lower'('HeLLo');")
-    assert output == "hello"
-
-    # trim
-    output = await _execute("PRINT 'trim'('  hello  ');")
-    assert output == "hello"
-    output = await _execute("PRINT 'trim'('hello');")
-    assert output == "hello"
-
-    # replace
-    output = await _execute("PRINT 'replace'('hello world', 'world', 'there');")
-    assert output == "hello there"
-    output = await _execute("PRINT 'replace'('aaa', 'a', 'b');")
-    assert output == "bbb"
-
-    # contains
-    output = await _execute("PRINT 'contains'('hello world', 'world');")
-    assert output == "true"
-    output = await _execute("PRINT 'contains'('hello world', 'foo');")
-    assert output == "false"
-
-    # starts_with
-    output = await _execute("PRINT 'starts_with'('hello world', 'hello');")
-    assert output == "true"
-    output = await _execute("PRINT 'starts_with'('hello world', 'world');")
-    assert output == "false"
-
-    # ends_with
-    output = await _execute("PRINT 'ends_with'('hello world', 'world');")
-    assert output == "true"
-    output = await _execute("PRINT 'ends_with'('hello world', 'hello');")
-    assert output == "false"
-
-
-@pytest.mark.asyncio
-async def test_string_functions_type_errors() -> None:
-    # length requires string
-    with pytest.raises(ExecutionError, match="'length' requires a string argument, got 'number'"):
-        await _execute("PRINT 'length'(42);")
-
-    # upper requires string
-    with pytest.raises(ExecutionError, match="'upper' requires a string argument, got 'number'"):
-        await _execute("PRINT 'upper'(42);")
-
-    # lower requires string
-    with pytest.raises(ExecutionError, match="'lower' requires a string argument, got 'number'"):
-        await _execute("PRINT 'lower'(42);")
-
-    # trim requires string
-    with pytest.raises(ExecutionError, match="'trim' requires a string argument, got 'bool'"):
-        await _execute("PRINT 'trim'(true);")
-
-    # replace requires all string arguments
-    with pytest.raises(
-        ExecutionError, match="'replace' can only replace substrings in string arguments, got 'number' instead"
-    ):
-        await _execute("PRINT 'replace'(42, 'a', 'b');")
-    with pytest.raises(
-        ExecutionError,
-        match=(
-            "'replace' requires a string as the second argument for the substring to be replaced, got 'number' instead"
-        ),
-    ):
-        await _execute("PRINT 'replace'('hello', 42, 'b');")
-    with pytest.raises(
-        ExecutionError,
-        match="'replace' requires a string as the third argument for the replacement substring, got 'number' instead",
-    ):
-        await _execute("PRINT 'replace'('hello', 'l', 42);")
-
-    # contains requires string arguments
-    with pytest.raises(ExecutionError, match="'contains' requires string arguments, got 'number' and 'string'"):
-        await _execute("PRINT 'contains'(42, 'a');")
-    with pytest.raises(ExecutionError, match="'contains' requires string arguments, got 'string' and 'bool'"):
-        await _execute("PRINT 'contains'('hello', true);")
-
-    # starts_with requires string arguments
-    with pytest.raises(ExecutionError, match="'starts_with' requires string arguments, got 'number' and 'string'"):
-        await _execute("PRINT 'starts_with'(42, 'a');")
-    with pytest.raises(ExecutionError, match="'starts_with' requires string arguments, got 'string' and 'number'"):
-        await _execute("PRINT 'starts_with'('hello', 42);")
-
-    # ends_with requires string arguments
-    with pytest.raises(ExecutionError, match="'ends_with' requires string arguments, got 'number' and 'string'"):
-        await _execute("PRINT 'ends_with'(42, 'a');")
-    with pytest.raises(ExecutionError, match="'ends_with' requires string arguments, got 'string' and 'number'"):
-        await _execute("PRINT 'ends_with'('hello', 42);")
-
-    # date requires string argument
-    with pytest.raises(ExecutionError, match="'date' requires a string argument, got number"):
-        await _execute("PRINT 'date'(42);")
-
-
-@pytest.mark.asyncio
-async def test_variadic_min_max() -> None:
-    # min with single argument
-    output = await _execute("PRINT 'min'(5);")
-    assert output == "5"
-
-    # min with two arguments
-    output = await _execute("PRINT 'min'(5, 3);")
-    assert output == "3"
-
-    # min with multiple arguments
-    output = await _execute("PRINT 'min'(5, 3, 8, 1, 9);")
-    assert output == "1"
-
-    # max with single argument
-    output = await _execute("PRINT 'max'(5);")
-    assert output == "5"
-
-    # max with two arguments
-    output = await _execute("PRINT 'max'(5, 3);")
-    assert output == "5"
-
-    # max with multiple arguments
-    output = await _execute("PRINT 'max'(5, 3, 8, 1, 9);")
-    assert output == "9"
-
-    # min requires at least one argument
-    with pytest.raises(ExecutionError, match="Expected at least 1 argument\\(s\\), got 0"):
-        await _execute("PRINT 'min'();")
-
-    # max requires at least one argument
-    with pytest.raises(ExecutionError, match="Expected at least 1 argument\\(s\\), got 0"):
-        await _execute("PRINT 'max'();")
-
-    # min requires all number arguments
-    with pytest.raises(ExecutionError, match="'min' requires number arguments, got string at position 1"):
-        await _execute("PRINT 'min'('hello', 3);")
-    with pytest.raises(ExecutionError, match="'min' requires number arguments, got bool at position 2"):
-        await _execute("PRINT 'min'(5, true);")
-    with pytest.raises(ExecutionError, match="'min' requires number arguments, got string at position 3"):
-        await _execute("PRINT 'min'(1, 2, 'three');")
-
-    # max requires all number arguments
-    with pytest.raises(ExecutionError, match="'max' requires number arguments, got string at position 1"):
-        await _execute("PRINT 'max'('hello', 3);")
-    with pytest.raises(ExecutionError, match="'max' requires number arguments, got bool at position 2"):
-        await _execute("PRINT 'max'(5, false);")
-    with pytest.raises(ExecutionError, match="'max' requires number arguments, got string at position 3"):
-        await _execute("PRINT 'max'(1, 2, 'three');")
-
-
-@pytest.mark.asyncio
-async def test_abs_function() -> None:
-    # Test positive number
-    output = await _execute("PRINT 'abs'(5);")
-    assert output == "5"
-
-    # Test negative number
-    output = await _execute("PRINT 'abs'(-5);")
-    assert output == "5"
-
-    # Test zero
-    output = await _execute("PRINT 'abs'(0);")
-    assert output == "0"
-
-    # Test decimal
-    output = await _execute("PRINT 'abs'(-3.14);")
-    assert output == "3.14"
-
-    # Test type error
-    with pytest.raises(ExecutionError, match="'abs' requires a number argument, got string"):
-        await _execute("PRINT 'abs'('hello');")
-
-
-@pytest.mark.asyncio
-async def test_round_function() -> None:
-    # Test rounding down
-    output = await _execute("PRINT 'round'(3.4);")
-    assert output == "3"
-
-    # Test rounding up
-    output = await _execute("PRINT 'round'(3.6);")
-    assert output == "4"
-
-    # Test rounding .5
-    output = await _execute("PRINT 'round'(3.5);")
-    assert output == "4"
-
-    # Test negative
-    output = await _execute("PRINT 'round'(-3.6);")
-    assert output == "-4"
-
-    # Test type error
-    with pytest.raises(ExecutionError, match="'round' requires a number argument, got string"):
-        await _execute("PRINT 'round'('hello');")
-
-
-@pytest.mark.asyncio
-async def test_floor_function() -> None:
-    # Test floor of positive
-    output = await _execute("PRINT 'floor'(3.9);")
-    assert output == "3"
-
-    # Test floor of integer
-    output = await _execute("PRINT 'floor'(5);")
-    assert output == "5"
-
-    # Test floor of negative
-    output = await _execute("PRINT 'floor'(-3.1);")
-    assert output == "-4"
-
-    # Test type error
-    with pytest.raises(ExecutionError, match="'floor' requires a number argument, got bool"):
-        await _execute("PRINT 'floor'(true);")
-
-
-@pytest.mark.asyncio
-async def test_ceil_function() -> None:
-    # Test ceil of positive
-    output = await _execute("PRINT 'ceil'(3.1);")
-    assert output == "4"
-
-    # Test ceil of integer
-    output = await _execute("PRINT 'ceil'(5);")
-    assert output == "5"
-
-    # Test ceil of negative
-    output = await _execute("PRINT 'ceil'(-3.9);")
-    assert output == "-3"
-
-    # Test type error
-    with pytest.raises(ExecutionError, match="'ceil' requires a number argument, got string"):
-        await _execute("PRINT 'ceil'('test');")
-
-
-@pytest.mark.asyncio
-async def test_sqrt_function() -> None:
-    # Test square root of perfect square
-    output = await _execute("PRINT 'sqrt'(16);")
-    assert output == "4"
-
-    # Test square root of non-perfect square
-    output = await _execute("PRINT 'sqrt'(2);")
-    assert output is not None
-    assert float(output) == pytest.approx(1.4142135623730951)  # type: ignore[reportUnknownMemberType]
-
-    # Test square root of zero
-    output = await _execute("PRINT 'sqrt'(0);")
-    assert output == "0"
-
-    # Test type error
-    with pytest.raises(ExecutionError, match="'sqrt' requires a number argument, got string"):
-        await _execute("PRINT 'sqrt'('hello');")
-
-    # Test negative number error
-    with pytest.raises(ExecutionError, match="'sqrt' requires a non-negative argument, got -4"):
-        await _execute("PRINT 'sqrt'(-4);")
-
-
-@pytest.mark.asyncio
-async def test_pow_function() -> None:
-    # Test basic power
-    output = await _execute("PRINT 'pow'(2, 3);")
-    assert output == "8"
-
-    # Test power of zero
-    output = await _execute("PRINT 'pow'(5, 0);")
-    assert output == "1"
-
-    # Test negative exponent
-    output = await _execute("PRINT 'pow'(2, -1);")
-    assert output == "0.5"
-
-    # Test decimal exponent
-    output = await _execute("PRINT 'pow'(4, 0.5);")
-    assert output == "2"
-
-    # Test type error on base
-    with pytest.raises(ExecutionError, match="'pow' requires number arguments, got string at position 1"):
-        await _execute("PRINT 'pow'('hello', 2);")
-
-    # Test type error on exponent
-    with pytest.raises(ExecutionError, match="'pow' requires number arguments, got bool at position 2"):
-        await _execute("PRINT 'pow'(2, true);")
-
-
-@pytest.mark.asyncio
-async def test_random_function() -> None:
-    # Test random returns a number in range
-    output = await _execute("PRINT 'random'(1, 10);")
-    assert output is not None
-    value = float(output)
-    assert 1.0 <= value <= 10.0
-
-    # Test random with same min and max
-    output = await _execute("PRINT 'random'(5, 5);")
-    assert output is not None
-    assert float(output) == pytest.approx(5)  # type: ignore[reportUnknownMemberType]
-
-    # Test random with negative range
-    output = await _execute("PRINT 'random'(-10, -5);")
-    assert output is not None
-    value = float(output)
-    assert -10.0 <= value <= -5.0
-
-    # Test type error on min
-    with pytest.raises(ExecutionError, match="'random' requires number arguments, got string at position 1"):
-        await _execute("PRINT 'random'('hello', 10);")
-
-    # Test type error on max
-    with pytest.raises(ExecutionError, match="'random' requires number arguments, got bool at position 2"):
-        await _execute("PRINT 'random'(1, false);")
-
-
-@pytest.mark.asyncio
-async def test_timestamp_function() -> None:
-    # Test timestamp returns a number
-    output = await _execute("PRINT 'timestamp'();")
-    assert output is not None
-    value = float(output)
-    # Should be a reasonable timestamp (after 2020)
-    assert value > 1577836800  # 2020-01-01 00:00:00 UTC
-
-
-@pytest.mark.asyncio
-async def test_date_function() -> None:
-    # Test date with simple format
-    output = await _execute("PRINT 'date'('%Y');")
-    assert output is not None
-    # Should return a 4-digit year
-    assert len(output) == 4
-    assert output.isdigit()
-    assert int(output) >= 2025
-
-    # Test date with more complex format
-    output = await _execute("PRINT 'date'('%Y-%m-%d');")
-    assert output is not None
-    # Should match pattern YYYY-MM-DD
-    assert re.match(r"\d{4}-\d{2}-\d{2}", output)
-
-    # Test type error
-    with pytest.raises(ExecutionError, match="'date' requires a string argument, got number"):
-        await _execute("PRINT 'date'(42);")
-
-
-@pytest.mark.asyncio
-async def test_to_bool_operator() -> None:
-    output = await _execute("PRINT ?true;")
-    assert output == "true"
-    output = await _execute("PRINT ?false;")
-    assert output == "false"
-    output = await _execute("PRINT ?1;")
-    assert output == "true"
-    output = await _execute("PRINT ?0;")
-    assert output == "false"
-    output = await _execute("PRINT ?3.14;")
-    assert output == "true"
-    output = await _execute("PRINT ?0.0;")
-    assert output == "false"
-    output = await _execute("PRINT ?'true';")
-    assert output == "true"
-    output = await _execute("PRINT ?'false';")
-    assert output == "false"
-    with pytest.raises(ExecutionError, match="String 'hello' cannot be converted to boolean"):
-        await _execute("PRINT ?'hello';")
