@@ -13,6 +13,7 @@ from chatbot2k.scripting_engine.parser import TypeNotCallableError
 from chatbot2k.scripting_engine.parser import UnknownVariableError
 from chatbot2k.scripting_engine.stores import StoreKey
 from chatbot2k.scripting_engine.types.ast import Script
+from chatbot2k.scripting_engine.types.builtins import BUILTIN_FUNCTIONS
 from chatbot2k.scripting_engine.types.execution_context import ExecutionContext
 from chatbot2k.scripting_engine.types.execution_error import ExecutionError
 from chatbot2k.scripting_engine.types.script_caller import ScriptCaller
@@ -924,7 +925,12 @@ async def test_builtin_functions() -> None:
     assert output == "number"
     output = await _execute("PRINT 'type'(true);")
     assert output == "bool"
-    with pytest.raises(ExecutionError, match="'type' expected 1 argument, got 2"):
+    with pytest.raises(ExecutionError, match="Expected 1 argument\\(s\\), got 2"):
         await _execute("PRINT 'type'(1, 2);")
-    with pytest.raises(ExecutionError, match="'type' expected 1 argument, got 0"):
+    with pytest.raises(ExecutionError, match="Expected 1 argument\\(s\\), got 0"):
         await _execute("PRINT 'type'();")
+
+
+def test_builtin_function_arity() -> None:
+    type_function: Final = BUILTIN_FUNCTIONS["type"]
+    assert type_function.arity == 1
