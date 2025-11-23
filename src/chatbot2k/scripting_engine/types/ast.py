@@ -1,4 +1,3 @@
-import asyncio
 import logging
 from typing import Annotated
 from typing import Final
@@ -77,7 +76,6 @@ class Script(BaseModel):
             call_script=call_script,
         )
         for statement in self.statements:
-            await asyncio.sleep(0)  # Allow cancellation to occur
             if (result := await statement.execute(execution_context)) is not None:
                 output = result if output is None else f"{output}{result}"
         persistent_store.store_values(execution_context.stores)
