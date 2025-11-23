@@ -249,6 +249,7 @@ class UnaryOperator(StrEnum):
     NEGATE = "-"
     TO_NUMBER = "$"
     TO_STRING = "#"
+    TO_BOOL = "?"
     EVALUATE = "!"
     NOT = "not"
 
@@ -273,6 +274,8 @@ class UnaryOperationExpression(BaseExpression):
                 return DataType.NUMBER
             case (UnaryOperator.TO_STRING, DataType.BOOL | DataType.NUMBER | DataType.STRING):
                 return DataType.STRING
+            case (UnaryOperator.TO_BOOL, DataType.BOOL | DataType.NUMBER | DataType.STRING):
+                return DataType.BOOL
             case (UnaryOperator.EVALUATE, DataType.STRING):
                 return DataType.STRING
             case (
@@ -349,6 +352,19 @@ class UnaryOperationExpression(BaseExpression):
                 return StringValue(value=str(int(v)) if v.is_integer() else str(v))
             case (UnaryOperator.TO_STRING, StringValue(value=v)):
                 return StringValue(value=v)
+            case (UnaryOperator.TO_BOOL, BoolValue(value=v)):
+                return BoolValue(value=v)
+            case (UnaryOperator.TO_BOOL, NumberValue(value=v)):
+                return BoolValue(value=v != 0.0)
+            case (UnaryOperator.TO_BOOL, StringValue(value=v)):
+                match v:
+                    case "true":
+                        return BoolValue(value=True)
+                    case "false":
+                        return BoolValue(value=False)
+                    case _:
+                        msg = f"String '{v}' cannot be converted to boolean"
+                        raise ExecutionError(msg)
             case (
                 UnaryOperator.PLUS
                 | UnaryOperator.NEGATE

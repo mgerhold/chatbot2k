@@ -1295,3 +1295,25 @@ async def test_date_function() -> None:
     # Test type error
     with pytest.raises(ExecutionError, match="'date' requires a string argument, got number"):
         await _execute("PRINT 'date'(42);")
+
+
+@pytest.mark.asyncio
+async def test_to_bool_operator() -> None:
+    output = await _execute("PRINT ?true;")
+    assert output == "true"
+    output = await _execute("PRINT ?false;")
+    assert output == "false"
+    output = await _execute("PRINT ?1;")
+    assert output == "true"
+    output = await _execute("PRINT ?0;")
+    assert output == "false"
+    output = await _execute("PRINT ?3.14;")
+    assert output == "true"
+    output = await _execute("PRINT ?0.0;")
+    assert output == "false"
+    output = await _execute("PRINT ?'true';")
+    assert output == "true"
+    output = await _execute("PRINT ?'false';")
+    assert output == "false"
+    with pytest.raises(ExecutionError, match="String 'hello' cannot be converted to boolean"):
+        await _execute("PRINT ?'hello';")
