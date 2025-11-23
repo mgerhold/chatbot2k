@@ -179,6 +179,7 @@ The following expressions are supported:
 - **Arithmetic Operations**: Addition (`+`), subtraction (`-`), multiplication (`*`), and division (`/`) for numbers. The language supports both `+` and `-` in their unary and binary forms.
 - **Comparison Operations**: Equal (`==`), not equal (`!=`), less than (`<`), less than or equal (`<=`), greater than (`>`), greater than or equal (`>=`) for all data types.
 - **Logical Operations**: And (`and`), or (`or`), and not (`not`) for boolean values.
+- **Ternary Operator**: The conditional expression `condition ? value_if_true : value_if_false` evaluates the condition and returns `value_if_true` if the condition is true, otherwise returns `value_if_false`. Both branches must have the same type.
 - **String Concatenation**: Using the `+` operator to concatenate strings.
 - **Parentheses**: To group expressions and control the order of evaluation.
 - **Conversion to Number**: The prefix `$` operator converts a string to a number. The string must represent a number literal, possibly with a leading `+` or `-`. Applying the operator to a number has no effect.
