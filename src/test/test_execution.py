@@ -628,6 +628,16 @@ async def _create_callable_script(script_name: str, source: str) -> CallableScri
             "LET words = ['apple', 'banana', 'cherry']; " + "PRINT for words as word yeet 'upper'(word);",
             _Success("[APPLE, BANANA, CHERRY]"),
         ),
+        (
+            "LET numbers = [1, 2, 3, 4, 5];"
+            + "PRINT for numbers as num if num > 3 yeet num;",
+            _Success("[4, 5]"),
+        ),
+        (
+            "LET words = ['apple', 'acorn', 'banana', 'avocado'];"
+            + "PRINT for words as word if ?'starts_with'(word, 'a') yeet word;",
+            _Success("[apple, acorn, avocado]"),
+        ),
         # Collect
         (
             "LET numbers = [1, 2, 3];"

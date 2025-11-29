@@ -1,7 +1,7 @@
 from abc import ABC
 from abc import abstractmethod
 from enum import StrEnum
-from typing import Annotated
+from typing import Annotated, Optional
 from typing import Final
 from typing import Literal
 from typing import Self
@@ -692,6 +692,7 @@ class ListComprehensionExpression(BaseExpression):
     expression_type: Literal[ExpressionType.LIST_COMPREHENSION] = ExpressionType.LIST_COMPREHENSION
     iterable: "Expression"
     element_variable_name: str
+    condition: Optional["Expression"]
     expression: "Expression"
 
     @override
@@ -709,13 +710,15 @@ class ListComprehensionExpression(BaseExpression):
             case StringValue(value=s):
                 for char in s:
                     context.variables[self.element_variable_name] = StringValue(value=char)
-                    element_value = await self.expression.evaluate(context)
-                    elements.append(element_value)
+                    if self.condition is None or await self.condition.evaluate(context) == BoolValue(value=True):
+                        element_value = await self.expression.evaluate(context)
+                        elements.append(element_value)
             case ListValue(elements=iterable_elements):
                 for item in iterable_elements:
                     context.variables[self.element_variable_name] = item
-                    element_value = await self.expression.evaluate(context)
-                    elements.append(element_value)
+                    if self.condition is None or await self.condition.evaluate(context) == BoolValue(value=True):
+                        element_value = await self.expression.evaluate(context)
+                        elements.append(element_value)
             case _:
                 msg = f"List comprehension iterable must be a string or a list, got {iterable_value.get_data_type()}"
                 raise ExecutionError(msg)

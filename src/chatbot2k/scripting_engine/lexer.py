@@ -23,6 +23,7 @@ _BUILTIN_KEYWORDS = {
     "list": TokenType.LIST,
     "for": TokenType.FOR,
     "as": TokenType.AS,
+    "if": TokenType.IF,
     "yeet": TokenType.YEET,
     "collect": TokenType.COLLECT,
     "with": TokenType.WITH,

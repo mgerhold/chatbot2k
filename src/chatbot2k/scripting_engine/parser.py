@@ -183,6 +183,12 @@ class NestedListComprehensionsWithoutParenthesesError(ParserError):
 
 
 @final
+class ListComprehensionConditionTypeError(ParserError):
+    def __init__(self, condition_type: DataType) -> None:
+        super().__init__(f"List comprehension condition must be of type 'bool', got '{condition_type}'.")
+
+
+@final
 class CollectExpressionTypeError(ParserError):
     def __init__(self, expected_type: DataType, actual_type: DataType) -> None:
         super().__init__(f"Collect expression type error: expected '{expected_type}', got '{actual_type}'.")
@@ -794,7 +800,12 @@ class Parser:
                 initial_value=_create_default_value_expression(loop_variable_type),
             )
         )
-        self._expect(TokenType.YEET, "'yield' in list comprehension")
+        condition: Final = (
+            self._expression(context, Precedence.UNKNOWN) if self._match(TokenType.IF) is not None else None
+        )
+        if condition is not None and not isinstance(condition.get_data_type(), BoolType):
+            raise ListComprehensionConditionTypeError(condition.get_data_type())
+        self._expect(TokenType.YEET, "'yeet' in list comprehension")
         if self._current().type == TokenType.FOR:
             # For better readability, we forbid nested list comprehensions without explicit parentheses.
             raise NestedListComprehensionsWithoutParenthesesError()
@@ -806,6 +817,7 @@ class Parser:
         return ListComprehensionExpression(
             iterable=iterable,
             element_variable_name=loop_variable_name,
+            condition=condition,
             expression=yield_expression,
         )
 
@@ -930,6 +942,7 @@ class Parser:
         TokenType.NOT: _TableEntry(_unary_operation, None, Precedence.UNARY),
         TokenType.FOR: _TableEntry(_list_comprehension, None, Precedence.UNKNOWN),
         TokenType.AS: _TableEntry.unused(),
+        TokenType.IF: _TableEntry.unused(),
         TokenType.YEET: _TableEntry.unused(),
         TokenType.COLLECT: _TableEntry(_collect, None, Precedence.UNKNOWN),
         TokenType.WITH: _TableEntry.unused(),
