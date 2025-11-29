@@ -17,6 +17,9 @@ _BUILTIN_KEYWORDS = {
     "and": TokenType.AND,
     "or": TokenType.OR,
     "not": TokenType.NOT,
+    "string": TokenType.STRING,
+    "number": TokenType.NUMBER,
+    "bool": TokenType.BOOL,
 }
 
 _SINGLE_CHAR_TOKENS = {

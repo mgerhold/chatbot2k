@@ -8,6 +8,7 @@ import pytest
 
 from chatbot2k.scripting_engine.lexer import Lexer
 from chatbot2k.scripting_engine.parser import AssignmentTypeError
+from chatbot2k.scripting_engine.parser import InitializationTypeError
 from chatbot2k.scripting_engine.parser import Parser
 from chatbot2k.scripting_engine.parser import SubscriptOperatorTypeError
 from chatbot2k.scripting_engine.parser import TypeNotCallableError
@@ -461,6 +462,28 @@ async def _create_callable_script(script_name: str, source: str) -> CallableScri
         ),
         # Date function
         ("PRINT 'date'(42);", _Error(ExecutionError, "'date' requires a string argument, got number")),
+        # Explicit type hints
+        ("LET x: number = 10; PRINT x;", _Success("10")),
+        ("LET msg: string = 'Hello'; PRINT msg;", _Success("Hello")),
+        ("LET flag: bool = true; PRINT flag;", _Success("true")),
+        (
+            "LET x: number = 'not a number';",
+            _Error(
+                InitializationTypeError, "Cannot initialize variable 'x' of type 'number' with value of type 'string'"
+            ),
+        ),
+        (
+            "LET msg: string = 42;",
+            _Error(
+                InitializationTypeError, "Cannot initialize variable 'msg' of type 'string' with value of type 'number'"
+            ),
+        ),
+        (
+            "LET flag: bool = 'not a bool';",
+            _Error(
+                InitializationTypeError, "Cannot initialize variable 'flag' of type 'bool' with value of type 'string'"
+            ),
+        ),
     ],
 )
 async def test_script_execution(source: str, expected: _Result) -> None:

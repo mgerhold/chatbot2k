@@ -38,6 +38,10 @@ class TokenType(Enum):
     NUMBER_LITERAL = auto()
     BOOL_LITERAL = auto()
 
+    STRING = auto()
+    NUMBER = auto()
+    BOOL = auto()
+
     AND = auto()
     OR = auto()
     NOT = auto()

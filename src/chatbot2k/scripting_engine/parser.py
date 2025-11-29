@@ -60,6 +60,15 @@ class VariableRedefinitionError(ParserError):
 
 
 @final
+class InitializationTypeError(ParserError):
+    def __init__(self, variable_name: str, expected_type: DataType, actual_type: DataType) -> None:
+        super().__init__(
+            f"Cannot initialize variable '{variable_name}' of type "
+            + f"'{expected_type}' with value of type '{actual_type}'."
+        )
+
+
+@final
 class UnknownVariableError(ParserError):
     def __init__(self, variable_name: str) -> None:
         super().__init__(f"Variable '{variable_name}' is not defined.")
@@ -374,18 +383,40 @@ class Parser:
         )
         if previous_definition is not None:
             raise VariableRedefinitionError(identifier_name)
+
+        annotated_type: Optional[DataType] = None
+        if self._match(TokenType.COLON):
+            # Explicit type annotation given.
+            annotated_type = self._data_type()
         self._expect(TokenType.EQUALS, "'=' in variable definition")
         initial_value: Final = self._expression(
             context,
             Precedence.UNKNOWN,
         )
+        initial_value_type: Final = initial_value.get_data_type()
+        if annotated_type is not None and annotated_type != initial_value_type:
+            raise InitializationTypeError(identifier_name, annotated_type, initial_value_type)
         definition: Final = VariableDefinitionStatement(
             variable_name=identifier_name,
-            data_type=initial_value.get_data_type(),
+            data_type=initial_value_type,
             initial_value=initial_value,
         )
         context.variable_definitions.append(definition)
         return definition
+
+    def _data_type(self) -> DataType:
+        match self._current().type:
+            case TokenType.STRING:
+                self._advance()
+                return StringType()
+            case TokenType.NUMBER:
+                self._advance()
+                return NumberType()
+            case TokenType.BOOL:
+                self._advance()
+                return BoolType()
+            case _:
+                raise ExpectedTokenError(self._current(), "data type")
 
     def _expression(
         self,
@@ -624,6 +655,9 @@ class Parser:
         TokenType.STRING_LITERAL: _TableEntry(_string_literal, None, Precedence.UNARY),
         TokenType.NUMBER_LITERAL: _TableEntry(_number_literal, None, Precedence.UNARY),
         TokenType.BOOL_LITERAL: _TableEntry(_bool_literal, None, Precedence.UNARY),
+        TokenType.STRING: _TableEntry.unused(),
+        TokenType.NUMBER: _TableEntry.unused(),
+        TokenType.BOOL: _TableEntry.unused(),
         TokenType.AND: _TableEntry(None, _binary_expression, Precedence.AND),
         TokenType.OR: _TableEntry(None, _binary_expression, Precedence.OR),
         TokenType.NOT: _TableEntry(_unary_operation, None, Precedence.UNARY),
