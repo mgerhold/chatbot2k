@@ -434,6 +434,11 @@ class BinaryOperationExpression(BaseExpression):
                 return NumberType()
             case (StringType(), BinaryOperator.ADD, StringType()):
                 return StringType()
+            case (ListType(of_type=left_type), BinaryOperator.ADD, ListType(of_type=right_type)):
+                if left_type != right_type:
+                    msg = f"Operator {self.operator} is not supported for list operands of different element types"
+                    raise TypeError(msg)
+                return ListType(of_type=left_type)
             case (NumberType(), _, _) | (_, _, NumberType()):
                 msg = f"Operator {self.operator} is not supported for number operands"
                 raise TypeError(msg)
@@ -514,6 +519,15 @@ class BinaryOperationExpression(BaseExpression):
                 return NumberValue(value=l % r)
             case StringValue(value=l), BinaryOperator.ADD, StringValue(value=r):
                 return StringValue(value=l + r)
+            case (
+                ListValue(elements=l, element_type=l_type),
+                BinaryOperator.ADD,
+                ListValue(elements=r, element_type=r_type),
+            ):
+                if l_type != r_type:
+                    msg = "Cannot concatenate lists of different element types: " + f"'{l_type}' and '{r_type}'"
+                    raise ExecutionError(msg)
+                return ListValue(elements=l + r, element_type=l_type)
             case _:
                 msg = (
                     f"Operator {self.operator} is not supported for the given operand types "

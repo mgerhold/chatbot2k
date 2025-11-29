@@ -124,8 +124,8 @@ class TernaryOperatorTypeError(ParserError):
 
 @final
 class ParserTypeError(ParserError):
-    def __init__(self, invalid_type: DataType) -> None:
-        super().__init__(f"Invalid type for operation: '{invalid_type}'.")
+    def __init__(self, message: str) -> None:
+        super().__init__(message)
 
 
 @final
@@ -376,12 +376,15 @@ class Parser:
     ) -> Statement:
         self._expect(TokenType.PRINT, "'print' keyword")  # This is a double-check.
         expression: Final = self._expression(context, Precedence.UNKNOWN)
-        expression_type: Final = expression.get_data_type()
+        try:
+            expression_type: Final = expression.get_data_type()
+        except TypeError as e:
+            raise ParserTypeError(str(e)) from e
         match expression_type:
             case StringType() | NumberType() | BoolType() | ListType():
                 return PrintStatement(argument=expression)
             case _:
-                raise ParserTypeError(expression_type)
+                raise ParserTypeError(f"Invalid type for operation: '{expression_type}'.")
 
     def _assignment(
         self,
@@ -652,7 +655,10 @@ class Parser:
         precedence: Final = Parser._PARSER_TABLE[self._current().type].infix_precedence
         self._advance()
         right_operand: Final = self._expression(context, precedence)
-        return BinaryOperationExpression(left=left_operand, operator=binary_operator, right=right_operand)
+        try:
+            return BinaryOperationExpression(left=left_operand, operator=binary_operator, right=right_operand)
+        except TypeError as e:
+            raise ParserTypeError(str(e)) from e
 
     def _ternary_expression(
         self,

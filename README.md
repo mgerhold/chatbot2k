@@ -208,6 +208,7 @@ The following expressions are supported:
 - **Logical Operations**: And (`and`), or (`or`), and not (`not`) for boolean values.
 - **Ternary Operator**: The conditional expression `condition ? value_if_true : value_if_false` evaluates the condition and returns `value_if_true` if the condition is true, otherwise returns `value_if_false`. Both branches must have the same type.
 - **String Concatenation**: Using the `+` operator to concatenate strings.
+- **List Concatenation**: Using the `+` operator to concatenate lists of the same element type (e.g., `[1, 2] + [3, 4]` results in `[1, 2, 3, 4]`).
 - **Parentheses**: To group expressions and control the order of evaluation.
 - **Subscript Operator**: Access individual characters in a string or elements in a list using the syntax `string[index]`
   or `list[index]`, where `index` is a zero-based integer. The index must be a non-negative integer within the bounds of

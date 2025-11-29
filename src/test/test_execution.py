@@ -7,14 +7,16 @@ from typing import final
 import pytest
 
 from chatbot2k.scripting_engine.lexer import Lexer
-from chatbot2k.scripting_engine.parser import AssignmentTypeError, EmptyListLiteralAssignmentToNonListError
+from chatbot2k.scripting_engine.parser import AssignmentTypeError
 from chatbot2k.scripting_engine.parser import CollectExpressionTypeError
+from chatbot2k.scripting_engine.parser import EmptyListLiteralAssignmentToNonListError
 from chatbot2k.scripting_engine.parser import EmptyListLiteralWithoutTypeAnnotationError
 from chatbot2k.scripting_engine.parser import ExpectedEmptyListLiteralError
 from chatbot2k.scripting_engine.parser import InitializationTypeError
 from chatbot2k.scripting_engine.parser import ListElementTypeMismatchError
 from chatbot2k.scripting_engine.parser import NestedListComprehensionsWithoutParenthesesError
 from chatbot2k.scripting_engine.parser import Parser
+from chatbot2k.scripting_engine.parser import ParserTypeError
 from chatbot2k.scripting_engine.parser import SubscriptOperatorTypeError
 from chatbot2k.scripting_engine.parser import TypeNotCallableError
 from chatbot2k.scripting_engine.parser import UnknownVariableError
@@ -260,6 +262,22 @@ async def _create_callable_script(script_name: str, source: str) -> CallableScri
             _Error(
                 EmptyListLiteralAssignmentToNonListError,
                 "Cannot assign empty list literal to target of type 'number'.",
+            ),
+        ),
+        # List concatenation
+        ("PRINT [1, 2, 3] + [4, 5, 6];", _Success("[1, 2, 3, 4, 5, 6]")),
+        ("PRINT ['a', 'b'] + ['c', 'd'];", _Success("[a, b, c, d]")),
+        ("PRINT [true] + [false];", _Success("[true, false]")),
+        ("PRINT [[1, 2]] + [[3, 4]];", _Success("[[1, 2], [3, 4]]")),
+        ("LET a = [1, 2]; LET b = [3, 4]; PRINT a + b;", _Success("[1, 2, 3, 4]")),
+        ("LET empty: list<number> = []; PRINT empty + [1, 2, 3];", _Success("[1, 2, 3]")),
+        ("LET empty: list<number> = []; PRINT [1, 2, 3] + empty;", _Success("[1, 2, 3]")),
+        ("PRINT [1] + [2] + [3];", _Success("[1, 2, 3]")),
+        (
+            "PRINT [1, 2] + ['string'];",
+            _Error(
+                ParserTypeError,
+                "Operator \\+ is not supported for list operands of different element types",
             ),
         ),
         # Integration
