@@ -15,7 +15,8 @@ from chatbot2k.scripting_engine.parser import VariableRedefinitionError
 from chatbot2k.scripting_engine.parser import VariableShadowsParameterError
 from chatbot2k.scripting_engine.parser import VariableShadowsStoreError
 from chatbot2k.scripting_engine.types.ast import Script
-from chatbot2k.scripting_engine.types.data_types import DataType
+from chatbot2k.scripting_engine.types.data_types import NumberType
+from chatbot2k.scripting_engine.types.data_types import StringType
 from chatbot2k.scripting_engine.types.expressions import BinaryOperationExpression
 from chatbot2k.scripting_engine.types.expressions import BinaryOperator
 from chatbot2k.scripting_engine.types.expressions import BoolLiteralExpression
@@ -67,11 +68,11 @@ def test_parser_parses_stores() -> None:
     script: Final = _parse_source("STORE fizzle = 0; STORE wizzle = 'chizzle'; PRINT fizzle; PRINT wizzle;")
     assert len(script.stores) == 2
     assert script.stores[0].name == "fizzle"
-    assert script.stores[0].data_type == DataType.NUMBER
+    assert isinstance(script.stores[0].data_type, NumberType)
     assert isinstance(script.stores[0].value, NumberLiteralExpression)
     assert script.stores[0].value.value == 0.0
     assert script.stores[1].name == "wizzle"
-    assert script.stores[1].data_type == DataType.STRING
+    assert isinstance(script.stores[1].data_type, StringType)
     assert isinstance(script.stores[1].value, StringLiteralExpression)
     assert script.stores[1].value.value == "chizzle"
     assert len(script.statements) == 2
@@ -82,7 +83,7 @@ def test_parser_parses_store_with_expression() -> None:
     script: Final = _parse_source("STORE result = 5 + 3; PRINT result;")
     assert len(script.stores) == 1
     assert script.stores[0].name == "result"
-    assert script.stores[0].data_type == DataType.NUMBER
+    assert isinstance(script.stores[0].data_type, NumberType)
     assert isinstance(script.stores[0].value, BinaryOperationExpression)
     assert script.stores[0].value.operator == BinaryOperator.ADD
 

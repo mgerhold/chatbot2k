@@ -10,7 +10,10 @@ from pydantic import BaseModel
 from pydantic import ConfigDict
 from pydantic import Discriminator
 
+from chatbot2k.scripting_engine.types.data_types import BoolType
 from chatbot2k.scripting_engine.types.data_types import DataType
+from chatbot2k.scripting_engine.types.data_types import NumberType
+from chatbot2k.scripting_engine.types.data_types import StringType
 
 
 @final
@@ -37,7 +40,7 @@ class NumberValue(BasicValue):
 
     @override
     def get_data_type(self) -> DataType:
-        return DataType.NUMBER
+        return NumberType()
 
     @override
     def to_string(self) -> str:
@@ -55,7 +58,7 @@ class StringValue(BasicValue):
 
     @override
     def get_data_type(self) -> DataType:
-        return DataType.STRING
+        return StringType()
 
     @override
     def to_string(self) -> str:
@@ -71,7 +74,7 @@ class BoolValue(BasicValue):
 
     @override
     def get_data_type(self) -> DataType:
-        return DataType.BOOL
+        return BoolType()
 
     @override
     def to_string(self) -> str:

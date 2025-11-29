@@ -79,7 +79,7 @@ class _TypeFunction(BuiltinFunction):
     @override
     async def execute(self, *args: "Expression", context: "ExecutionContext") -> str:
         assert len(args) == 1
-        return args[0].get_data_type()
+        return str(args[0].get_data_type())
 
 
 @final
@@ -96,7 +96,7 @@ class _LengthFunction(BuiltinFunction):
         assert len(args) == 1
         value: Final = await args[0].evaluate(context)
         if not isinstance(value, StringValue):
-            msg: Final = f"'length' requires a string argument, got '{value.get_data_type().value}'"
+            msg: Final = f"'length' requires a string argument, got '{value.get_data_type()}'"
             raise ExecutionError(msg)
         return str(len(value.value))
 
@@ -115,7 +115,7 @@ class _UpperFunction(BuiltinFunction):
         assert len(args) == 1
         value: Final = await args[0].evaluate(context)
         if not isinstance(value, StringValue):
-            msg: Final = f"'upper' requires a string argument, got '{value.get_data_type().value}'"
+            msg: Final = f"'upper' requires a string argument, got '{value.get_data_type()}'"
             raise ExecutionError(msg)
         return value.value.upper()
 
@@ -134,7 +134,7 @@ class _LowerFunction(BuiltinFunction):
         assert len(args) == 1
         value: Final = await args[0].evaluate(context)
         if not isinstance(value, StringValue):
-            msg: Final = f"'lower' requires a string argument, got '{value.get_data_type().value}'"
+            msg: Final = f"'lower' requires a string argument, got '{value.get_data_type()}'"
             raise ExecutionError(msg)
         return value.value.lower()
 
@@ -153,7 +153,7 @@ class _TrimFunction(BuiltinFunction):
         assert len(args) == 1
         value: Final = await args[0].evaluate(context)
         if not isinstance(value, StringValue):
-            msg: Final = f"'trim' requires a string argument, got '{value.get_data_type().value}'"
+            msg: Final = f"'trim' requires a string argument, got '{value.get_data_type()}'"
             raise ExecutionError(msg)
         return value.value.strip()
 
@@ -174,21 +174,21 @@ class _ReplaceFunction(BuiltinFunction):
         if not isinstance(text_value, StringValue):
             msg = (
                 "'replace' can only replace substrings in string arguments, "
-                + f"got '{text_value.get_data_type().value}' instead"
+                + f"got '{text_value.get_data_type()}' instead"
             )
             raise ExecutionError(msg)
         old_value: Final = await args[1].evaluate(context)
         if not isinstance(old_value, StringValue):
             msg = (
                 "'replace' requires a string as the second argument for the substring to be replaced, "
-                + f"got '{old_value.get_data_type().value}' instead"
+                + f"got '{old_value.get_data_type()}' instead"
             )
             raise ExecutionError(msg)
         new_value: Final = await args[2].evaluate(context)
         if not isinstance(new_value, StringValue):
             msg = (
                 "'replace' requires a string as the third argument for the replacement substring, "
-                + f"got '{new_value.get_data_type().value}' instead"
+                + f"got '{new_value.get_data_type()}' instead"
             )
             raise ExecutionError(msg)
 
@@ -212,7 +212,7 @@ class _ContainsFunction(BuiltinFunction):
         if not isinstance(substring_value, StringValue) or not isinstance(text_value, StringValue):
             msg: Final = (
                 "'contains' requires string arguments, "
-                + f"got '{text_value.get_data_type().value}' and '{substring_value.get_data_type().value}'"
+                + f"got '{text_value.get_data_type()}' and '{substring_value.get_data_type()}'"
             )
             raise ExecutionError(msg)
         result: Final = substring_value.value in text_value.value
@@ -236,7 +236,7 @@ class _StartsWithFunction(BuiltinFunction):
         if not isinstance(text_value, StringValue) or not isinstance(prefix_value, StringValue):
             msg: Final = (
                 "'starts_with' requires string arguments, "
-                + f"got '{text_value.get_data_type().value}' and '{prefix_value.get_data_type().value}'"
+                + f"got '{text_value.get_data_type()}' and '{prefix_value.get_data_type()}'"
             )
             raise ExecutionError(msg)
         result: Final = text_value.value.startswith(prefix_value.value)
@@ -260,7 +260,7 @@ class _EndsWithFunction(BuiltinFunction):
         if not isinstance(text_value, StringValue) or not isinstance(suffix_value, StringValue):
             msg: Final = (
                 "'ends_with' requires string arguments, "
-                + f"got '{text_value.get_data_type().value}' and '{suffix_value.get_data_type().value}'"
+                + f"got '{text_value.get_data_type()}' and '{suffix_value.get_data_type()}'"
             )
             raise ExecutionError(msg)
         result: Final = text_value.value.endswith(suffix_value.value)
@@ -281,7 +281,7 @@ class _AbsFunction(BuiltinFunction):
         assert len(args) == 1
         value: Final = await args[0].evaluate(context)
         if not isinstance(value, NumberValue):
-            msg: Final = f"'abs' requires a number argument, got {value.get_data_type().value}"
+            msg: Final = f"'abs' requires a number argument, got {value.get_data_type()}"
             raise ExecutionError(msg)
         return _format_number(abs(value.value))
 
@@ -303,7 +303,7 @@ class _MinFunction(BuiltinFunction):
         # Check all are numbers.
         for i, val in enumerate(values):
             if not isinstance(val, NumberValue):
-                msg = f"'min' requires number arguments, got {val.get_data_type().value} at position {i + 1}"
+                msg = f"'min' requires number arguments, got {val.get_data_type()} at position {i + 1}"
                 raise ExecutionError(msg)
 
         number_values: Final = [v.value for v in values]
@@ -328,7 +328,7 @@ class _MaxFunction(BuiltinFunction):
         # Check all are numbers.
         for i, val in enumerate(values):
             if not isinstance(val, NumberValue):
-                error_msg = f"'max' requires number arguments, got {val.get_data_type().value} at position {i + 1}"
+                error_msg = f"'max' requires number arguments, got {val.get_data_type()} at position {i + 1}"
                 raise ExecutionError(error_msg)
 
         number_values: Final = [v.value for v in values]
@@ -350,7 +350,7 @@ class _RoundFunction(BuiltinFunction):
         assert len(args) == 1
         value: Final = await args[0].evaluate(context)
         if not isinstance(value, NumberValue):
-            msg: Final = f"'round' requires a number argument, got {value.get_data_type().value}"
+            msg: Final = f"'round' requires a number argument, got {value.get_data_type()}"
             raise ExecutionError(msg)
         return _format_number(round(value.value))
 
@@ -369,7 +369,7 @@ class _FloorFunction(BuiltinFunction):
         assert len(args) == 1
         value: Final = await args[0].evaluate(context)
         if not isinstance(value, NumberValue):
-            msg: Final = f"'floor' requires a number argument, got {value.get_data_type().value}"
+            msg: Final = f"'floor' requires a number argument, got {value.get_data_type()}"
             raise ExecutionError(msg)
         return _format_number(float(math_floor(value.value)))
 
@@ -388,7 +388,7 @@ class _CeilFunction(BuiltinFunction):
         assert len(args) == 1
         value: Final = await args[0].evaluate(context)
         if not isinstance(value, NumberValue):
-            msg: Final = f"'ceil' requires a number argument, got {value.get_data_type().value}"
+            msg: Final = f"'ceil' requires a number argument, got {value.get_data_type()}"
             raise ExecutionError(msg)
         return _format_number(float(math_ceil(value.value)))
 
@@ -407,7 +407,7 @@ class _SqrtFunction(BuiltinFunction):
         assert len(args) == 1
         value: Final = await args[0].evaluate(context)
         if not isinstance(value, NumberValue):
-            msg: Final = f"'sqrt' requires a number argument, got {value.get_data_type().value}"
+            msg: Final = f"'sqrt' requires a number argument, got {value.get_data_type()}"
             raise ExecutionError(msg)
         if value.value < 0:
             negative_msg: Final = f"'sqrt' requires a non-negative argument, got {value.value}"
@@ -430,7 +430,7 @@ class _PowFunction(BuiltinFunction):
         values: Final = [await arg.evaluate(context) for arg in args]
         for i, val in enumerate(values):
             if not isinstance(val, NumberValue):
-                error_msg = f"'pow' requires number arguments, got {val.get_data_type().value} at position {i + 1}"
+                error_msg = f"'pow' requires number arguments, got {val.get_data_type()} at position {i + 1}"
                 raise ExecutionError(error_msg)
         base: Final = values[0]
         exponent: Final = values[1]
@@ -454,7 +454,7 @@ class _RandomFunction(BuiltinFunction):
         values: Final = [await arg.evaluate(context) for arg in args]
         for i, val in enumerate(values):
             if not isinstance(val, NumberValue):
-                error_msg = f"'random' requires number arguments, got {val.get_data_type().value} at position {i + 1}"
+                error_msg = f"'random' requires number arguments, got {val.get_data_type()} at position {i + 1}"
                 raise ExecutionError(error_msg)
         min_val: Final = values[0]
         max_val: Final = values[1]
@@ -494,7 +494,7 @@ class _DateFunction(BuiltinFunction):
         assert len(args) == 1
         format_value: Final = await args[0].evaluate(context)
         if not isinstance(format_value, StringValue):
-            msg = f"'date' requires a string argument, got {format_value.get_data_type().value}"
+            msg = f"'date' requires a string argument, got {format_value.get_data_type()}"
             raise ExecutionError(msg)
         now: Final = datetime.now(UTC)
         return now.strftime(format_value.value)

@@ -13,7 +13,10 @@ from chatbot2k.scripting_engine.token_types import TokenType
 from chatbot2k.scripting_engine.types.ast import Parameter
 from chatbot2k.scripting_engine.types.ast import Script
 from chatbot2k.scripting_engine.types.ast import Store
+from chatbot2k.scripting_engine.types.data_types import BoolType
 from chatbot2k.scripting_engine.types.data_types import DataType
+from chatbot2k.scripting_engine.types.data_types import NumberType
+from chatbot2k.scripting_engine.types.data_types import StringType
 from chatbot2k.scripting_engine.types.expressions import BinaryOperationExpression
 from chatbot2k.scripting_engine.types.expressions import BinaryOperator
 from chatbot2k.scripting_engine.types.expressions import BoolLiteralExpression
@@ -298,9 +301,11 @@ class Parser:
         self._expect(TokenType.PRINT, "'print' keyword")  # This is a double-check.
         expression: Final = self._expression(context, Precedence.UNKNOWN)
         expression_type: Final = expression.get_data_type()
-        if expression_type not in (DataType.NUMBER, DataType.STRING, DataType.BOOL):
-            raise ParserTypeError(expression_type)
-        return PrintStatement(argument=expression)
+        match expression_type:
+            case StringType() | NumberType() | BoolType():
+                return PrintStatement(argument=expression)
+            case _:
+                raise ParserTypeError(expression_type)
 
     def _assignment(
         self,
@@ -526,7 +531,7 @@ class Parser:
         left_operand: Expression,
         context: _ParseContext,
     ) -> Expression:
-        if left_operand.get_data_type() != DataType.BOOL:
+        if not isinstance(left_operand.get_data_type(), BoolType):
             raise TernaryConditionTypeError(left_operand.get_data_type())
 
         self._expect(TokenType.QUESTION_MARK, "'?' in ternary expression")  # This is a double-check.
@@ -561,7 +566,7 @@ class Parser:
                 self._expect(TokenType.RIGHT_PARENTHESIS, "')' after function call arguments")
                 break
         operand_type: Final = left_operand.get_data_type()
-        if operand_type != DataType.STRING:
+        if not isinstance(operand_type, StringType):
             raise TypeNotCallableError(operand_type)
         return CallOperationExpression(
             callee=left_operand,
@@ -579,11 +584,11 @@ class Parser:
         operand_type: Final = left_operand.get_data_type()
         index_type: Final = index_expression.get_data_type()
         match operand_type, index_type:
-            case DataType.STRING, DataType.NUMBER:
+            case StringType(), NumberType():
                 return SubscriptOperationExpression(
                     operand=left_operand,
                     index=index_expression,
-                    data_type=DataType.STRING,
+                    data_type=StringType(),
                 )
             case _, _:
                 raise SubscriptOperatorTypeError(operand_type, index_type)

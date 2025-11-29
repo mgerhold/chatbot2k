@@ -18,7 +18,10 @@ from chatbot2k.scripting_engine.stores import AlwaysEmptyPersistentStore
 from chatbot2k.scripting_engine.stores import StoreKey
 from chatbot2k.scripting_engine.token_types import TokenType
 from chatbot2k.scripting_engine.types.builtins import BUILTIN_FUNCTIONS
+from chatbot2k.scripting_engine.types.data_types import BoolType
 from chatbot2k.scripting_engine.types.data_types import DataType
+from chatbot2k.scripting_engine.types.data_types import NumberType
+from chatbot2k.scripting_engine.types.data_types import StringType
 from chatbot2k.scripting_engine.types.execution_context import ExecutionContext
 from chatbot2k.scripting_engine.types.execution_error import ExecutionError
 from chatbot2k.scripting_engine.types.value import BoolValue
@@ -62,7 +65,7 @@ class StringLiteralExpression(BaseExpression):
 
     @override
     def get_data_type(self) -> DataType:
-        return DataType.STRING
+        return StringType()
 
     @override
     async def evaluate(self, context: ExecutionContext) -> Value:
@@ -102,7 +105,7 @@ class NumberLiteralExpression(BaseExpression):
 
     @override
     def get_data_type(self) -> DataType:
-        return DataType.NUMBER
+        return NumberType()
 
     @override
     async def evaluate(
@@ -121,7 +124,7 @@ class BoolLiteralExpression(BaseExpression):
 
     @override
     def get_data_type(self) -> DataType:
-        return DataType.BOOL
+        return BoolType()
 
     @override
     async def evaluate(
@@ -175,7 +178,7 @@ class ParameterIdentifierExpression(BaseExpression):
     @override
     def get_data_type(self) -> DataType:
         # All parameters are strings.
-        return DataType.STRING
+        return StringType()
 
     @override
     async def evaluate(
@@ -186,10 +189,10 @@ class ParameterIdentifierExpression(BaseExpression):
         if value is None:
             msg = f"Parameter '{self.parameter_name}' not defined."
             raise ExecutionError(msg)
-        if value.get_data_type() != DataType.STRING:
+        if value.get_data_type() != StringType():
             msg = (
                 f"Type mismatch when accessing parameter '{self.parameter_name}': "
-                + f"expected {DataType.STRING}, got {value.get_data_type()}"
+                + f"expected {StringType()}, got {value.get_data_type()}"
             )
             raise ExecutionError(msg)
         return value
@@ -266,22 +269,24 @@ class UnaryOperationExpression(BaseExpression):
     def get_data_type(self) -> DataType:
         operand_type: Final = self.operand.get_data_type()
         match self.operator, operand_type:
-            case (UnaryOperator.PLUS | UnaryOperator.NEGATE, DataType.NUMBER):
-                return DataType.NUMBER
-            case (UnaryOperator.NOT, DataType.BOOL):
-                return DataType.BOOL
-            case (UnaryOperator.TO_NUMBER, DataType.BOOL | DataType.NUMBER | DataType.STRING):
-                return DataType.NUMBER
-            case (UnaryOperator.TO_STRING, DataType.BOOL | DataType.NUMBER | DataType.STRING):
-                return DataType.STRING
-            case (UnaryOperator.TO_BOOL, DataType.BOOL | DataType.NUMBER | DataType.STRING):
-                return DataType.BOOL
-            case (UnaryOperator.EVALUATE, DataType.STRING):
-                return DataType.STRING
+            case (UnaryOperator.PLUS | UnaryOperator.NEGATE, NumberType()):
+                return NumberType()
+            case (UnaryOperator.NOT, BoolType()):
+                return BoolType()
+            case (UnaryOperator.TO_NUMBER, BoolType() | NumberType() | StringType()):
+                return NumberType()
+            case (UnaryOperator.TO_STRING, BoolType() | NumberType() | StringType()):
+                return StringType()
+            case (UnaryOperator.TO_BOOL, BoolType() | NumberType() | StringType()):
+                return BoolType()
+            case (UnaryOperator.EVALUATE, StringType()):
+                return StringType()
             case (
                 UnaryOperator.PLUS
                 | UnaryOperator.NEGATE
                 | UnaryOperator.TO_NUMBER
+                | UnaryOperator.TO_BOOL
+                | UnaryOperator.TO_STRING
                 | UnaryOperator.EVALUATE
                 | UnaryOperator.NOT,
                 _,
@@ -390,41 +395,41 @@ class BinaryOperationExpression(BaseExpression):
     def get_data_type(self) -> DataType:
         match self.left.get_data_type(), self.operator, self.right.get_data_type():
             case (
-                (DataType.BOOL, BinaryOperator.EQUALS, DataType.BOOL)
-                | (DataType.BOOL, BinaryOperator.NOT_EQUALS, DataType.BOOL)
-                | (DataType.NUMBER, BinaryOperator.EQUALS, DataType.NUMBER)
-                | (DataType.NUMBER, BinaryOperator.NOT_EQUALS, DataType.NUMBER)
-                | (DataType.NUMBER, BinaryOperator.LESS_THAN, DataType.NUMBER)
-                | (DataType.NUMBER, BinaryOperator.LESS_THAN_OR_EQUAL, DataType.NUMBER)
-                | (DataType.NUMBER, BinaryOperator.GREATER_THAN, DataType.NUMBER)
-                | (DataType.NUMBER, BinaryOperator.GREATER_THAN_OR_EQUAL, DataType.NUMBER)
-                | (DataType.STRING, BinaryOperator.EQUALS, DataType.STRING)
-                | (DataType.STRING, BinaryOperator.NOT_EQUALS, DataType.STRING)
-                | (DataType.STRING, BinaryOperator.LESS_THAN, DataType.STRING)
-                | (DataType.STRING, BinaryOperator.LESS_THAN_OR_EQUAL, DataType.STRING)
-                | (DataType.STRING, BinaryOperator.GREATER_THAN, DataType.STRING)
-                | (DataType.STRING, BinaryOperator.GREATER_THAN_OR_EQUAL, DataType.STRING)
+                (BoolType(), BinaryOperator.EQUALS, BoolType())
+                | (BoolType(), BinaryOperator.NOT_EQUALS, BoolType())
+                | (NumberType(), BinaryOperator.EQUALS, NumberType())
+                | (NumberType(), BinaryOperator.NOT_EQUALS, NumberType())
+                | (NumberType(), BinaryOperator.LESS_THAN, NumberType())
+                | (NumberType(), BinaryOperator.LESS_THAN_OR_EQUAL, NumberType())
+                | (NumberType(), BinaryOperator.GREATER_THAN, NumberType())
+                | (NumberType(), BinaryOperator.GREATER_THAN_OR_EQUAL, NumberType())
+                | (StringType(), BinaryOperator.EQUALS, StringType())
+                | (StringType(), BinaryOperator.NOT_EQUALS, StringType())
+                | (StringType(), BinaryOperator.LESS_THAN, StringType())
+                | (StringType(), BinaryOperator.LESS_THAN_OR_EQUAL, StringType())
+                | (StringType(), BinaryOperator.GREATER_THAN, StringType())
+                | (StringType(), BinaryOperator.GREATER_THAN_OR_EQUAL, StringType())
             ):
-                return DataType.BOOL
-            case (DataType.BOOL, BinaryOperator.AND, DataType.BOOL) | (DataType.BOOL, BinaryOperator.OR, DataType.BOOL):
-                return DataType.BOOL
+                return BoolType()
+            case (BoolType(), BinaryOperator.AND, BoolType()) | (BoolType(), BinaryOperator.OR, BoolType()):
+                return BoolType()
             case (
-                (DataType.NUMBER, BinaryOperator.ADD, DataType.NUMBER)
-                | (DataType.NUMBER, BinaryOperator.SUBTRACT, DataType.NUMBER)
-                | (DataType.NUMBER, BinaryOperator.MULTIPLY, DataType.NUMBER)
-                | (DataType.NUMBER, BinaryOperator.DIVIDE, DataType.NUMBER)
+                (NumberType(), BinaryOperator.ADD, NumberType())
+                | (NumberType(), BinaryOperator.SUBTRACT, NumberType())
+                | (NumberType(), BinaryOperator.MULTIPLY, NumberType())
+                | (NumberType(), BinaryOperator.DIVIDE, NumberType())
             ):
-                return DataType.NUMBER
-            case (DataType.STRING, BinaryOperator.ADD, DataType.STRING):
-                return DataType.STRING
-            case (DataType.NUMBER, _, _) | (_, _, DataType.NUMBER):
+                return NumberType()
+            case (StringType(), BinaryOperator.ADD, StringType()):
+                return StringType()
+            case (NumberType(), _, _) | (_, _, NumberType()):
                 msg = f"Operator {self.operator} is not supported for number operands"
                 raise TypeError(msg)
-            case (DataType.STRING, _, _) | (_, _, DataType.STRING):
+            case (StringType(), _, _) | (_, _, StringType()):
                 msg = f"Operator {self.operator} is not supported for string operands"
                 raise TypeError(msg)
             # TODO: Create minimal example and file a Pyright issue about this false positive.
-            case (DataType.BOOL, _, _) | (_, _, DataType.BOOL):  # type: ignore[reportUnnecessaryComparison]
+            case (BoolType(), _, _) | (_, _, BoolType()):  # type: ignore[reportUnnecessaryComparison]
                 msg = f"Operator {self.operator} is not supported for boolean operands"
                 raise TypeError(msg)
 
@@ -509,7 +514,7 @@ class TernaryOperationExpression(BaseExpression):
         context: ExecutionContext,
     ) -> Value:
         predicate: Final = await self.condition.evaluate(context)
-        if predicate.get_data_type() != DataType.BOOL:
+        if predicate.get_data_type() != BoolType():
             msg = f"Ternary condition must be a boolean, got {predicate.get_data_type()}"
             raise ExecutionError(msg)
         assert isinstance(predicate, BoolValue)
@@ -528,7 +533,7 @@ class CallOperationExpression(BaseExpression):
 
     @override
     def get_data_type(self) -> DataType:
-        return DataType.STRING
+        return StringType()
 
     @override
     async def evaluate(
