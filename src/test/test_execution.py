@@ -7,7 +7,7 @@ from typing import final
 import pytest
 
 from chatbot2k.scripting_engine.lexer import Lexer
-from chatbot2k.scripting_engine.parser import AssignmentTypeError
+from chatbot2k.scripting_engine.parser import AssignmentTypeError, EmptyListLiteralAssignmentToNonListError
 from chatbot2k.scripting_engine.parser import CollectExpressionTypeError
 from chatbot2k.scripting_engine.parser import EmptyListLiteralWithoutTypeAnnotationError
 from chatbot2k.scripting_engine.parser import ExpectedEmptyListLiteralError
@@ -238,6 +238,30 @@ async def _create_callable_script(script_name: str, source: str) -> CallableScri
         ("LET result = 'a'; result = result + 'b'; result = result + 'c'; PRINT result;", _Success("abc")),
         ("STORE x = 10; LET y = 5; y = y + x; x = x + y; PRINT x; PRINT y;", _Success("2515")),
         ("LET x = 5; x = 10; x = 15; PRINT x + 5;", _Success("20")),
+        # List assignments
+        ("LET numbers = [1, 2, 3]; numbers = [4, 5, 6]; PRINT numbers;", _Success("[4, 5, 6]")),
+        ("LET numbers = [1, 2, 3]; numbers = []; PRINT numbers;", _Success("[]")),
+        ("LET numbers = [1, 2, 3]; numbers = []; PRINT 'type'(numbers);", _Success("list<number>")),
+        ("LET words = ['a', 'b']; words = []; PRINT words;", _Success("[]")),
+        ("LET flags = [true]; flags = []; PRINT flags;", _Success("[]")),
+        ("LET nested = [[1]]; nested = []; PRINT nested;", _Success("[]")),
+        ("LET nested: list<list<number>> = []; nested = [[1, 2], [3, 4]]; PRINT nested;", _Success("[[1, 2], [3, 4]]")),
+        ("STORE numbers = [1, 2, 3]; numbers = []; PRINT numbers;", _Success("[]")),
+        ("LET numbers: list<number> = []; numbers = [1, 2, 3]; numbers = []; PRINT numbers;", _Success("[]")),
+        (
+            "LET numbers = [1, 2, 3]; numbers = ['string'];",
+            _Error(
+                AssignmentTypeError,
+                "Cannot assign value of type 'list<string>' to target of type 'list<number>'",
+            ),
+        ),
+        (
+            "LET n = 10; n = [];",
+            _Error(
+                EmptyListLiteralAssignmentToNonListError,
+                "Cannot assign empty list literal to target of type 'number'.",
+            ),
+        ),
         # Integration
         ("PRINT 'First'; PRINT 'Second'; PRINT 'Third';", _Success("FirstSecondThird")),
         (

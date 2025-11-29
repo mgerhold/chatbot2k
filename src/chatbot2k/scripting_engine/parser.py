@@ -153,6 +153,12 @@ class EmptyListLiteralWithoutTypeAnnotationError(ParserError):
 
 
 @final
+class EmptyListLiteralAssignmentToNonListError(ParserError):
+    def __init__(self, target_type: DataType) -> None:
+        super().__init__(f"Cannot assign empty list literal to target of type '{target_type}'.")
+
+
+@final
 class ListElementTypeMismatchError(ParserError):
     def __init__(self, expected_type: DataType, actual_type: DataType) -> None:
         super().__init__(f"List element type mismatch: expected '{expected_type}', got '{actual_type}'.")
@@ -412,16 +418,24 @@ class Parser:
             raise UnknownVariableError(identifier_name)
 
         self._expect(TokenType.EQUALS, "'=' in assignment")
-        rvalue: Final = self._expression(context, Precedence.UNKNOWN)
+        rvalue_expr: Expression = self._expression(context, Precedence.UNKNOWN)
+
+        # Handle empty list literals - they need to be reified with the target's type
+        if isinstance(rvalue_expr, ListOfEmptyListsLiteralExpression):
+            target_type: Final = lvalue.get_data_type()
+            if not isinstance(target_type, ListType):
+                # Empty list literal can only be assigned to list types
+                raise EmptyListLiteralAssignmentToNonListError(target_type)
+            rvalue_expr = _reify_list_of_empty_lists(rvalue_expr, target_type)
 
         lvalue_type: Final = lvalue.get_data_type()
-        rvalue_type: Final = rvalue.get_data_type()
+        rvalue_type: Final = rvalue_expr.get_data_type()
         if lvalue_type != rvalue_type:
             raise AssignmentTypeError(lvalue_type, rvalue_type)
 
         return AssignmentStatement(
             assignment_target=lvalue,
-            expression=rvalue,
+            expression=rvalue_expr,
         )
 
     def _variable_definition(
