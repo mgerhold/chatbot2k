@@ -786,9 +786,7 @@ class Parser:
         self._expect(TokenType.AS, "'as' in list comprehension")
         loop_variable_identifier: Final = self._expect(TokenType.IDENTIFIER, "loop variable name")
         loop_variable_name: Final = loop_variable_identifier.source_location.lexeme
-        if loop_variable_name in (variable.variable_name for variable in context.variable_definitions):
-            # Shadowing is not allowed.
-            raise VariableRedefinitionError(loop_variable_name)
+        self._ensure_not_shadowed(loop_variable_name, context)
         context.variable_definitions.append(
             VariableDefinitionStatement(
                 variable_name=loop_variable_name,
@@ -829,15 +827,11 @@ class Parser:
         self._expect(TokenType.AS, "'as' in collect expression")
         accumulator_identifier: Final = self._expect(TokenType.IDENTIFIER, "accumulator identifier")
         accumulator_name: Final = accumulator_identifier.source_location.lexeme
-        if accumulator_name in (variable.variable_name for variable in context.variable_definitions):
-            # Shadowing is not allowed.
-            raise VariableRedefinitionError(accumulator_name)
+        self._ensure_not_shadowed(accumulator_name, context)
         self._expect(TokenType.COMMA, "',' in collect expression")
         element_identifier: Final = self._expect(TokenType.IDENTIFIER, "element identifier")
         element_name: Final = element_identifier.source_location.lexeme
-        if element_name in (variable.variable_name for variable in context.variable_definitions):
-            # Shadowing is not allowed.
-            raise VariableRedefinitionError(element_name)
+        self._ensure_not_shadowed(element_name, context)
         context.variable_definitions.append(
             VariableDefinitionStatement(
                 variable_name=accumulator_name,
@@ -870,6 +864,31 @@ class Parser:
             element_variable_name=element_name,
             expression=collection_expression,
         )
+
+    def _ensure_not_shadowed(
+        self,
+        identifier_name: str,
+        context: _ParseContext,
+    ) -> None:
+        if next((store.name for store in context.stores if store.name == identifier_name), None) is not None:
+            raise VariableShadowsStoreError(identifier_name)
+        if (
+            next((parameter.name for parameter in context.parameters if parameter.name == identifier_name), None)
+            is not None
+        ):
+            raise VariableShadowsParameterError(identifier_name)
+        if (
+            next(
+                (
+                    definition
+                    for definition in context.variable_definitions
+                    if definition.variable_name == identifier_name
+                ),
+                None,
+            )
+            is not None
+        ):
+            raise VariableRedefinitionError(identifier_name)
 
     _PARSER_TABLE = {
         TokenType.COLON: _TableEntry.unused(),

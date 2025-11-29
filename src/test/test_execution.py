@@ -7,7 +7,8 @@ from typing import final
 import pytest
 
 from chatbot2k.scripting_engine.lexer import Lexer
-from chatbot2k.scripting_engine.parser import AssignmentTypeError
+from chatbot2k.scripting_engine.parser import AssignmentTypeError, VariableShadowsParameterError, \
+    VariableShadowsStoreError
 from chatbot2k.scripting_engine.parser import CollectExpressionTypeError
 from chatbot2k.scripting_engine.parser import EmptyListLiteralWithoutTypeAnnotationError
 from chatbot2k.scripting_engine.parser import ExpectedEmptyListLiteralError
@@ -587,6 +588,14 @@ async def _create_callable_script(script_name: str, source: str) -> CallableScri
             _Error(VariableRedefinitionError, "Variable 'shadowed' is already defined."),
         ),
         (
+            "STORE shadowed = 0; LET words = ['123', '456']; LET numbers = for words as shadowed yeet $shadowed;",
+            _Error(VariableShadowsStoreError, "Variable 'shadowed' shadows store with the same name."),
+        ),
+        (
+            "PARAMS shadowed; LET words = ['123', '456']; LET numbers = for words as shadowed yeet $shadowed;",
+            _Error(VariableShadowsParameterError, "Variable 'shadowed' shadows parameter with the same name."),
+        ),
+        (
             "LET words = ['123', '456']; LET numbers = for words as word yeet $unknown;",
             _Error(UnknownVariableError, "Variable 'unknown' is not defined."),
         ),
@@ -643,6 +652,51 @@ async def _create_callable_script(script_name: str, source: str) -> CallableScri
             _Error(
                 ExecutionError,
                 "Unable to deduce type of empty list literal.",
+            ),
+        ),
+        (
+            "LET shadowed = 0; LET result = collect [1, 2, 3] as shadowed, elem with shadowed + elem;"
+            + "PRINT result;",
+            _Error(
+                VariableRedefinitionError,
+                "Variable 'shadowed' is already defined",
+            ),
+        ),
+        (
+            "LET shadowed = 0; LET result = collect [1, 2, 3] as acc, shadowed with acc + shadowed;" + "PRINT result;",
+            _Error(
+                VariableRedefinitionError,
+                "Variable 'shadowed' is already defined",
+            ),
+        ),
+        (
+            "STORE shadowed = 0; LET result = collect [1, 2, 3] as shadowed, elem with shadowed + elem;"
+            + "PRINT result;",
+            _Error(
+                VariableShadowsStoreError,
+                "Variable 'shadowed' shadows store with the same name.",
+            ),
+        ),
+        (
+            "STORE shadowed = 0; LET result = collect [1, 2, 3] as acc, shadowed with acc + shadowed;"
+            + "PRINT result;",
+            _Error(
+                VariableShadowsStoreError,
+                "Variable 'shadowed' shadows store with the same name.",
+            ),
+        ),
+        (
+            "PARAMS shadowed; LET result = collect [1, 2, 3] as shadowed, elem with shadowed + elem;" + "PRINT result;",
+            _Error(
+                VariableShadowsParameterError,
+                "Variable 'shadowed' shadows parameter with the same name.",
+            ),
+        ),
+        (
+            "PARAMS shadowed; LET result = collect [1, 2, 3] as acc, shadowed with acc + shadowed;" + "PRINT result;",
+            _Error(
+                VariableShadowsParameterError,
+                "Variable 'shadowed' shadows parameter with the same name.",
             ),
         ),
         (
