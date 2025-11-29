@@ -23,6 +23,7 @@ from chatbot2k.scripting_engine.types.expressions import BinaryOperationExpressi
 from chatbot2k.scripting_engine.types.expressions import BinaryOperator
 from chatbot2k.scripting_engine.types.expressions import BoolLiteralExpression
 from chatbot2k.scripting_engine.types.expressions import CallOperationExpression
+from chatbot2k.scripting_engine.types.expressions import CollectExpression
 from chatbot2k.scripting_engine.types.expressions import Expression
 from chatbot2k.scripting_engine.types.expressions import ListComprehensionExpression
 from chatbot2k.scripting_engine.types.expressions import ListLiteralExpression
@@ -179,6 +180,12 @@ class TypeNotIterableError(ParserError):
 class NestedListComprehensionsWithoutParenthesesError(ParserError):
     def __init__(self) -> None:
         super().__init__("Nested list comprehensions must be enclosed in parentheses.")
+
+
+@final
+class CollectExpressionTypeError(ParserError):
+    def __init__(self, expected_type: DataType, actual_type: DataType) -> None:
+        super().__init__(f"Collect expression type error: expected '{expected_type}', got '{actual_type}'.")
 
 
 type _UnaryParser = Callable[
@@ -789,7 +796,7 @@ class Parser:
                 initial_value=_create_default_value_expression(loop_variable_type),
             )
         )
-        self._expect(TokenType.YIELD, "'yield' in list comprehension")
+        self._expect(TokenType.YEET, "'yield' in list comprehension")
         if self._current().type == TokenType.FOR:
             # For better readability, we forbid nested list comprehensions without explicit parentheses.
             raise NestedListComprehensionsWithoutParenthesesError()
@@ -802,6 +809,66 @@ class Parser:
             iterable=iterable,
             element_variable_name=loop_variable_name,
             expression=yield_expression,
+        )
+
+    def _collect(
+        self,
+        context: _ParseContext,
+    ) -> Expression:
+        self._expect(TokenType.COLLECT, "'collect' in collect expression")  # This is a double-check.
+        iterable: Final = self._expression(context, Precedence.UNKNOWN)
+        iterable_type: Final = iterable.get_data_type()
+        element_type: DataType
+        match iterable_type:
+            case StringType():
+                element_type = StringType()
+            case ListType(of_type=element_type_):
+                element_type = element_type_
+            case _:
+                raise TypeNotIterableError(iterable_type)
+        self._expect(TokenType.AS, "'as' in collect expression")
+        accumulator_identifier: Final = self._expect(TokenType.IDENTIFIER, "accumulator identifier")
+        accumulator_name: Final = accumulator_identifier.source_location.lexeme
+        if accumulator_name in (variable.variable_name for variable in context.variable_definitions):
+            # Shadowing is not allowed.
+            raise VariableRedefinitionError(accumulator_name)
+        self._expect(TokenType.COMMA, "',' in collect expression")
+        element_identifier: Final = self._expect(TokenType.IDENTIFIER, "element identifier")
+        element_name: Final = element_identifier.source_location.lexeme
+        if element_name in (variable.variable_name for variable in context.variable_definitions):
+            # Shadowing is not allowed.
+            raise VariableRedefinitionError(element_name)
+        context.variable_definitions.append(
+            VariableDefinitionStatement(
+                variable_name=accumulator_name,
+                data_type=element_type,
+                initial_value=_create_default_value_expression(ListType(of_type=element_type)),
+            )
+        )
+        context.variable_definitions.append(
+            VariableDefinitionStatement(
+                variable_name=element_name,
+                data_type=element_type,
+                initial_value=_create_default_value_expression(element_type),
+            )
+        )
+        self._expect(TokenType.WITH, "'with' in collect expression")
+        collection_expression: Final = self._expression(context, Precedence.UNKNOWN)
+        collection_expression_type: Final = collection_expression.get_data_type()
+        if collection_expression_type != element_type:
+            raise CollectExpressionTypeError(
+                expected_type=element_type,
+                actual_type=collection_expression_type,
+            )
+        # We remove the accumulator and element variables from the context after parsing the collect expression.
+        # This way, we simulate having scopes, although we don't really support scopes.
+        context.variable_definitions.pop()
+        context.variable_definitions.pop()
+        return CollectExpression(
+            iterable=iterable,
+            accumulator_variable_name=accumulator_name,
+            element_variable_name=element_name,
+            expression=collection_expression,
         )
 
     _PARSER_TABLE = {
@@ -842,9 +909,11 @@ class Parser:
         TokenType.AND: _TableEntry(None, _binary_expression, Precedence.AND),
         TokenType.OR: _TableEntry(None, _binary_expression, Precedence.OR),
         TokenType.NOT: _TableEntry(_unary_operation, None, Precedence.UNARY),
-        TokenType.FOR: _TableEntry(_list_comprehension, None, Precedence.UNARY),
+        TokenType.FOR: _TableEntry(_list_comprehension, None, Precedence.UNKNOWN),
         TokenType.AS: _TableEntry.unused(),
-        TokenType.YIELD: _TableEntry.unused(),
+        TokenType.YEET: _TableEntry.unused(),
+        TokenType.COLLECT: _TableEntry(_collect, None, Precedence.UNKNOWN),
+        TokenType.WITH: _TableEntry.unused(),
         TokenType.END_OF_INPUT: _TableEntry.unused(),
     }
 

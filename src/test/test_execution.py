@@ -7,11 +7,13 @@ from typing import final
 import pytest
 
 from chatbot2k.scripting_engine.lexer import Lexer
-from chatbot2k.scripting_engine.parser import AssignmentTypeError, NestedListComprehensionsWithoutParenthesesError
+from chatbot2k.scripting_engine.parser import AssignmentTypeError
+from chatbot2k.scripting_engine.parser import CollectExpressionTypeError
 from chatbot2k.scripting_engine.parser import EmptyListLiteralWithoutTypeAnnotationError
 from chatbot2k.scripting_engine.parser import ExpectedEmptyListLiteralError
 from chatbot2k.scripting_engine.parser import InitializationTypeError
 from chatbot2k.scripting_engine.parser import ListElementTypeMismatchError
+from chatbot2k.scripting_engine.parser import NestedListComprehensionsWithoutParenthesesError
 from chatbot2k.scripting_engine.parser import Parser
 from chatbot2k.scripting_engine.parser import SubscriptOperatorTypeError
 from chatbot2k.scripting_engine.parser import TypeNotCallableError
@@ -573,36 +575,36 @@ async def _create_callable_script(script_name: str, source: str) -> CallableScri
         ),
         # List comprehensions
         (
-            "LET words = ['123', '456']; PRINT 'type'(for words as word yield $word);",
+            "LET words = ['123', '456']; PRINT 'type'(for words as word yeet $word);",
             _Success("list<number>"),
         ),
         (
-            "LET words = ['123', '456']; LET numbers = for words as word yield $word; PRINT numbers;",
+            "LET words = ['123', '456']; LET numbers = for words as word yeet $word; PRINT numbers;",
             _Success("[123, 456]"),
         ),
         (
-            "LET shadowed = 0; LET words = ['123', '456']; LET numbers = for words as shadowed yield $shadowed;",
+            "LET shadowed = 0; LET words = ['123', '456']; LET numbers = for words as shadowed yeet $shadowed;",
             _Error(VariableRedefinitionError, "Variable 'shadowed' is already defined."),
         ),
         (
-            "LET words = ['123', '456']; LET numbers = for words as word yield $unknown;",
+            "LET words = ['123', '456']; LET numbers = for words as word yeet $unknown;",
             _Error(UnknownVariableError, "Variable 'unknown' is not defined."),
         ),
         (
-            "LET numbers = for words as word yield $word;",
+            "LET numbers = for words as word yeet $word;",
             _Error(UnknownVariableError, "Variable 'words' is not defined."),
         ),
         (
-            "PRINT for [1, 2, 3, 4, 5] as num yield num * num;",
+            "PRINT for [1, 2, 3, 4, 5] as num yeet num * num;",
             _Success("[1, 4, 9, 16, 25]"),
         ),
         (
-            "PRINT for [] as item yield 'should fail';",
+            "PRINT for [] as item yeet 'should fail';",
             _Error(ExecutionError, "Unable to deduce type of empty list literal."),
         ),
         (
             "LET nested_lists = [[1, 2], [3, 4], [5]]; "
-            + "PRINT for nested_lists as sublist yield for sublist as num yield num * 2;",
+            + "PRINT for nested_lists as sublist yeet for sublist as num yeet num * 2;",
             _Error(
                 NestedListComprehensionsWithoutParenthesesError,
                 "Nested list comprehensions must be enclosed in parentheses.",
@@ -610,12 +612,55 @@ async def _create_callable_script(script_name: str, source: str) -> CallableScri
         ),
         (
             "LET nested_lists = [[1, 2], [3, 4], [5]]; "
-            + "PRINT (for nested_lists as sublist yield (for sublist as num yield num * 2));",
+            + "PRINT (for nested_lists as sublist yeet (for sublist as num yeet num * 2));",
             _Success("[[2, 4], [6, 8], [10]]"),
         ),
         (
-            "LET words = ['apple', 'banana', 'cherry']; " + "PRINT for words as word yield 'upper'(word);",
+            "LET words = ['apple', 'banana', 'cherry']; " + "PRINT for words as word yeet 'upper'(word);",
             _Success("[APPLE, BANANA, CHERRY]"),
+        ),
+        # Collect
+        (
+            "LET numbers = [1, 2, 3];"
+            + "LET sum = collect numbers as accumulator, element with accumulator + element;"
+            + "PRINT sum;",
+            _Success("6"),
+        ),
+        (
+            "LET numbers = [1, 2, 3];"
+            + "LET product = collect numbers as acc, elem with acc * elem;"
+            + "PRINT product;",
+            _Success("6"),
+        ),
+        (
+            "LET words = ['Hello', ' ', 'World', '!'];"
+            + "LET message = collect words as acc, elem with acc + elem;"
+            + "PRINT message;",
+            _Success("Hello World!"),
+        ),
+        (
+            "LET result = collect [] as acc, elem with acc + elem;" + "PRINT result;",
+            _Error(
+                ExecutionError,
+                "Unable to deduce type of empty list literal.",
+            ),
+        ),
+        (
+            "LET words = ['Hello', ' ', 'World', '!'];" + "LET message = collect words as acc, elem with $acc + $elem;",
+            _Error(
+                CollectExpressionTypeError,
+                "Collect expression type error: expected 'string', got 'number'.",
+            ),
+        ),
+        (
+            """LET nested = [[1, 2], [3, 4], [5]];
+LET sum = collect (
+    for nested as inner_list yeet (
+        collect inner_list as acc, num with acc + num
+    )
+) as outer_acc, inner_sum with outer_acc + inner_sum;
+PRINT sum;""",
+            _Success("15"),
         ),
     ],
 )

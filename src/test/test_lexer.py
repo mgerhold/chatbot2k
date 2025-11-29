@@ -17,7 +17,7 @@ def _tokenize_source(source: str) -> list[Token]:
 def test_tokenize_can_analyze_all_token_types() -> None:
     source: Final = (
         r";=+-*/()STORE PRINT some_identifier_123 'my string 🐍\'quoted\'\ntext on second line' 3.14 "
-        + "LET PARAMS,$!:?true false== != < <= > >= and or not#[]string number bool list for as yield"
+        + "LET PARAMS,$!:?true false== != < <= > >= and or not#[]string number bool list for as yeet collect with"
     )
     tokens: Final = _tokenize_source(source)
 
@@ -183,13 +183,21 @@ def test_tokenize_can_analyze_all_token_types() -> None:
     assert tokens[39].source_location == SourceLocation(source, offset=172, length=2)
     assert tokens[39].source_location.lexeme == "as"
 
-    assert tokens[40].type == TokenType.YIELD
-    assert tokens[40].source_location == SourceLocation(source, offset=175, length=5)
-    assert tokens[40].source_location.lexeme == "yield"
+    assert tokens[40].type == TokenType.YEET
+    assert tokens[40].source_location == SourceLocation(source, offset=175, length=4)
+    assert tokens[40].source_location.lexeme == "yeet"
 
-    assert tokens[41].type == TokenType.END_OF_INPUT
-    assert tokens[41].source_location == SourceLocation(source, offset=180, length=1)
-    assert tokens[41].source_location.lexeme == ""
+    assert tokens[41].type == TokenType.COLLECT
+    assert tokens[41].source_location == SourceLocation(source, offset=180, length=7)
+    assert tokens[41].source_location.lexeme == "collect"
+
+    assert tokens[42].type == TokenType.WITH
+    assert tokens[42].source_location == SourceLocation(source, offset=188, length=4)
+    assert tokens[42].source_location.lexeme == "with"
+
+    assert tokens[43].type == TokenType.END_OF_INPUT
+    assert tokens[43].source_location == SourceLocation(source, offset=192, length=1)
+    assert tokens[43].source_location.lexeme == ""
 
 
 def test_invalid_escape_sequence_raises() -> None:

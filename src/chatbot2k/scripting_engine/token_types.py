@@ -49,6 +49,8 @@ class TokenType(Enum):
 
     FOR = auto()
     AS = auto()
-    YIELD = auto()
+    YEET = auto()
+    COLLECT = auto()
+    WITH = auto()
 
     END_OF_INPUT = auto()

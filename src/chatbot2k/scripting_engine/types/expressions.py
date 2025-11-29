@@ -49,6 +49,7 @@ class ExpressionType(StrEnum):
     LIST_LITERAL = "list_literal"
     SUBSCRIPT_OPERATION = "subscript_operation"
     LIST_COMPREHENSION = "list_comprehension"
+    COLLECT = "collect"
 
 
 class BaseExpression(BaseModel, ABC):
@@ -724,6 +725,56 @@ class ListComprehensionExpression(BaseExpression):
         )
 
 
+@final
+class CollectExpression(BaseExpression):
+    """
+    Expression of the form `collect <iterable> as <accumulator>, <element> with <expression>`,
+    where `<iterable>` can either be a list or a string. The types of `<accumulator>`, `<element>`, and
+    `<expression>` have to be identical and are determined by the type of `<iterable>`. This is
+    already checked by the parser.
+    """
+
+    model_config = ConfigDict(frozen=True)
+
+    expression_type: Literal[ExpressionType.COLLECT] = ExpressionType.COLLECT
+    iterable: "Expression"
+    accumulator_variable_name: str
+    element_variable_name: str
+    expression: "Expression"
+
+    @override
+    def get_data_type(self) -> DataType:
+        return self.expression.get_data_type()
+
+    @override
+    async def evaluate(
+        self,
+        context: ExecutionContext,
+    ) -> Value:
+        iterable_value: Final = await self.iterable.evaluate(context)
+        match iterable_value:
+            case StringValue(value=s):
+                string_accumulator = StringValue(value="")
+                for char in s:
+                    context.variables[self.accumulator_variable_name] = string_accumulator
+                    context.variables[self.element_variable_name] = StringValue(value=char)
+                    string_accumulator = await self.expression.evaluate(context)
+                return string_accumulator
+            case ListValue(elements=iterable_elements):
+                if not iterable_elements:
+                    msg = "Collect expression iterable must not be empty."
+                    raise ExecutionError(msg)
+                list_accumulator = iterable_elements[0]
+                for item in iterable_elements[1:]:
+                    context.variables[self.accumulator_variable_name] = list_accumulator
+                    context.variables[self.element_variable_name] = item
+                    list_accumulator = await self.expression.evaluate(context)
+                return list_accumulator
+            case _:
+                msg = f"Collect expression iterable must be a string or a list, got {iterable_value.get_data_type()}"
+                raise ExecutionError(msg)
+
+
 type Expression = Annotated[
     StringLiteralExpression
     | NumberLiteralExpression
@@ -738,7 +789,8 @@ type Expression = Annotated[
     | ListOfEmptyListsLiteralExpression
     | ListLiteralExpression
     | SubscriptOperationExpression
-    | ListComprehensionExpression,
+    | ListComprehensionExpression
+    | CollectExpression,
     Discriminator("expression_type"),
 ]
 
