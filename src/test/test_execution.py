@@ -294,6 +294,41 @@ async def _create_callable_script(script_name: str, source: str) -> CallableScri
         ("PRINT split('hello world',);", _Success("[hello, world]")),
         ("PRINT split('a,b,c', ',',);", _Success("[a, b, c]")),
         ("LET text = 'x:y:z'; PRINT split(text, ':',);", _Success("[x, y, z]")),
+        # Join expressions
+        ("PRINT join(['hello', 'world']);", _Success("helloworld")),
+        ("PRINT join(['a', 'b', 'c'], ',');", _Success("a,b,c")),
+        ("PRINT join(['one', 'two', 'three'], '  ');", _Success("one  two  three")),
+        ("LET parts = ['foo', 'bar', 'baz']; PRINT join(parts, '-');", _Success("foo-bar-baz")),
+        ("PRINT 'type'(join(['test']));", _Success("string")),
+        ("PRINT join(['single']);", _Success("single")),
+        ("LET empty: list<string> = []; PRINT join(empty);", _Success("")),
+        ("LET words = ['alpha', 'beta', 'gamma']; PRINT 'length'(join(words));", _Success("14")),
+        ("LET parts = ['1', '2', '3', '4', '5']; PRINT join(parts, ',');", _Success("1,2,3,4,5")),
+        # Join expressions with trailing commas
+        ("PRINT join(['hello', 'world'],);", _Success("helloworld")),
+        ("PRINT join(['a', 'b', 'c'], ',',);", _Success("a,b,c")),
+        ("LET parts = ['x', 'y', 'z']; PRINT join(parts, ':',);", _Success("x:y:z")),
+        (
+            "PRINT join('not a list');",
+            _Error(
+                ParserTypeError,
+                "join expects a list as the first argument, got 'string'",
+            ),
+        ),
+        (
+            "PRINT join([1, 2, 3]);",
+            _Error(
+                ParserTypeError,
+                "join expects a list of strings, got 'list<number>'",
+            ),
+        ),
+        (
+            "PRINT join(['text'], 123);",
+            _Error(
+                ParserTypeError,
+                "join expects a string as the second argument, got 'number'",
+            ),
+        ),
         (
             "PRINT split(123);",
             _Error(

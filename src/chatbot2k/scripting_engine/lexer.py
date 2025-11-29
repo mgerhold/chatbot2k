@@ -28,6 +28,7 @@ _BUILTIN_KEYWORDS = {
     "collect": TokenType.COLLECT,
     "with": TokenType.WITH,
     "split": TokenType.SPLIT,
+    "join": TokenType.JOIN,
 }
 
 _SINGLE_CHAR_TOKENS = {

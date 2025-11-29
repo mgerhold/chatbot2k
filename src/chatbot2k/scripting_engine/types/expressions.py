@@ -52,6 +52,7 @@ class ExpressionType(StrEnum):
     LIST_COMPREHENSION = "list_comprehension"
     COLLECT = "collect"
     SPLIT_OPERATION = "split_operation"
+    JOIN_OPERATION = "join_operation"
 
 
 class BaseExpression(BaseModel, ABC):
@@ -844,6 +845,53 @@ class SplitExpression(BaseExpression):
         )
 
 
+class JoinExpression(BaseExpression):
+    """
+    Expression of the form `join(<list<string>>)` or `join(<list<string>>, <delimiter>)`.
+    Joins the list of strings with the delimiter (or with no separator if no delimiter is provided).
+    Always returns a `string`.
+    """
+
+    model_config = ConfigDict(frozen=True)
+
+    expression_type: Literal[ExpressionType.JOIN_OPERATION] = ExpressionType.JOIN_OPERATION
+    list_expression: "Expression"
+    delimiter_expression: Optional["Expression"]
+
+    @override
+    def get_data_type(self) -> DataType:
+        return StringType()
+
+    @override
+    async def evaluate(
+        self,
+        context: ExecutionContext,
+    ) -> Value:
+        list_value: Final = await self.list_expression.evaluate(context)
+        if not isinstance(list_value, ListValue):
+            msg = f"join() requires a list as first argument, got '{list_value.get_data_type()}'"
+            raise ExecutionError(msg)
+
+        # Verify all elements are strings
+        string_elements: list[StringValue] = []
+        for element in list_value.elements:
+            if not isinstance(element, StringValue):
+                msg = f"join() requires a list of strings, got list containing '{element.get_data_type()}'"
+                raise ExecutionError(msg)
+            string_elements.append(element)
+
+        delimiter = ""
+        if self.delimiter_expression is not None:
+            delimiter_value: Final = await self.delimiter_expression.evaluate(context)
+            if not isinstance(delimiter_value, StringValue):
+                msg = f"join() requires a string as delimiter argument, got '{delimiter_value.get_data_type()}'"
+                raise ExecutionError(msg)
+            delimiter = delimiter_value.value
+
+        string_parts = [element.value for element in string_elements]
+        return StringValue(value=delimiter.join(string_parts))
+
+
 type Expression = Annotated[
     StringLiteralExpression
     | NumberLiteralExpression
@@ -860,7 +908,8 @@ type Expression = Annotated[
     | SubscriptOperationExpression
     | ListComprehensionExpression
     | CollectExpression
-    | SplitExpression,
+    | SplitExpression
+    | JoinExpression,
     Discriminator("expression_type"),
 ]
 
@@ -881,3 +930,4 @@ ListOfEmptyListsLiteralExpression.model_rebuild()
 ListComprehensionExpression.model_rebuild()
 CollectExpression.model_rebuild()
 SplitExpression.model_rebuild()
+JoinExpression.model_rebuild()

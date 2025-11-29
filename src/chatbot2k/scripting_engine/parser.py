@@ -25,6 +25,7 @@ from chatbot2k.scripting_engine.types.expressions import BoolLiteralExpression
 from chatbot2k.scripting_engine.types.expressions import CallOperationExpression
 from chatbot2k.scripting_engine.types.expressions import CollectExpression
 from chatbot2k.scripting_engine.types.expressions import Expression
+from chatbot2k.scripting_engine.types.expressions import JoinExpression
 from chatbot2k.scripting_engine.types.expressions import ListComprehensionExpression
 from chatbot2k.scripting_engine.types.expressions import ListLiteralExpression
 from chatbot2k.scripting_engine.types.expressions import ListOfEmptyListsLiteralExpression
@@ -931,6 +932,40 @@ class Parser:
             delimiter_expression=delimiter_expression,
         )
 
+    def _join(
+        self,
+        context: _ParseContext,
+    ) -> Expression:
+        self._expect(TokenType.JOIN, "'join' keyword")  # This is a double-check.
+        self._expect(TokenType.LEFT_PARENTHESIS, "'(' after join")
+
+        # Parse the first argument (the list to join)
+        list_expression: Final = self._expression(context, Precedence.UNKNOWN)
+        list_type: Final = list_expression.get_data_type()
+        if not isinstance(list_type, ListType):
+            raise ParserTypeError(f"join expects a list as the first argument, got '{list_type}'")
+        if not isinstance(list_type.of_type, StringType):
+            raise ParserTypeError(f"join expects a list of strings, got '{list_type}'")
+
+        # Check if there's a delimiter argument
+        delimiter_expression: Optional[Expression] = None
+        if self._match(TokenType.COMMA) is not None:
+            # Check if this is just a trailing comma (no second argument)
+            if self._current().type != TokenType.RIGHT_PARENTHESIS:
+                delimiter_expression = self._expression(context, Precedence.UNKNOWN)
+                delimiter_type: Final = delimiter_expression.get_data_type()
+                if not isinstance(delimiter_type, StringType):
+                    raise ParserTypeError(f"join expects a string as the second argument, got '{delimiter_type}'")
+                # Allow trailing comma after second argument
+                self._match(TokenType.COMMA)
+
+        self._expect(TokenType.RIGHT_PARENTHESIS, "')' after join arguments")
+
+        return JoinExpression(
+            list_expression=list_expression,
+            delimiter_expression=delimiter_expression,
+        )
+
     def _ensure_not_shadowed(
         self,
         identifier_name: str,
@@ -1002,6 +1037,7 @@ class Parser:
         TokenType.COLLECT: _TableEntry(_collect, None, Precedence.UNKNOWN),
         TokenType.WITH: _TableEntry.unused(),
         TokenType.SPLIT: _TableEntry(_split, None, Precedence.UNKNOWN),
+        TokenType.JOIN: _TableEntry(_join, None, Precedence.UNKNOWN),
         TokenType.END_OF_INPUT: _TableEntry.unused(),
     }
 

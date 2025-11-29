@@ -18,7 +18,7 @@ def test_tokenize_can_analyze_all_token_types() -> None:
     source: Final = (
         r";=+-*%/()STORE PRINT some_identifier_123 'my string 🐍\'quoted\'\ntext on second line' 3.14 "
         + "LET PARAMS,$!:?true false== != < <= > >= and or not#[]string number bool list for as yeet collect with "
-        + "if split"
+        + "if split join"
     )
     tokens: Final = _tokenize_source(source)
 
@@ -209,9 +209,13 @@ def test_tokenize_can_analyze_all_token_types() -> None:
     assert tokens[45].source_location == SourceLocation(source, offset=197, length=5)
     assert tokens[45].source_location.lexeme == "split"
 
-    assert tokens[46].type == TokenType.END_OF_INPUT
-    assert tokens[46].source_location == SourceLocation(source, offset=202, length=1)
-    assert tokens[46].source_location.lexeme == ""
+    assert tokens[46].type == TokenType.JOIN
+    assert tokens[46].source_location == SourceLocation(source, offset=203, length=4)
+    assert tokens[46].source_location.lexeme == "join"
+
+    assert tokens[47].type == TokenType.END_OF_INPUT
+    assert tokens[47].source_location == SourceLocation(source, offset=207, length=1)
+    assert tokens[47].source_location.lexeme == ""
 
 
 def test_invalid_escape_sequence_raises() -> None:

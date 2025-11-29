@@ -55,5 +55,6 @@ class TokenType(Enum):
     COLLECT = auto()
     WITH = auto()
     SPLIT = auto()
+    JOIN = auto()
 
     END_OF_INPUT = auto()
