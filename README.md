@@ -77,6 +77,7 @@ The following keywords are reserved in the scripting language:
 - `or`
 - `PARAMS`
 - `PRINT`
+- `split`
 - `string`
 - `STORE`
 - `true`
@@ -218,6 +219,7 @@ The following expressions are supported:
 - **Conversion to Boolean**: The prefix `?` operator converts a value to a boolean. For numbers, `0` is converted to `false`, all other numbers to `true`. For strings, only the literals `'true'` and `'false'` can be converted to their respective boolean values. Applying the operator to a boolean has no effect.
 - **Code Evaluation**: The prefix `!` operator evaluates a string as code and returns the result as a string. The evaluated source code must not contain any stores, or parameters. It cannot access any values from the surrounding script context.
 - **Function Calls**: Call builtin functions using the syntax `'function_name'(arg1, arg2, ...)`. See the Builtin Functions section below for available functions.
+- **Split Expressions**: Split a string into a list of strings using the syntax `split(string)` or `split(string, delimiter)`. If no delimiter is provided, the string is split by spaces. The result is always of type `list<string>`. Both arguments must be strings if a delimiter is provided.
 - **List Comprehensions**: Create new lists by transforming elements from an iterable (string or list) using the syntax
   `for <iterable> as <element> [if <condition>] yeet <expression>`. The optional `if <condition>` filters which
   elements are processed. See the List Comprehensions section below for details.

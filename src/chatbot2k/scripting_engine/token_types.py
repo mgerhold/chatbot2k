@@ -54,5 +54,6 @@ class TokenType(Enum):
     YEET = auto()
     COLLECT = auto()
     WITH = auto()
+    SPLIT = auto()
 
     END_OF_INPUT = auto()

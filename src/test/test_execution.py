@@ -280,6 +280,34 @@ async def _create_callable_script(script_name: str, source: str) -> CallableScri
                 "Operator \\+ is not supported for list operands of different element types",
             ),
         ),
+        # Split expressions
+        ("PRINT split('hello world');", _Success("[hello, world]")),
+        ("PRINT split('a,b,c', ',');", _Success("[a, b, c]")),
+        ("PRINT split('one  two  three', '  ');", _Success("[one, two, three]")),
+        ("LET text = 'foo-bar-baz'; PRINT split(text, '-');", _Success("[foo, bar, baz]")),
+        ("PRINT 'type'(split('test'));", _Success("list<string>")),
+        ("PRINT split('single');", _Success("[single]")),
+        ("PRINT split('');", _Success("[]")),
+        ("LET words = split('alpha beta gamma'); PRINT 'length'(words);", _Success("3")),
+        ("LET parts = split('1,2,3,4,5', ','); PRINT parts;", _Success("[1, 2, 3, 4, 5]")),
+        # Split expressions with trailing commas
+        ("PRINT split('hello world',);", _Success("[hello, world]")),
+        ("PRINT split('a,b,c', ',',);", _Success("[a, b, c]")),
+        ("LET text = 'x:y:z'; PRINT split(text, ':',);", _Success("[x, y, z]")),
+        (
+            "PRINT split(123);",
+            _Error(
+                ParserTypeError,
+                "split expects a string as the first argument, got 'number'",
+            ),
+        ),
+        (
+            "PRINT split('text', 123);",
+            _Error(
+                ParserTypeError,
+                "split expects a string as the second argument, got 'number'",
+            ),
+        ),
         # Integration
         ("PRINT 'First'; PRINT 'Second'; PRINT 'Third';", _Success("FirstSecondThird")),
         (

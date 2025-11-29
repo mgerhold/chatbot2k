@@ -51,6 +51,7 @@ class ExpressionType(StrEnum):
     SUBSCRIPT_OPERATION = "subscript_operation"
     LIST_COMPREHENSION = "list_comprehension"
     COLLECT = "collect"
+    SPLIT_OPERATION = "split_operation"
 
 
 class BaseExpression(BaseModel, ABC):
@@ -800,6 +801,49 @@ class CollectExpression(BaseExpression):
                 raise ExecutionError(msg)
 
 
+@final
+class SplitExpression(BaseExpression):
+    """
+    Expression of the form `split(<string>)` or `split(<string>, <delimiter>)`.
+    Splits the string by the delimiter (or by space if no delimiter is provided).
+    Always returns a `list<string>`.
+    """
+
+    model_config = ConfigDict(frozen=True)
+
+    expression_type: Literal[ExpressionType.SPLIT_OPERATION] = ExpressionType.SPLIT_OPERATION
+    string_expression: "Expression"
+    delimiter_expression: Optional["Expression"]
+
+    @override
+    def get_data_type(self) -> DataType:
+        return ListType(of_type=StringType())
+
+    @override
+    async def evaluate(
+        self,
+        context: ExecutionContext,
+    ) -> Value:
+        string_value: Final = await self.string_expression.evaluate(context)
+        if not isinstance(string_value, StringValue):
+            msg = f"split() requires a string as first argument, got '{string_value.get_data_type()}'"
+            raise ExecutionError(msg)
+
+        delimiter = " "
+        if self.delimiter_expression is not None:
+            delimiter_value: Final = await self.delimiter_expression.evaluate(context)
+            if not isinstance(delimiter_value, StringValue):
+                msg = f"split() requires a string as delimiter argument, got '{delimiter_value.get_data_type()}'"
+                raise ExecutionError(msg)
+            delimiter = delimiter_value.value
+
+        parts = string_value.value.split(delimiter)
+        return ListValue(
+            elements=[StringValue(value=part) for part in parts],
+            element_type=StringType(),
+        )
+
+
 type Expression = Annotated[
     StringLiteralExpression
     | NumberLiteralExpression
@@ -815,7 +859,8 @@ type Expression = Annotated[
     | ListLiteralExpression
     | SubscriptOperationExpression
     | ListComprehensionExpression
-    | CollectExpression,
+    | CollectExpression
+    | SplitExpression,
     Discriminator("expression_type"),
 ]
 
@@ -834,3 +879,5 @@ CallOperationExpression.model_rebuild()
 SubscriptOperationExpression.model_rebuild()
 ListOfEmptyListsLiteralExpression.model_rebuild()
 ListComprehensionExpression.model_rebuild()
+CollectExpression.model_rebuild()
+SplitExpression.model_rebuild()

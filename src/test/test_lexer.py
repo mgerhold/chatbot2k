@@ -18,11 +18,12 @@ def test_tokenize_can_analyze_all_token_types() -> None:
     source: Final = (
         r";=+-*%/()STORE PRINT some_identifier_123 'my string 🐍\'quoted\'\ntext on second line' 3.14 "
         + "LET PARAMS,$!:?true false== != < <= > >= and or not#[]string number bool list for as yeet collect with "
-        + "if"
+        + "if split"
     )
     tokens: Final = _tokenize_source(source)
 
-    # Add 1 because we have two different keywords for boolean literals (`true` and `false`).
+    # Add 1 because we have two different keywords for boolean literals (`true` and `false`),
+    # so they map to 2 tokens but share one TokenType.
     assert len(tokens) == len(TokenType) + 1
     assert tokens[0].type == TokenType.SEMICOLON
     assert tokens[0].source_location == SourceLocation(source, offset=0, length=1)
@@ -204,9 +205,13 @@ def test_tokenize_can_analyze_all_token_types() -> None:
     assert tokens[44].source_location == SourceLocation(source, offset=194, length=2)
     assert tokens[44].source_location.lexeme == "if"
 
-    assert tokens[45].type == TokenType.END_OF_INPUT
-    assert tokens[45].source_location == SourceLocation(source, offset=196, length=1)
-    assert tokens[45].source_location.lexeme == ""
+    assert tokens[45].type == TokenType.SPLIT
+    assert tokens[45].source_location == SourceLocation(source, offset=197, length=5)
+    assert tokens[45].source_location.lexeme == "split"
+
+    assert tokens[46].type == TokenType.END_OF_INPUT
+    assert tokens[46].source_location == SourceLocation(source, offset=202, length=1)
+    assert tokens[46].source_location.lexeme == ""
 
 
 def test_invalid_escape_sequence_raises() -> None:

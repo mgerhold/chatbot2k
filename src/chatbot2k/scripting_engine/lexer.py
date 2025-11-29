@@ -27,6 +27,7 @@ _BUILTIN_KEYWORDS = {
     "yeet": TokenType.YEET,
     "collect": TokenType.COLLECT,
     "with": TokenType.WITH,
+    "split": TokenType.SPLIT,
 }
 
 _SINGLE_CHAR_TOKENS = {

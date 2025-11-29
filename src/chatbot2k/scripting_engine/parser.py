@@ -30,6 +30,7 @@ from chatbot2k.scripting_engine.types.expressions import ListLiteralExpression
 from chatbot2k.scripting_engine.types.expressions import ListOfEmptyListsLiteralExpression
 from chatbot2k.scripting_engine.types.expressions import NumberLiteralExpression
 from chatbot2k.scripting_engine.types.expressions import ParameterIdentifierExpression
+from chatbot2k.scripting_engine.types.expressions import SplitExpression
 from chatbot2k.scripting_engine.types.expressions import StoreIdentifierExpression
 from chatbot2k.scripting_engine.types.expressions import StringLiteralExpression
 from chatbot2k.scripting_engine.types.expressions import SubscriptOperationExpression
@@ -898,6 +899,38 @@ class Parser:
             expression=collection_expression,
         )
 
+    def _split(
+        self,
+        context: _ParseContext,
+    ) -> Expression:
+        self._expect(TokenType.SPLIT, "'split' keyword")  # This is a double-check.
+        self._expect(TokenType.LEFT_PARENTHESIS, "'(' after split")
+
+        # Parse the first argument (the string to split)
+        string_expression: Final = self._expression(context, Precedence.UNKNOWN)
+        string_type: Final = string_expression.get_data_type()
+        if not isinstance(string_type, StringType):
+            raise ParserTypeError(f"split expects a string as the first argument, got '{string_type}'")
+
+        # Check if there's a delimiter argument
+        delimiter_expression: Optional[Expression] = None
+        if self._match(TokenType.COMMA) is not None:
+            # Check if this is just a trailing comma (no second argument)
+            if self._current().type != TokenType.RIGHT_PARENTHESIS:
+                delimiter_expression = self._expression(context, Precedence.UNKNOWN)
+                delimiter_type: Final = delimiter_expression.get_data_type()
+                if not isinstance(delimiter_type, StringType):
+                    raise ParserTypeError(f"split expects a string as the second argument, got '{delimiter_type}'")
+                # Allow trailing comma after second argument
+                self._match(TokenType.COMMA)
+
+        self._expect(TokenType.RIGHT_PARENTHESIS, "')' after split arguments")
+
+        return SplitExpression(
+            string_expression=string_expression,
+            delimiter_expression=delimiter_expression,
+        )
+
     def _ensure_not_shadowed(
         self,
         identifier_name: str,
@@ -968,6 +1001,7 @@ class Parser:
         TokenType.YEET: _TableEntry.unused(),
         TokenType.COLLECT: _TableEntry(_collect, None, Precedence.UNKNOWN),
         TokenType.WITH: _TableEntry.unused(),
+        TokenType.SPLIT: _TableEntry(_split, None, Precedence.UNKNOWN),
         TokenType.END_OF_INPUT: _TableEntry.unused(),
     }
 
