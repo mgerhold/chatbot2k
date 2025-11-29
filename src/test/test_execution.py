@@ -8,7 +8,10 @@ import pytest
 
 from chatbot2k.scripting_engine.lexer import Lexer
 from chatbot2k.scripting_engine.parser import AssignmentTypeError
+from chatbot2k.scripting_engine.parser import EmptyListLiteralWithoutTypeAnnotationError
+from chatbot2k.scripting_engine.parser import ExpectedEmptyListLiteralError
 from chatbot2k.scripting_engine.parser import InitializationTypeError
+from chatbot2k.scripting_engine.parser import ListElementTypeMismatchError
 from chatbot2k.scripting_engine.parser import Parser
 from chatbot2k.scripting_engine.parser import SubscriptOperatorTypeError
 from chatbot2k.scripting_engine.parser import TypeNotCallableError
@@ -318,7 +321,7 @@ async def _create_callable_script(script_name: str, source: str) -> CallableScri
         # String functions - length
         ("PRINT 'length'('hello');", _Success("5")),
         ("PRINT 'length'('');", _Success("0")),
-        ("PRINT 'length'(42);", _Error(ExecutionError, "'length' requires a string argument, got 'number'")),
+        ("PRINT 'length'(42);", _Error(ExecutionError, "'length' requires a string or list argument, got 'number'")),
         # String functions - upper
         ("PRINT 'upper'('hello');", _Success("HELLO")),
         ("PRINT 'upper'('HeLLo');", _Success("HELLO")),
@@ -358,11 +361,19 @@ async def _create_callable_script(script_name: str, source: str) -> CallableScri
         ("PRINT 'contains'('hello world', 'foo');", _Success("false")),
         (
             "PRINT 'contains'(42, 'a');",
-            _Error(ExecutionError, "'contains' requires string arguments, got 'number' and 'string'"),
+            _Error(
+                ExecutionError,
+                "'contains' requires either both arguments to be strings, or the first argument to be a value "
+                + "and the second argument to be a list",
+            ),
         ),
         (
             "PRINT 'contains'('hello', true);",
-            _Error(ExecutionError, "'contains' requires string arguments, got 'string' and 'bool'"),
+            _Error(
+                ExecutionError,
+                "'contains' requires either both arguments to be strings, or the first argument to be a value "
+                + "and the second argument to be a list",
+            ),
         ),
         # String functions - starts_with
         ("PRINT 'starts_with'('hello world', 'hello');", _Success("true")),
@@ -483,6 +494,81 @@ async def _create_callable_script(script_name: str, source: str) -> CallableScri
             _Error(
                 InitializationTypeError, "Cannot initialize variable 'flag' of type 'bool' with value of type 'string'"
             ),
+        ),
+        # Lists
+        ("LET empty_list: list<string> = []; PRINT 'type'(empty_list);", _Success("list<string>")),
+        ("LET empty_list: list<number> = []; PRINT 'type'(empty_list);", _Success("list<number>")),
+        ("LET empty_list: list<bool> = []; PRINT 'type'(empty_list);", _Success("list<bool>")),
+        ("LET empty_list: list<list<string>> = []; PRINT 'type'(empty_list);", _Success("list<list<string>>")),
+        (
+            "LET empty_list = [];",
+            _Error(
+                EmptyListLiteralWithoutTypeAnnotationError,
+                "Empty list literal requires an explicit type annotation.",
+            ),
+        ),
+        ("LET words: list<string> = ['Hello, ', 'world!']; PRINT 'type'(words);", _Success("list<string>")),
+        (
+            "LET words: list<number> = ['Hello, ', 'world!'];",
+            _Error(
+                InitializationTypeError,
+                "Cannot initialize variable 'words' of type 'list<number>' with value of type 'list<string>'.",
+            ),
+        ),
+        (
+            "LET elements = [42, 'not a number'];",
+            _Error(ListElementTypeMismatchError, "List element type mismatch: expected 'number', got 'string'."),
+        ),
+        ("LET elements: list<list<number>> = [[], [1, 2, 3]]; PRINT 'type'(elements);", _Success("list<list<number>>")),
+        ("LET elements = [[], [1, 2, 3]]; PRINT 'type'(elements);", _Success("list<list<number>>")),
+        ("LET elements = [[1], [], [], [], [2, 3, 4]]; PRINT 'type'(elements);", _Success("list<list<number>>")),
+        (
+            "LET elements = [[], [], []];",
+            _Error(
+                EmptyListLiteralWithoutTypeAnnotationError, "Empty list literal requires an explicit type annotation."
+            ),
+        ),
+        ("LET elements: list<list<number>> = [[], [], []]; PRINT 'type'(elements);", _Success("list<list<number>>")),
+        (
+            "LET elements: list<list<number>> = [[], [[]]]; PRINT 'type'(elements);",
+            _Error(
+                ExpectedEmptyListLiteralError,
+                r"Expected an empty list literal, got a list literal with 1 element\(s\).",
+            ),
+        ),
+        ("LET words = ['Hello, ', 'world!']; PRINT words;", _Success("[Hello, , world!]")),
+        ("LET numbers = [1, 2, 3, 4]; PRINT numbers;", _Success("[1, 2, 3, 4]")),
+        ("LET flags = [true, false, true]; PRINT flags;", _Success("[true, false, true]")),
+        ("LET nested = [[1, 2], [3, 4]]; PRINT nested;", _Success("[[1, 2], [3, 4]]")),
+        ("PRINT [1, 2, 3];", _Success("[1, 2, 3]")),
+        ("PRINT [1, 2, 3][0];", _Success("1")),
+        ("PRINT [1, 2, 3][3];", _Error(ExecutionError, "List index 3 out of range for list of length 3")),
+        ("PRINT [1, 2, 3][2.5];", _Error(ExecutionError, "List index must be an integer, got non-integer 2.5")),
+        ("PRINT [1, 2, 3][-1];", _Error(ExecutionError, "List index -1 out of range for list of length 3")),
+        ("PRINT [][0];", _Error(ExecutionError, "Unable to deduce type of empty list literal.")),
+        ("PRINT [[1, 2, 3], [4, 5], [6, 7]][1][0];", _Success("4")),
+        ("STORE my_list = [10, 20, 30]; PRINT my_list[1];", _Success("20")),
+        ("PRINT 'length'([1, 2, 3, 4, 5]);", _Success("5")),
+        ("LET numbers: list<number> = []; PRINT 'length'(numbers);", _Success("0")),
+        ("PRINT 'contains'([1, 2, 3, 4], 3);", _Success("true")),
+        ("PRINT 'contains'([1, 2, 3, 4], 5);", _Success("false")),
+        (
+            "PRINT 'contains'([1, 2, 3, 4], '3');",
+            _Error(
+                ExecutionError,
+                "'contains' requires the needle to be of the same type as the elements of the haystack list, "
+                + "got 'string' and 'list<number>'",
+            ),
+        ),
+        ("PRINT 'min'([5, 3, 8, 1, 9]);", _Success("1")),
+        (
+            "PRINT 'min'(['should', 'fail']);",
+            _Error(ExecutionError, "'min' requires number arguments, got list of string"),
+        ),
+        ("PRINT 'max'([5, 3, 8, 1, 9]);", _Success("9")),
+        (
+            "PRINT 'max'(['should', 'fail']);",
+            _Error(ExecutionError, "'max' requires number arguments, got list of string"),
         ),
     ],
 )

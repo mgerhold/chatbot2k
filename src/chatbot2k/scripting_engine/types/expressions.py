@@ -20,11 +20,13 @@ from chatbot2k.scripting_engine.token_types import TokenType
 from chatbot2k.scripting_engine.types.builtins import BUILTIN_FUNCTIONS
 from chatbot2k.scripting_engine.types.data_types import BoolType
 from chatbot2k.scripting_engine.types.data_types import DataType
+from chatbot2k.scripting_engine.types.data_types import ListType
 from chatbot2k.scripting_engine.types.data_types import NumberType
 from chatbot2k.scripting_engine.types.data_types import StringType
 from chatbot2k.scripting_engine.types.execution_context import ExecutionContext
 from chatbot2k.scripting_engine.types.execution_error import ExecutionError
 from chatbot2k.scripting_engine.types.value import BoolValue
+from chatbot2k.scripting_engine.types.value import ListValue
 from chatbot2k.scripting_engine.types.value import NumberValue
 from chatbot2k.scripting_engine.types.value import StringValue
 from chatbot2k.scripting_engine.types.value import Value
@@ -42,6 +44,9 @@ class ExpressionType(StrEnum):
     BINARY_OPERATION = "binary_operation"
     TERNARY_OPERATION = "ternary_operation"
     CALL_OPERATION = "call_operation"
+    EMPTY_LIST_LITERAL = "empty_list_literal"
+    LIST_OF_EMPTY_LISTS_LITERAL = "list_of_empty_lists_literal"
+    LIST_LITERAL = "list_literal"
     SUBSCRIPT_OPERATION = "subscript_operation"
 
 
@@ -374,6 +379,8 @@ class UnaryOperationExpression(BaseExpression):
                 UnaryOperator.PLUS
                 | UnaryOperator.NEGATE
                 | UnaryOperator.TO_NUMBER
+                | UnaryOperator.TO_BOOL
+                | UnaryOperator.TO_STRING
                 | UnaryOperator.EVALUATE
                 | UnaryOperator.NOT,
                 _,
@@ -432,6 +439,17 @@ class BinaryOperationExpression(BaseExpression):
             case (BoolType(), _, _) | (_, _, BoolType()):  # type: ignore[reportUnnecessaryComparison]
                 msg = f"Operator {self.operator} is not supported for boolean operands"
                 raise TypeError(msg)
+            case (ListType(), _, _) | (_, _, ListType()):
+                msg = f"Operator {self.operator} is not supported for list operands"
+                raise TypeError(msg)
+            case _:
+                # Pyright's exhaustiveness check doesn't seem to work here. We should
+                # not really need the default case.
+                msg = (
+                    f"Operator {self.operator} is not supported for the given operand types "
+                    + f"'{self.left.get_data_type()}' and '{self.right.get_data_type()}'"
+                )
+                raise TypeError(msg)
 
     @override
     async def evaluate(
@@ -486,7 +504,7 @@ class BinaryOperationExpression(BaseExpression):
                 return NumberValue(value=l / r)
             case StringValue(value=l), BinaryOperator.ADD, StringValue(value=r):
                 return StringValue(value=l + r)
-            case _, _, _:
+            case _:
                 msg = (
                     f"Operator {self.operator} is not supported for the given operand types "
                     + f"'{left_value.get_data_type()}' and '{right_value.get_data_type()}'"
@@ -560,6 +578,54 @@ class CallOperationExpression(BaseExpression):
 
 
 @final
+class ListOfEmptyListsLiteralExpression(BaseExpression):
+    """
+    Helper type to represent a list literal containing only empty lists during parsing.
+    This type should never be used during evaluation. After determining the concrete
+    element type, this expression type must be replaced with a `ListLiteralExpression`
+    with an explicit element type.
+    """
+
+    model_config = ConfigDict(frozen=True)
+    expression_type: Literal[ExpressionType.LIST_OF_EMPTY_LISTS_LITERAL] = ExpressionType.LIST_OF_EMPTY_LISTS_LITERAL
+    nested_empty_lists: list["ListOfEmptyListsLiteralExpression"]  # Empty if this is an empty list literal by itself.
+
+    @override
+    def get_data_type(self) -> DataType:
+        raise ExecutionError("Unable to deduce type of empty list literal.")
+
+    @override
+    async def evaluate(
+        self,
+        context: ExecutionContext,
+    ) -> Value:
+        raise AssertionError("List of empty lists literal must not be used directly without specifying element type.")
+
+
+@final
+class ListLiteralExpression(BaseExpression):
+    model_config = ConfigDict(frozen=True)
+
+    expression_type: Literal[ExpressionType.LIST_LITERAL] = ExpressionType.LIST_LITERAL
+    elements: "list[Expression]"
+    element_type: DataType
+
+    @override
+    def get_data_type(self) -> DataType:
+        return ListType(of_type=self.element_type)
+
+    @override
+    async def evaluate(
+        self,
+        context: ExecutionContext,
+    ) -> Value:
+        return ListValue(
+            element_type=self.element_type,
+            elements=[await element.evaluate(context) for element in self.elements],
+        )
+
+
+@final
 class SubscriptOperationExpression(BaseExpression):
     model_config = ConfigDict(frozen=True)
 
@@ -584,11 +650,20 @@ class SubscriptOperationExpression(BaseExpression):
                 if not i.is_integer():
                     msg = f"String index must be an integer, got non-integer {i}"
                     raise ExecutionError(msg)
-                int_index: Final = int(i)
+                int_index = int(i)
                 if int_index not in range(len(s)):
                     msg = f"String index {int_index} out of range for string of length {len(s)}"
                     raise ExecutionError(msg)
                 return StringValue(value=s[int_index])
+            case (ListValue(elements=elements), NumberValue(value=i)):
+                if not i.is_integer():
+                    msg = f"List index must be an integer, got non-integer {i}"
+                    raise ExecutionError(msg)
+                int_index = int(i)
+                if int_index not in range(len(elements)):
+                    msg = f"List index {int_index} out of range for list of length {len(elements)}"
+                    raise ExecutionError(msg)
+                return elements[int_index]
             case _, _:
                 msg = (
                     f"Subscript operation not supported for operand type '{operand_value.get_data_type()}' "
@@ -608,6 +683,8 @@ type Expression = Annotated[
     | BinaryOperationExpression
     | TernaryOperationExpression
     | CallOperationExpression
+    | ListOfEmptyListsLiteralExpression
+    | ListLiteralExpression
     | SubscriptOperationExpression,
     Discriminator("expression_type"),
 ]
@@ -625,3 +702,4 @@ BinaryOperationExpression.model_rebuild()
 TernaryOperationExpression.model_rebuild()
 CallOperationExpression.model_rebuild()
 SubscriptOperationExpression.model_rebuild()
+ListOfEmptyListsLiteralExpression.model_rebuild()

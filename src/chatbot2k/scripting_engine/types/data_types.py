@@ -15,6 +15,7 @@ class DataTypeKind(StrEnum):
     NUMBER = "number"
     STRING = "string"
     BOOL = "bool"
+    LIST = "list"
 
 
 class BaseDataType(BaseModel, ABC):
@@ -53,7 +54,20 @@ class BoolType(BaseDataType):
         return "bool"
 
 
+@final
+class ListType(BaseDataType):
+    kind: Literal[DataTypeKind.LIST] = DataTypeKind.LIST
+
+    of_type: "DataType"
+
+    @override
+    def __str__(self) -> str:
+        return f"list<{self.of_type}>"
+
+
 type DataType = Annotated[
-    NumberType | StringType | BoolType,
+    NumberType | StringType | BoolType | ListType,
     Discriminator("kind"),
 ]
+
+ListType.model_rebuild()

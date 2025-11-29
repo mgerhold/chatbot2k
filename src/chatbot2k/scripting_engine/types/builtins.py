@@ -15,9 +15,14 @@ from typing import cast
 from typing import final
 from typing import override
 
+from chatbot2k.scripting_engine.types.data_types import ListType
+from chatbot2k.scripting_engine.types.data_types import NumberType
 from chatbot2k.scripting_engine.types.execution_error import ExecutionError
+from chatbot2k.scripting_engine.types.value import BoolValue
+from chatbot2k.scripting_engine.types.value import ListValue
 from chatbot2k.scripting_engine.types.value import NumberValue
 from chatbot2k.scripting_engine.types.value import StringValue
+from chatbot2k.scripting_engine.types.value import Value
 
 if TYPE_CHECKING:
     from chatbot2k.scripting_engine.types.execution_context import ExecutionContext
@@ -95,10 +100,14 @@ class _LengthFunction(BuiltinFunction):
     async def execute(self, *args: "Expression", context: "ExecutionContext") -> str:
         assert len(args) == 1
         value: Final = await args[0].evaluate(context)
-        if not isinstance(value, StringValue):
-            msg: Final = f"'length' requires a string argument, got '{value.get_data_type()}'"
-            raise ExecutionError(msg)
-        return str(len(value.value))
+        match value:
+            case StringValue():
+                return str(len(value.value))
+            case ListValue():
+                return str(len(value.elements))
+            case _:
+                msg: Final = f"'length' requires a string or list argument, got '{value.get_data_type()}'"
+                raise ExecutionError(msg)
 
 
 @final
@@ -207,16 +216,48 @@ class _ContainsFunction(BuiltinFunction):
     @override
     async def execute(self, *args: "Expression", context: "ExecutionContext") -> str:
         assert len(args) == 2
-        text_value: Final = await args[0].evaluate(context)
-        substring_value: Final = await args[1].evaluate(context)
-        if not isinstance(substring_value, StringValue) or not isinstance(text_value, StringValue):
-            msg: Final = (
-                "'contains' requires string arguments, "
-                + f"got '{text_value.get_data_type()}' and '{substring_value.get_data_type()}'"
-            )
-            raise ExecutionError(msg)
-        result: Final = substring_value.value in text_value.value
-        return "true" if result else "false"
+        haystack: Final = await args[0].evaluate(context)
+        needle: Final = await args[1].evaluate(context)
+        match needle, haystack:
+            case StringValue(), StringValue():
+                return "true" if needle.value in haystack.value else "false"
+            case _, ListValue() as list_:
+                if needle.get_data_type() != cast(ListType, list_.get_data_type()).of_type:
+                    msg = (
+                        "'contains' requires the needle to be of the same type as the elements of the haystack list, "
+                        + f"got '{needle.get_data_type()}' and '{list_.get_data_type()}'"
+                    )
+                    raise ExecutionError(msg)
+                return (
+                    "true" if any(_ContainsFunction.equals(needle, element) for element in list_.elements) else "false"
+                )
+            case _:
+                msg = (
+                    "'contains' requires either both arguments to be strings, "
+                    + "or the first argument to be a value and the second argument to be a list"
+                )
+                raise ExecutionError(msg)
+
+    @staticmethod
+    def equals(lhs: Value, rhs: Value) -> bool:
+        match lhs, rhs:
+            case StringValue(), StringValue():
+                return lhs.value == rhs.value
+            case NumberValue(), NumberValue():
+                return lhs.value == rhs.value
+            case BoolValue(), BoolValue():
+                return lhs.value == rhs.value
+            case ListValue(), ListValue():
+                if lhs.get_data_type() != rhs.get_data_type():
+                    return False
+                if len(lhs.elements) != len(rhs.elements):
+                    return False
+                return all(
+                    _ContainsFunction.equals(left, right)
+                    for left, right in zip(lhs.elements, rhs.elements, strict=True)
+                )
+            case _:
+                raise AssertionError("Unreachable")
 
 
 @final
@@ -300,14 +341,23 @@ class _MinFunction(BuiltinFunction):
         assert len(args) >= 1
         values: Final = [await arg.evaluate(context) for arg in args]
 
+        first_element: Final = values[0]
+        if len(values) == 1 and isinstance(first_element, ListValue):
+            element_type: Final = first_element.get_data_type()
+            assert isinstance(element_type, ListType)
+            if not isinstance(element_type.of_type, NumberType):
+                msg = f"'min' requires number arguments, got list of {element_type.of_type}"
+                raise ExecutionError(msg)
+            return _format_number(min(cast(NumberValue, v).value for v in first_element.elements))
+
         # Check all are numbers.
         for i, val in enumerate(values):
             if not isinstance(val, NumberValue):
                 msg = f"'min' requires number arguments, got {val.get_data_type()} at position {i + 1}"
                 raise ExecutionError(msg)
 
-        number_values: Final = [v.value for v in values]
-        result: Final = cast(float, min(number_values))
+        number_values: Final = [cast(NumberValue, v).value for v in values]
+        result: Final = min(number_values)
         return _format_number(result)
 
 
@@ -325,14 +375,23 @@ class _MaxFunction(BuiltinFunction):
         assert len(args) >= 1
         values: Final = [await arg.evaluate(context) for arg in args]
 
+        first_element: Final = values[0]
+        if len(values) == 1 and isinstance(first_element, ListValue):
+            element_type: Final = first_element.get_data_type()
+            assert isinstance(element_type, ListType)
+            if not isinstance(element_type.of_type, NumberType):
+                msg = f"'max' requires number arguments, got list of {element_type.of_type}"
+                raise ExecutionError(msg)
+            return _format_number(max(cast(NumberValue, v).value for v in first_element.elements))
+
         # Check all are numbers.
         for i, val in enumerate(values):
             if not isinstance(val, NumberValue):
                 error_msg = f"'max' requires number arguments, got {val.get_data_type()} at position {i + 1}"
                 raise ExecutionError(error_msg)
 
-        number_values: Final = [v.value for v in values]
-        result: Final = cast(float, max(number_values))
+        number_values: Final = [cast(NumberValue, v).value for v in values]
+        result: Final = max(number_values)
         return _format_number(result)
 
 

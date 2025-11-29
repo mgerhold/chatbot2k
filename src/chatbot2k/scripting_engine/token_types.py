@@ -41,6 +41,7 @@ class TokenType(Enum):
     STRING = auto()
     NUMBER = auto()
     BOOL = auto()
+    LIST = auto()
 
     AND = auto()
     OR = auto()

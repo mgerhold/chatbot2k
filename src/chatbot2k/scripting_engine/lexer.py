@@ -20,6 +20,7 @@ _BUILTIN_KEYWORDS = {
     "string": TokenType.STRING,
     "number": TokenType.NUMBER,
     "bool": TokenType.BOOL,
+    "list": TokenType.LIST,
 }
 
 _SINGLE_CHAR_TOKENS = {

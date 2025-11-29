@@ -5,6 +5,7 @@ from typing import Final
 from typing import NamedTuple
 from typing import Optional
 from typing import Self
+from typing import cast
 from typing import final
 
 from chatbot2k.scripting_engine.precedence import Precedence
@@ -15,6 +16,7 @@ from chatbot2k.scripting_engine.types.ast import Script
 from chatbot2k.scripting_engine.types.ast import Store
 from chatbot2k.scripting_engine.types.data_types import BoolType
 from chatbot2k.scripting_engine.types.data_types import DataType
+from chatbot2k.scripting_engine.types.data_types import ListType
 from chatbot2k.scripting_engine.types.data_types import NumberType
 from chatbot2k.scripting_engine.types.data_types import StringType
 from chatbot2k.scripting_engine.types.expressions import BinaryOperationExpression
@@ -22,6 +24,8 @@ from chatbot2k.scripting_engine.types.expressions import BinaryOperator
 from chatbot2k.scripting_engine.types.expressions import BoolLiteralExpression
 from chatbot2k.scripting_engine.types.expressions import CallOperationExpression
 from chatbot2k.scripting_engine.types.expressions import Expression
+from chatbot2k.scripting_engine.types.expressions import ListLiteralExpression
+from chatbot2k.scripting_engine.types.expressions import ListOfEmptyListsLiteralExpression
 from chatbot2k.scripting_engine.types.expressions import NumberLiteralExpression
 from chatbot2k.scripting_engine.types.expressions import ParameterIdentifierExpression
 from chatbot2k.scripting_engine.types.expressions import StoreIdentifierExpression
@@ -44,7 +48,9 @@ class ParserError(RuntimeError): ...
 class ExpectedTokenError(ParserError):
     def __init__(self, token: Token, message: str) -> None:
         start_position: Final = token.source_location.range.start
-        super().__init__(f"Expected {message} at line {start_position.line}, column {start_position.column}.")
+        super().__init__(
+            f"Expected {message} at line {start_position.line}, column {start_position.column}, got '{token.type}'."
+        )
 
 
 @final
@@ -61,11 +67,15 @@ class VariableRedefinitionError(ParserError):
 
 @final
 class InitializationTypeError(ParserError):
-    def __init__(self, variable_name: str, expected_type: DataType, actual_type: DataType) -> None:
-        super().__init__(
-            f"Cannot initialize variable '{variable_name}' of type "
-            + f"'{expected_type}' with value of type '{actual_type}'."
-        )
+    def __init__(self, variable_name: str, expected_type: DataType, actual_type: Optional[DataType]) -> None:
+        if actual_type is None:
+            msg = f"Variable '{variable_name}' expected to be initialized with value of type '{expected_type}'."
+        else:
+            msg = (
+                f"Cannot initialize variable '{variable_name}' of type "
+                + f"'{expected_type}' with value of type '{actual_type}'."
+            )
+        super().__init__(msg)
 
 
 @final
@@ -132,6 +142,30 @@ class AssignmentTypeError(ParserError):
 class TypeNotCallableError(ParserError):
     def __init__(self, type_: DataType) -> None:
         super().__init__(f"Value of type '{type_}' is not callable.")
+
+
+@final
+class EmptyListLiteralWithoutTypeAnnotationError(ParserError):
+    def __init__(self) -> None:
+        super().__init__("Empty list literal requires an explicit type annotation.")
+
+
+@final
+class ListElementTypeMismatchError(ParserError):
+    def __init__(self, expected_type: DataType, actual_type: DataType) -> None:
+        super().__init__(f"List element type mismatch: expected '{expected_type}', got '{actual_type}'.")
+
+
+@final
+class ExpectedEmptyListLiteralError(ParserError):
+    def __init__(self, num_elements: int) -> None:
+        super().__init__(f"Expected an empty list literal, got a list literal with {num_elements} element(s).")
+
+
+@final
+class ExpectedNonEmptyListLiteralError(ParserError):
+    def __init__(self) -> None:
+        super().__init__("Expected a non-empty list literal.")
 
 
 type _UnaryParser = Callable[
@@ -311,7 +345,7 @@ class Parser:
         expression: Final = self._expression(context, Precedence.UNKNOWN)
         expression_type: Final = expression.get_data_type()
         match expression_type:
-            case StringType() | NumberType() | BoolType():
+            case StringType() | NumberType() | BoolType() | ListType():
                 return PrintStatement(argument=expression)
             case _:
                 raise ParserTypeError(expression_type)
@@ -393,10 +427,26 @@ class Parser:
             context,
             Precedence.UNKNOWN,
         )
+
+        # Empty list literals are a special case: They require an explicit type annotation.
+        if isinstance(initial_value, ListOfEmptyListsLiteralExpression):
+            if annotated_type is None:
+                raise EmptyListLiteralWithoutTypeAnnotationError()
+            if not isinstance(annotated_type, ListType):
+                raise InitializationTypeError(identifier_name, annotated_type, None)
+
+            definition = VariableDefinitionStatement(
+                variable_name=identifier_name,
+                data_type=annotated_type,
+                initial_value=_reify_list_of_empty_lists(initial_value, annotated_type),
+            )
+            context.variable_definitions.append(definition)
+            return definition
+
         initial_value_type: Final = initial_value.get_data_type()
         if annotated_type is not None and annotated_type != initial_value_type:
             raise InitializationTypeError(identifier_name, annotated_type, initial_value_type)
-        definition: Final = VariableDefinitionStatement(
+        definition = VariableDefinitionStatement(
             variable_name=identifier_name,
             data_type=initial_value_type,
             initial_value=initial_value,
@@ -415,6 +465,12 @@ class Parser:
             case TokenType.BOOL:
                 self._advance()
                 return BoolType()
+            case TokenType.LIST:
+                self._advance()
+                self._expect(TokenType.LESS_THAN, "'<' in list type")
+                element_type: Final = self._data_type()
+                self._expect(TokenType.GREATER_THAN, "'>' in list type")
+                return ListType(of_type=element_type)
             case _:
                 raise ExpectedTokenError(self._current(), "data type")
 
@@ -604,6 +660,67 @@ class Parser:
             arguments=arguments,
         )
 
+    def _list_literal(
+        self,
+        context: _ParseContext,
+    ) -> Expression:
+        self._expect(TokenType.LEFT_SQUARE_BRACKET, "'[' in list literal")  # This is a double-check.
+        elements: Final[list[Expression]] = []
+        while True:
+            if self._match(TokenType.RIGHT_SQUARE_BRACKET) is not None:
+                break
+            elements.append(self._expression(context, Precedence.UNKNOWN))
+            if self._match(TokenType.COMMA) is None:
+                self._expect(TokenType.RIGHT_SQUARE_BRACKET, "']' after list literal elements")
+                break
+
+        if not elements:
+            return ListOfEmptyListsLiteralExpression(nested_empty_lists=[])
+
+        # If a list contains empty list literals, they are not considered during type checking.
+        # However, at least one non-empty element must be present to infer the list's element type.
+        temp_elements: Final[list[Expression]] = []  # May contain `ListOfEmptyListsLiteralExpression` objects.
+        inferred_element_type: Optional[DataType] = None
+        for element in elements:
+            match element:
+                case ListOfEmptyListsLiteralExpression():
+                    temp_elements.append(element)
+                case _:
+                    element_type = element.get_data_type()
+                    if inferred_element_type is None:
+                        inferred_element_type = element_type
+                    elif inferred_element_type != element_type:
+                        raise ListElementTypeMismatchError(inferred_element_type, element_type)
+                    temp_elements.append(element)
+
+        if all(isinstance(element, ListOfEmptyListsLiteralExpression) for element in temp_elements):
+            return ListOfEmptyListsLiteralExpression(
+                nested_empty_lists=cast(list[ListOfEmptyListsLiteralExpression], elements)
+            )
+        assert inferred_element_type is not None, "The check above this line catches this."
+
+        if any(isinstance(element, ListOfEmptyListsLiteralExpression) for element in temp_elements) and not isinstance(
+            inferred_element_type, ListType
+        ):
+            # There are list literals inside this list, but there's also a non-list element.
+            raise ListElementTypeMismatchError(
+                expected_type=ListType(of_type=inferred_element_type),
+                actual_type=inferred_element_type,
+            )
+        inferred_elements: Final[list[Expression]] = []
+        for temp_element in temp_elements:
+            match temp_element:
+                case ListOfEmptyListsLiteralExpression():
+                    assert isinstance(inferred_element_type, ListType), "We checked this above."
+                    # Promote to empty list of known type.
+                    inferred_elements.append(_reify_list_of_empty_lists(temp_element, data_type=inferred_element_type))
+                case _:
+                    inferred_elements.append(temp_element)
+        return ListLiteralExpression(
+            elements=inferred_elements,
+            element_type=inferred_element_type,
+        )
+
     def _subscript_operator(
         self,
         left_operand: Expression,
@@ -620,6 +737,12 @@ class Parser:
                     operand=left_operand,
                     index=index_expression,
                     data_type=StringType(),
+                )
+            case ListType(of_type=element_type), NumberType():
+                return SubscriptOperationExpression(
+                    operand=left_operand,
+                    index=index_expression,
+                    data_type=element_type,
                 )
             case _, _:
                 raise SubscriptOperatorTypeError(operand_type, index_type)
@@ -645,7 +768,7 @@ class Parser:
         TokenType.SLASH: _TableEntry(None, _binary_expression, Precedence.PRODUCT),
         TokenType.LEFT_PARENTHESIS: _TableEntry(_grouped_expression, _call_operation, Precedence.CALL),
         TokenType.RIGHT_PARENTHESIS: _TableEntry.unused(),
-        TokenType.LEFT_SQUARE_BRACKET: _TableEntry(None, _subscript_operator, Precedence.CALL),
+        TokenType.LEFT_SQUARE_BRACKET: _TableEntry(_list_literal, _subscript_operator, Precedence.CALL),
         TokenType.RIGHT_SQUARE_BRACKET: _TableEntry.unused(),
         TokenType.STORE: _TableEntry.unused(),
         TokenType.PARAMS: _TableEntry.unused(),
@@ -658,6 +781,7 @@ class Parser:
         TokenType.STRING: _TableEntry.unused(),
         TokenType.NUMBER: _TableEntry.unused(),
         TokenType.BOOL: _TableEntry.unused(),
+        TokenType.LIST: _TableEntry.unused(),
         TokenType.AND: _TableEntry(None, _binary_expression, Precedence.AND),
         TokenType.OR: _TableEntry(None, _binary_expression, Precedence.OR),
         TokenType.NOT: _TableEntry(_unary_operation, None, Precedence.UNARY),
@@ -668,3 +792,19 @@ class Parser:
         missing_tokens: Final = set(TokenType) - set(_PARSER_TABLE)
         msg: Final = f"Parser table is missing entries for token types: {missing_tokens}"
         raise AssertionError(msg)
+
+
+def _reify_list_of_empty_lists(
+    literal: ListOfEmptyListsLiteralExpression,
+    data_type: ListType,
+) -> ListLiteralExpression:
+    if isinstance(data_type.of_type, ListType):
+        sub_lists: Final[list[Expression]] = [
+            _reify_list_of_empty_lists(literal=sub_literal, data_type=data_type.of_type)
+            for sub_literal in literal.nested_empty_lists
+        ]
+        return ListLiteralExpression(elements=sub_lists, element_type=data_type.of_type)
+    elif literal.nested_empty_lists:
+        raise ExpectedEmptyListLiteralError(len(literal.nested_empty_lists))
+    else:
+        return ListLiteralExpression(elements=[], element_type=data_type.of_type)
