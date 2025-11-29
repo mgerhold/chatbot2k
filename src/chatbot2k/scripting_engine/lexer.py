@@ -38,6 +38,7 @@ _SINGLE_CHAR_TOKENS = {
     "+": TokenType.PLUS,
     "-": TokenType.MINUS,
     "*": TokenType.ASTERISK,
+    "%": TokenType.PERCENT,
     "/": TokenType.SLASH,
     "(": TokenType.LEFT_PARENTHESIS,
     ")": TokenType.RIGHT_PARENTHESIS,

@@ -216,6 +216,7 @@ _BINARY_OPERATOR_BY_TOKEN_TYPE = {
     TokenType.MINUS: BinaryOperator.SUBTRACT,
     TokenType.ASTERISK: BinaryOperator.MULTIPLY,
     TokenType.SLASH: BinaryOperator.DIVIDE,
+    TokenType.PERCENT: BinaryOperator.MODULO,
     # Relational operators.
     TokenType.EQUALS_EQUALS: BinaryOperator.EQUALS,
     TokenType.EXCLAMATION_MARK_EQUALS: BinaryOperator.NOT_EQUALS,
@@ -920,6 +921,7 @@ class Parser:
         TokenType.PLUS: _TableEntry(_unary_operation, _binary_expression, Precedence.SUM),
         TokenType.MINUS: _TableEntry(_unary_operation, _binary_expression, Precedence.SUM),
         TokenType.ASTERISK: _TableEntry(None, _binary_expression, Precedence.PRODUCT),
+        TokenType.PERCENT: _TableEntry(None, _binary_expression, Precedence.PRODUCT),
         TokenType.SLASH: _TableEntry(None, _binary_expression, Precedence.PRODUCT),
         TokenType.LEFT_PARENTHESIS: _TableEntry(_grouped_expression, _call_operation, Precedence.CALL),
         TokenType.RIGHT_PARENTHESIS: _TableEntry.unused(),

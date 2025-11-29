@@ -1,9 +1,10 @@
 from abc import ABC
 from abc import abstractmethod
 from enum import StrEnum
-from typing import Annotated, Optional
+from typing import Annotated
 from typing import Final
 from typing import Literal
+from typing import Optional
 from typing import Self
 from typing import final
 from typing import override
@@ -241,6 +242,7 @@ class BinaryOperator(StrEnum):
     SUBTRACT = "-"
     MULTIPLY = "*"
     DIVIDE = "/"
+    MODULO = "%"
 
     EQUALS = "=="
     NOT_EQUALS = "!="
@@ -427,6 +429,7 @@ class BinaryOperationExpression(BaseExpression):
                 | (NumberType(), BinaryOperator.SUBTRACT, NumberType())
                 | (NumberType(), BinaryOperator.MULTIPLY, NumberType())
                 | (NumberType(), BinaryOperator.DIVIDE, NumberType())
+                | (NumberType(), BinaryOperator.MODULO, NumberType())
             ):
                 return NumberType()
             case (StringType(), BinaryOperator.ADD, StringType()):
@@ -504,6 +507,11 @@ class BinaryOperationExpression(BaseExpression):
                     msg = "Division by zero"
                     raise ExecutionError(msg)
                 return NumberValue(value=l / r)
+            case NumberValue(value=l), BinaryOperator.MODULO, NumberValue(value=r):
+                if r == 0:
+                    msg = "Modulo by zero"
+                    raise ExecutionError(msg)
+                return NumberValue(value=l % r)
             case StringValue(value=l), BinaryOperator.ADD, StringValue(value=r):
                 return StringValue(value=l + r)
             case _:

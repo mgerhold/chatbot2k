@@ -203,7 +203,7 @@ The following expressions are supported:
 - **Literals**: Numbers (e.g., `42`, `3.14`, `-7`), strings (e.g., `'Hello, world!'`), booleans (`true`, `false`), and
   lists (e.g., `[1, 2, 3]`, `['a', 'b', 'c']`, `[[1, 2], [3, 4]]`)
 - **Variable, Parameter and Store References**: Using the name of a variable, parameter, or store to get its current value.
-- **Arithmetic Operations**: Addition (`+`), subtraction (`-`), multiplication (`*`), and division (`/`) for numbers. The language supports both `+` and `-` in their unary and binary forms.
+- **Arithmetic Operations**: Addition (`+`), subtraction (`-`), multiplication (`*`), division (`/`), and modulo (`%`) for numbers. The language supports both `+` and `-` in their unary and binary forms.
 - **Comparison Operations**: Equal (`==`), not equal (`!=`), less than (`<`), less than or equal (`<=`), greater than (`>`), greater than or equal (`>=`) for all data types.
 - **Logical Operations**: And (`and`), or (`or`), and not (`not`) for boolean values.
 - **Ternary Operator**: The conditional expression `condition ? value_if_true : value_if_false` evaluates the condition and returns `value_if_true` if the condition is true, otherwise returns `value_if_false`. Both branches must have the same type.

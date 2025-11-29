@@ -21,6 +21,7 @@ class TokenType(Enum):
     PLUS = auto()
     MINUS = auto()
     ASTERISK = auto()
+    PERCENT = auto()
     QUESTION_MARK = auto()
     SLASH = auto()
     LEFT_PARENTHESIS = auto()

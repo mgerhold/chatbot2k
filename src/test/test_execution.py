@@ -7,8 +7,7 @@ from typing import final
 import pytest
 
 from chatbot2k.scripting_engine.lexer import Lexer
-from chatbot2k.scripting_engine.parser import AssignmentTypeError, VariableShadowsParameterError, \
-    VariableShadowsStoreError
+from chatbot2k.scripting_engine.parser import AssignmentTypeError
 from chatbot2k.scripting_engine.parser import CollectExpressionTypeError
 from chatbot2k.scripting_engine.parser import EmptyListLiteralWithoutTypeAnnotationError
 from chatbot2k.scripting_engine.parser import ExpectedEmptyListLiteralError
@@ -20,6 +19,8 @@ from chatbot2k.scripting_engine.parser import SubscriptOperatorTypeError
 from chatbot2k.scripting_engine.parser import TypeNotCallableError
 from chatbot2k.scripting_engine.parser import UnknownVariableError
 from chatbot2k.scripting_engine.parser import VariableRedefinitionError
+from chatbot2k.scripting_engine.parser import VariableShadowsParameterError
+from chatbot2k.scripting_engine.parser import VariableShadowsStoreError
 from chatbot2k.scripting_engine.stores import StoreKey
 from chatbot2k.scripting_engine.types.ast import Script
 from chatbot2k.scripting_engine.types.builtins import BUILTIN_FUNCTIONS
@@ -158,9 +159,19 @@ async def _create_callable_script(script_name: str, source: str) -> CallableScri
         ("PRINT 6 * 7;", _Success("42")),
         ("PRINT 20 / 4;", _Success("5")),
         ("PRINT 7 / 2;", _Success("3.5")),
+        ("PRINT 10 % 3;", _Success("1")),
+        ("PRINT 7 % 2;", _Success("1")),
+        ("PRINT 20 % 6;", _Success("2")),
+        ("PRINT 15 % 5;", _Success("0")),
         ("PRINT 2 + 3 * 4;", _Success("14")),
         ("PRINT (2 + 3) * 4;", _Success("20")),
         ("PRINT 10 + 5 * 2 - 3 / 3;", _Success("19")),
+        ("PRINT 17 % 5 + 3;", _Success("5")),
+        ("PRINT 2 * 10 % 3;", _Success("2")),
+        ("PRINT 0 % 5;", _Success("0")),
+        ("PRINT 5 % 10;", _Success("5")),
+        ("PRINT 3.5 % 2;", _Success("1.5")),
+        ("PRINT 10 % 0;", _Error(ExecutionError, "Modulo by zero")),
         # Unary
         ("PRINT +42;", _Success("42")),
         ("PRINT -42;", _Success("-42")),
@@ -629,8 +640,7 @@ async def _create_callable_script(script_name: str, source: str) -> CallableScri
             _Success("[APPLE, BANANA, CHERRY]"),
         ),
         (
-            "LET numbers = [1, 2, 3, 4, 5];"
-            + "PRINT for numbers as num if num > 3 yeet num;",
+            "LET numbers = [1, 2, 3, 4, 5]; PRINT for numbers as num if num > 3 yeet num;",
             _Success("[4, 5]"),
         ),
         (
