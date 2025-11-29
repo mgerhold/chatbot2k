@@ -175,6 +175,12 @@ class TypeNotIterableError(ParserError):
         super().__init__(f"Value of type '{type_}' is not iterable.")
 
 
+@final
+class NestedListComprehensionsWithoutParenthesesError(ParserError):
+    def __init__(self) -> None:
+        super().__init__("Nested list comprehensions must be enclosed in parentheses.")
+
+
 type _UnaryParser = Callable[
     [
         Parser,
@@ -784,6 +790,10 @@ class Parser:
             )
         )
         self._expect(TokenType.YIELD, "'yield' in list comprehension")
+        if self._current().type == TokenType.FOR:
+            # For better readability, we forbid nested list comprehensions without explicit parentheses.
+            raise NestedListComprehensionsWithoutParenthesesError()
+
         yield_expression: Final = self._expression(context, Precedence.UNKNOWN)
         # We remove the loop variable from the context after parsing the comprehension. This way, we simulate
         # having scopes, although we don't really support scopes.

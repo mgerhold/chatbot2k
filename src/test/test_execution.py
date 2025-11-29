@@ -7,7 +7,7 @@ from typing import final
 import pytest
 
 from chatbot2k.scripting_engine.lexer import Lexer
-from chatbot2k.scripting_engine.parser import AssignmentTypeError
+from chatbot2k.scripting_engine.parser import AssignmentTypeError, NestedListComprehensionsWithoutParenthesesError
 from chatbot2k.scripting_engine.parser import EmptyListLiteralWithoutTypeAnnotationError
 from chatbot2k.scripting_engine.parser import ExpectedEmptyListLiteralError
 from chatbot2k.scripting_engine.parser import InitializationTypeError
@@ -603,7 +603,10 @@ async def _create_callable_script(script_name: str, source: str) -> CallableScri
         (
             "LET nested_lists = [[1, 2], [3, 4], [5]]; "
             + "PRINT for nested_lists as sublist yield for sublist as num yield num * 2;",
-            _Success("[[2, 4], [6, 8], [10]]"),
+            _Error(
+                NestedListComprehensionsWithoutParenthesesError,
+                "Nested list comprehensions must be enclosed in parentheses.",
+            ),
         ),
         (
             "LET nested_lists = [[1, 2], [3, 4], [5]]; "
