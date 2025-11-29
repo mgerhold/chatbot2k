@@ -21,6 +21,9 @@ _BUILTIN_KEYWORDS = {
     "number": TokenType.NUMBER,
     "bool": TokenType.BOOL,
     "list": TokenType.LIST,
+    "for": TokenType.FOR,
+    "as": TokenType.AS,
+    "yield": TokenType.YIELD,
 }
 
 _SINGLE_CHAR_TOKENS = {

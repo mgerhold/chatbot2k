@@ -24,6 +24,7 @@ from chatbot2k.scripting_engine.types.expressions import BinaryOperator
 from chatbot2k.scripting_engine.types.expressions import BoolLiteralExpression
 from chatbot2k.scripting_engine.types.expressions import CallOperationExpression
 from chatbot2k.scripting_engine.types.expressions import Expression
+from chatbot2k.scripting_engine.types.expressions import ListComprehensionExpression
 from chatbot2k.scripting_engine.types.expressions import ListLiteralExpression
 from chatbot2k.scripting_engine.types.expressions import ListOfEmptyListsLiteralExpression
 from chatbot2k.scripting_engine.types.expressions import NumberLiteralExpression
@@ -166,6 +167,12 @@ class ExpectedEmptyListLiteralError(ParserError):
 class ExpectedNonEmptyListLiteralError(ParserError):
     def __init__(self) -> None:
         super().__init__("Expected a non-empty list literal.")
+
+
+@final
+class TypeNotIterableError(ParserError):
+    def __init__(self, type_: DataType) -> None:
+        super().__init__(f"Value of type '{type_}' is not iterable.")
 
 
 type _UnaryParser = Callable[
@@ -747,6 +754,46 @@ class Parser:
             case _, _:
                 raise SubscriptOperatorTypeError(operand_type, index_type)
 
+    def _list_comprehension(
+        self,
+        context: _ParseContext,
+    ) -> Expression:
+        self._expect(TokenType.FOR, "'for' in list comprehension")  # This is a double-check.
+        iterable: Final = self._expression(context, Precedence.UNKNOWN)
+        iterable_type: Final = iterable.get_data_type()
+        loop_variable_type: DataType
+        match iterable_type:
+            case StringType():
+                loop_variable_type = StringType()
+            case ListType(of_type=element_type):
+                loop_variable_type = element_type
+            case _:
+                raise TypeNotIterableError(iterable_type)
+
+        self._expect(TokenType.AS, "'as' in list comprehension")
+        loop_variable_identifier: Final = self._expect(TokenType.IDENTIFIER, "loop variable name")
+        loop_variable_name: Final = loop_variable_identifier.source_location.lexeme
+        if loop_variable_name in (variable.variable_name for variable in context.variable_definitions):
+            # Shadowing is not allowed.
+            raise VariableRedefinitionError(loop_variable_name)
+        context.variable_definitions.append(
+            VariableDefinitionStatement(
+                variable_name=loop_variable_name,
+                data_type=loop_variable_type,
+                initial_value=_create_default_value_expression(loop_variable_type),
+            )
+        )
+        self._expect(TokenType.YIELD, "'yield' in list comprehension")
+        yield_expression: Final = self._expression(context, Precedence.UNKNOWN)
+        # We remove the loop variable from the context after parsing the comprehension. This way, we simulate
+        # having scopes, although we don't really support scopes.
+        context.variable_definitions.pop()
+        return ListComprehensionExpression(
+            iterable=iterable,
+            element_variable_name=loop_variable_name,
+            expression=yield_expression,
+        )
+
     _PARSER_TABLE = {
         TokenType.COLON: _TableEntry.unused(),
         TokenType.COMMA: _TableEntry.unused(),
@@ -785,6 +832,9 @@ class Parser:
         TokenType.AND: _TableEntry(None, _binary_expression, Precedence.AND),
         TokenType.OR: _TableEntry(None, _binary_expression, Precedence.OR),
         TokenType.NOT: _TableEntry(_unary_operation, None, Precedence.UNARY),
+        TokenType.FOR: _TableEntry(_list_comprehension, None, Precedence.UNARY),
+        TokenType.AS: _TableEntry.unused(),
+        TokenType.YIELD: _TableEntry.unused(),
         TokenType.END_OF_INPUT: _TableEntry.unused(),
     }
 
@@ -808,3 +858,15 @@ def _reify_list_of_empty_lists(
         raise ExpectedEmptyListLiteralError(len(literal.nested_empty_lists))
     else:
         return ListLiteralExpression(elements=[], element_type=data_type.of_type)
+
+
+def _create_default_value_expression(data_type: DataType) -> Expression:
+    match data_type:
+        case StringType():
+            return StringLiteralExpression(value="")
+        case NumberType():
+            return NumberLiteralExpression(value=0.0)
+        case BoolType():
+            return BoolLiteralExpression(value=False)
+        case ListType(of_type=element_type):
+            return ListLiteralExpression(elements=[], element_type=element_type)

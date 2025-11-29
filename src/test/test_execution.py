@@ -16,6 +16,7 @@ from chatbot2k.scripting_engine.parser import Parser
 from chatbot2k.scripting_engine.parser import SubscriptOperatorTypeError
 from chatbot2k.scripting_engine.parser import TypeNotCallableError
 from chatbot2k.scripting_engine.parser import UnknownVariableError
+from chatbot2k.scripting_engine.parser import VariableRedefinitionError
 from chatbot2k.scripting_engine.stores import StoreKey
 from chatbot2k.scripting_engine.types.ast import Script
 from chatbot2k.scripting_engine.types.builtins import BUILTIN_FUNCTIONS
@@ -569,6 +570,49 @@ async def _create_callable_script(script_name: str, source: str) -> CallableScri
         (
             "PRINT 'max'(['should', 'fail']);",
             _Error(ExecutionError, "'max' requires number arguments, got list of string"),
+        ),
+        # List comprehensions
+        (
+            "LET words = ['123', '456']; PRINT 'type'(for words as word yield $word);",
+            _Success("list<number>"),
+        ),
+        (
+            "LET words = ['123', '456']; LET numbers = for words as word yield $word; PRINT numbers;",
+            _Success("[123, 456]"),
+        ),
+        (
+            "LET shadowed = 0; LET words = ['123', '456']; LET numbers = for words as shadowed yield $shadowed;",
+            _Error(VariableRedefinitionError, "Variable 'shadowed' is already defined."),
+        ),
+        (
+            "LET words = ['123', '456']; LET numbers = for words as word yield $unknown;",
+            _Error(UnknownVariableError, "Variable 'unknown' is not defined."),
+        ),
+        (
+            "LET numbers = for words as word yield $word;",
+            _Error(UnknownVariableError, "Variable 'words' is not defined."),
+        ),
+        (
+            "PRINT for [1, 2, 3, 4, 5] as num yield num * num;",
+            _Success("[1, 4, 9, 16, 25]"),
+        ),
+        (
+            "PRINT for [] as item yield 'should fail';",
+            _Error(ExecutionError, "Unable to deduce type of empty list literal."),
+        ),
+        (
+            "LET nested_lists = [[1, 2], [3, 4], [5]]; "
+            + "PRINT for nested_lists as sublist yield for sublist as num yield num * 2;",
+            _Success("[[2, 4], [6, 8], [10]]"),
+        ),
+        (
+            "LET nested_lists = [[1, 2], [3, 4], [5]]; "
+            + "PRINT (for nested_lists as sublist yield (for sublist as num yield num * 2));",
+            _Success("[[2, 4], [6, 8], [10]]"),
+        ),
+        (
+            "LET words = ['apple', 'banana', 'cherry']; " + "PRINT for words as word yield 'upper'(word);",
+            _Success("[APPLE, BANANA, CHERRY]"),
         ),
     ],
 )

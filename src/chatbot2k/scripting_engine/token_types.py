@@ -47,4 +47,8 @@ class TokenType(Enum):
     OR = auto()
     NOT = auto()
 
+    FOR = auto()
+    AS = auto()
+    YIELD = auto()
+
     END_OF_INPUT = auto()

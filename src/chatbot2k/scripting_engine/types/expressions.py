@@ -48,6 +48,7 @@ class ExpressionType(StrEnum):
     LIST_OF_EMPTY_LISTS_LITERAL = "list_of_empty_lists_literal"
     LIST_LITERAL = "list_literal"
     SUBSCRIPT_OPERATION = "subscript_operation"
+    LIST_COMPREHENSION = "list_comprehension"
 
 
 class BaseExpression(BaseModel, ABC):
@@ -672,6 +673,57 @@ class SubscriptOperationExpression(BaseExpression):
                 raise ExecutionError(msg)
 
 
+@final
+class ListComprehensionExpression(BaseExpression):
+    """
+    Expression of the form `for <iterable> as <element> yield <expression>`, where `<iterable>`
+    can either be a list or a string. The type of `<element>` is determined by the type of
+    elements in `<iterable>`, and the type of the whole expression is a list of the type of
+    `<expression>`.
+    Evaluating the expression does not open a scope; however, the variable named `<element>`
+    is not allowed to shadow any existing variable in the context. Therefore, the expression
+    acts *as if* it opened a new scope for the variable. The shadowing is prevented by the
+    parser.
+    """
+
+    model_config = ConfigDict(frozen=True)
+
+    expression_type: Literal[ExpressionType.LIST_COMPREHENSION] = ExpressionType.LIST_COMPREHENSION
+    iterable: "Expression"
+    element_variable_name: str
+    expression: "Expression"
+
+    @override
+    def get_data_type(self) -> DataType:
+        return ListType(of_type=self.expression.get_data_type())
+
+    @override
+    async def evaluate(
+        self,
+        context: ExecutionContext,
+    ) -> Value:
+        iterable_value: Final = await self.iterable.evaluate(context)
+        elements: Final[list[Value]] = []
+        match iterable_value:
+            case StringValue(value=s):
+                for char in s:
+                    context.variables[self.element_variable_name] = StringValue(value=char)
+                    element_value = await self.expression.evaluate(context)
+                    elements.append(element_value)
+            case ListValue(elements=iterable_elements):
+                for item in iterable_elements:
+                    context.variables[self.element_variable_name] = item
+                    element_value = await self.expression.evaluate(context)
+                    elements.append(element_value)
+            case _:
+                msg = f"List comprehension iterable must be a string or a list, got {iterable_value.get_data_type()}"
+                raise ExecutionError(msg)
+        return ListValue(
+            element_type=self.expression.get_data_type(),
+            elements=elements,
+        )
+
+
 type Expression = Annotated[
     StringLiteralExpression
     | NumberLiteralExpression
@@ -685,7 +737,8 @@ type Expression = Annotated[
     | CallOperationExpression
     | ListOfEmptyListsLiteralExpression
     | ListLiteralExpression
-    | SubscriptOperationExpression,
+    | SubscriptOperationExpression
+    | ListComprehensionExpression,
     Discriminator("expression_type"),
 ]
 
@@ -703,3 +756,4 @@ TernaryOperationExpression.model_rebuild()
 CallOperationExpression.model_rebuild()
 SubscriptOperationExpression.model_rebuild()
 ListOfEmptyListsLiteralExpression.model_rebuild()
+ListComprehensionExpression.model_rebuild()
