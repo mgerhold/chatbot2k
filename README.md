@@ -69,6 +69,7 @@ The following keywords are reserved in the scripting language:
 - `collect`
 - `false`
 - `for`
+- `if`
 - `LET`
 - `list`
 - `not`
@@ -217,7 +218,8 @@ The following expressions are supported:
 - **Code Evaluation**: The prefix `!` operator evaluates a string as code and returns the result as a string. The evaluated source code must not contain any stores, or parameters. It cannot access any values from the surrounding script context.
 - **Function Calls**: Call builtin functions using the syntax `'function_name'(arg1, arg2, ...)`. See the Builtin Functions section below for available functions.
 - **List Comprehensions**: Create new lists by transforming elements from an iterable (string or list) using the syntax
-  `for <iterable> as <element> yeet <expression>`. See the List Comprehensions section below for details.
+  `for <iterable> as <element> [if <condition>] yeet <expression>`. The optional `if <condition>` filters which
+  elements are processed. See the List Comprehensions section below for details.
 - **Collect Expressions**: Reduce an iterable (string or list) to a single value using the syntax
   `collect <iterable> as <accumulator>, <element> with <expression>`. See the Collect Expressions section below for
   details.
@@ -264,16 +266,19 @@ The scripting language provides several builtin functions that can be called usi
 List comprehensions provide a concise way to create new lists by transforming elements from an iterable. The syntax is:
 
 ```
-for <iterable> as <element> yeet <expression>
+for <iterable> as <element> [if <condition>] yeet <expression>
 ```
 
 - `<iterable>` can be a list or a string
 - `<element>` is the name of the loop variable that represents each element during iteration
-- `<expression>` is evaluated for each element and determines what goes into the resulting list
-- The keyword `yeet` separates the loop variable declaration from the transformation expression
+- `<condition>` (optional) is a boolean expression that filters which elements are included in the result
+- `<expression>` is evaluated for each element that passes the condition (if present) and determines what goes into the resulting list
+- The keyword `if` introduces an optional filter condition
+- The keyword `yeet` separates the condition (or element declaration if no condition) from the transformation expression
 
 The result is a new list containing the transformed elements. When iterating over a string, each character becomes an
-element. When iterating over a list, each item in the list becomes an element.
+element. When iterating over a list, each item in the list becomes an element. If a condition is specified, only
+elements for which the condition evaluates to `true` are included in the resulting list.
 
 **Examples:**
 
@@ -298,6 +303,27 @@ LET result = for 'hello' as char yeet 'upper'(char);
 PRINT result;  // Output: [H, E, L, L, O]
 ```
 
+**Filtering with Conditions:**
+
+You can add an optional `if` condition to filter elements:
+
+```
+// Filter numbers greater than 3
+LET numbers = [1, 2, 3, 4, 5];
+LET filtered = for numbers as num if num > 3 yeet num;
+PRINT filtered;  // Output: [4, 5]
+
+// Filter words starting with 'a'
+LET words = ['apple', 'acorn', 'banana', 'avocado'];
+LET a_words = for words as word if ?'starts_with'(word, 'a') yeet word;
+PRINT a_words;  // Output: [apple, acorn, avocado]
+
+// Filter and transform: get squares of numbers greater than 2
+LET numbers = [1, 2, 3, 4, 5];
+LET large_squares = for numbers as num if num > 2 yeet num * num;
+PRINT large_squares;  // Output: [9, 16, 25]
+```
+
 **Nested List Comprehensions:**
 
 Nested list comprehensions must be enclosed in parentheses for better readability:
@@ -311,6 +337,7 @@ PRINT doubled;  // Output: [[2, 4], [6, 8], [10]]
 **Important Notes:**
 
 - The loop variable (`<element>`) cannot shadow (have the same name as) any existing variable, parameter, or store
+- The optional condition (if provided) must be a boolean expression
 - Empty list literals cannot be used in list comprehensions, as the type cannot be inferred
 - The type of the resulting list is determined by the type of the `<expression>`
 
