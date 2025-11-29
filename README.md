@@ -55,20 +55,32 @@ Currently, the language supports the following data types:
   - `\'` for single quote
   - `\n` for newline
   - `\\` for backslash
+- **Lists**: Ordered collections of elements of the same type. Lists are created using square brackets `[]` and can
+  contain any data type, including nested lists. All elements in a list must have the same type. The type is written as
+  `list<element_type>` (e.g., `list<number>`, `list<string>`, `list<list<number>>`).
 
 ## Keywords
 
 The following keywords are reserved in the scripting language:
 
 - `and`
+- `as`
+- `bool`
+- `collect`
 - `false`
+- `for`
 - `LET`
+- `list`
 - `not`
+- `number`
 - `or`
 - `PARAMS`
 - `PRINT`
+- `string`
 - `STORE`
 - `true`
+- `with`
+- `yeet`
 
 ## Identifiers
 
@@ -126,6 +138,16 @@ Each variable is scoped to the script execution, so it will not persist across m
 
 *Note: Referencing a store will yield its current value from the database, not necessarily its initial value.*
 
+Variables can optionally be annotated with a type:
+
+```
+LET <var_name>: <type> = <expression>;
+```
+
+Where `<type>` is one of `string`, `number`, `bool`, or `list<element_type>` (e.g., `list<number>`, `list<string>`). The
+type annotation is required when defining an empty list literal, as the type cannot be inferred. For non-empty lists,
+the type is inferred from the elements.
+
 **Example:**
 
 ```
@@ -133,6 +155,9 @@ LET x = 42;
 LET y = x + 10;
 LET a = 'Hello, ';
 LET b = a + 'world!';
+LET numbers = [1, 2, 3, 4, 5];
+LET empty_list: list<string> = [];
+LET words: list<string> = ['apple', 'banana', 'cherry'];
 ```
 
 ### Assignments
@@ -174,7 +199,8 @@ This will output: `The answer is: 42`
 
 The following expressions are supported:
 
-- **Literals**: Numbers (e.g., `42`, `3.14`, `-7`) and strings (e.g., `'Hello, world!'`)
+- **Literals**: Numbers (e.g., `42`, `3.14`, `-7`), strings (e.g., `'Hello, world!'`), booleans (`true`, `false`), and
+  lists (e.g., `[1, 2, 3]`, `['a', 'b', 'c']`, `[[1, 2], [3, 4]]`)
 - **Variable, Parameter and Store References**: Using the name of a variable, parameter, or store to get its current value.
 - **Arithmetic Operations**: Addition (`+`), subtraction (`-`), multiplication (`*`), and division (`/`) for numbers. The language supports both `+` and `-` in their unary and binary forms.
 - **Comparison Operations**: Equal (`==`), not equal (`!=`), less than (`<`), less than or equal (`<=`), greater than (`>`), greater than or equal (`>=`) for all data types.
@@ -182,12 +208,19 @@ The following expressions are supported:
 - **Ternary Operator**: The conditional expression `condition ? value_if_true : value_if_false` evaluates the condition and returns `value_if_true` if the condition is true, otherwise returns `value_if_false`. Both branches must have the same type.
 - **String Concatenation**: Using the `+` operator to concatenate strings.
 - **Parentheses**: To group expressions and control the order of evaluation.
-- **Subscript Operator**: Access individual characters in a string using the syntax `string[index]`, where `index` is a zero-based integer. The index must be a non-negative integer within the string's length.
+- **Subscript Operator**: Access individual characters in a string or elements in a list using the syntax `string[index]`
+  or `list[index]`, where `index` is a zero-based integer. The index must be a non-negative integer within the bounds of
+  the string or list.
 - **Conversion to Number**: The prefix `$` operator converts a value to a number. For strings, the string must represent a number literal, possibly with a leading `+` or `-`. For booleans, `true` is converted to `1` and `false` to `0`. Applying the operator to a number has no effect.
 - **Conversion to String**: The prefix `#` operator converts a value to its string representation. For numbers, it formats the number (removing unnecessary decimal points for whole numbers). For booleans, it converts to `'true'` or `'false'`. Applying the operator to a string has no effect.
 - **Conversion to Boolean**: The prefix `?` operator converts a value to a boolean. For numbers, `0` is converted to `false`, all other numbers to `true`. For strings, only the literals `'true'` and `'false'` can be converted to their respective boolean values. Applying the operator to a boolean has no effect.
 - **Code Evaluation**: The prefix `!` operator evaluates a string as code and returns the result as a string. The evaluated source code must not contain any stores, or parameters. It cannot access any values from the surrounding script context.
 - **Function Calls**: Call builtin functions using the syntax `'function_name'(arg1, arg2, ...)`. See the Builtin Functions section below for available functions.
+- **List Comprehensions**: Create new lists by transforming elements from an iterable (string or list) using the syntax
+  `for <iterable> as <element> yeet <expression>`. See the List Comprehensions section below for details.
+- **Collect Expressions**: Reduce an iterable (string or list) to a single value using the syntax
+  `collect <iterable> as <accumulator>, <element> with <expression>`. See the Collect Expressions section below for
+  details.
 
 ## Builtin Functions
 
@@ -195,21 +228,25 @@ The scripting language provides several builtin functions that can be called usi
 
 ### String Functions
 
-- **`'type'(value)`**: Returns the data type of the value as a string (`'string'`, `'number'`, or `'bool'`).
-- **`'length'(str)`**: Returns the length of a string as a number. Requires a string argument.
+- **`'type'(value)`**: Returns the data type of the value as a string (`'string'`, `'number'`, `'bool'`, or
+  `'list<type>'`).
+- **`'length'(str)`**: Returns the length of a string or list as a number. Requires a string or list argument.
 - **`'upper'(str)`**: Converts a string to uppercase. Requires a string argument.
 - **`'lower'(str)`**: Converts a string to lowercase. Requires a string argument.
 - **`'trim'(str)`**: Removes whitespace from both ends of a string. Requires a string argument.
 - **`'replace'(str, old, new)`**: Replaces all occurrences of `old` with `new` in the string. All arguments must be strings.
-- **`'contains'(str, substring)`**: Returns `true` if the string contains the substring, otherwise `false`. Both arguments must be strings.
+- **`'contains'(haystack, needle)`**: Returns `true` if the haystack (string or list) contains the needle, otherwise
+  `false`. For lists, the needle must be of the same type as the list elements.
 - **`'starts_with'(str, prefix)`**: Returns `true` if the string starts with the prefix, otherwise `false`. Both arguments must be strings.
 - **`'ends_with'(str, suffix)`**: Returns `true` if the string ends with the suffix, otherwise `false`. Both arguments must be strings.
 
 ### Math Functions
 
 - **`'abs'(num)`**: Returns the absolute value of a number.
-- **`'min'(num1, num2, ...)`**: Returns the minimum of one or more numbers. Accepts any number of arguments.
-- **`'max'(num1, num2, ...)`**: Returns the maximum of one or more numbers. Accepts any number of arguments.
+- **`'min'(num1, num2, ...)`**: Returns the minimum of one or more numbers. Accepts any number of arguments. Can also
+  accept a single list of numbers.
+- **`'max'(num1, num2, ...)`**: Returns the maximum of one or more numbers. Accepts any number of arguments. Can also
+  accept a single list of numbers.
 - **`'round'(num)`**: Rounds a number to the nearest integer.
 - **`'floor'(num)`**: Rounds a number down to the nearest integer.
 - **`'ceil'(num)`**: Rounds a number up to the nearest integer.
@@ -221,4 +258,120 @@ The scripting language provides several builtin functions that can be called usi
 - **`'random'(min, max)`**: Returns a random floating-point number between min and max.
 - **`'timestamp'()`**: Returns the current Unix timestamp (seconds since epoch) as a number.
 - **`'date'(format)`**: Returns the current UTC date/time formatted according to the format string (using Python's `strftime()` format codes).
+
+## List Comprehensions
+
+List comprehensions provide a concise way to create new lists by transforming elements from an iterable. The syntax is:
+
+```
+for <iterable> as <element> yeet <expression>
+```
+
+- `<iterable>` can be a list or a string
+- `<element>` is the name of the loop variable that represents each element during iteration
+- `<expression>` is evaluated for each element and determines what goes into the resulting list
+- The keyword `yeet` separates the loop variable declaration from the transformation expression
+
+The result is a new list containing the transformed elements. When iterating over a string, each character becomes an
+element. When iterating over a list, each item in the list becomes an element.
+
+**Examples:**
+
+```
+// Square each number in a list
+LET numbers = [1, 2, 3, 4, 5];
+LET squared = for numbers as num yeet num * num;
+PRINT squared;  // Output: [1, 4, 9, 16, 25]
+
+// Convert strings to numbers
+LET words = ['123', '456', '789'];
+LET parsed = for words as word yeet $word;
+PRINT parsed;  // Output: [123, 456, 789]
+
+// Convert strings to uppercase
+LET words = ['apple', 'banana', 'cherry'];
+LET upper = for words as word yeet 'upper'(word);
+PRINT upper;  // Output: [APPLE, BANANA, CHERRY]
+
+// Iterate over characters in a string
+LET result = for 'hello' as char yeet 'upper'(char);
+PRINT result;  // Output: [H, E, L, L, O]
+```
+
+**Nested List Comprehensions:**
+
+Nested list comprehensions must be enclosed in parentheses for better readability:
+
+```
+LET nested_lists = [[1, 2], [3, 4], [5]];
+LET doubled = for nested_lists as sublist yeet (for sublist as num yeet num * 2);
+PRINT doubled;  // Output: [[2, 4], [6, 8], [10]]
+```
+
+**Important Notes:**
+
+- The loop variable (`<element>`) cannot shadow (have the same name as) any existing variable, parameter, or store
+- Empty list literals cannot be used in list comprehensions, as the type cannot be inferred
+- The type of the resulting list is determined by the type of the `<expression>`
+
+## Collect Expressions
+
+Collect expressions provide a way to reduce an iterable (string or list) to a single value by repeatedly applying an
+operation. This is similar to a fold/reduce operation in functional programming. The syntax is:
+
+```
+collect <iterable> as <accumulator>, <element> with <expression>
+```
+
+- `<iterable>` can be a list or a string
+- `<accumulator>` is the name of the variable that holds the accumulated result
+- `<element>` is the name of the variable that represents each element during iteration
+- `<expression>` is evaluated for each element and must return a value of the same type as the accumulator
+- The keyword `with` introduces the expression that combines the accumulator with each element
+
+For lists, the accumulator is initialized with the first element, and the iteration starts from the second element. For
+strings, the accumulator is initialized with an empty string, and all characters are processed.
+
+**Examples:**
+
+```
+// Sum all numbers in a list
+LET numbers = [1, 2, 3, 4, 5];
+LET sum = collect numbers as acc, elem with acc + elem;
+PRINT sum;  // Output: 15
+
+// Calculate the product of all numbers
+LET numbers = [1, 2, 3, 4];
+LET product = collect numbers as acc, elem with acc * elem;
+PRINT product;  // Output: 24
+
+// Concatenate strings
+LET words = ['Hello', ' ', 'World', '!'];
+LET message = collect words as acc, elem with acc + elem;
+PRINT message;  // Output: Hello World!
+
+// Concatenate characters from a string
+LET result = collect 'hello' as acc, char with acc + 'upper'(char);
+PRINT result;  // Output: HELLO
+```
+
+**Complex Example - Combining List Comprehension and Collect:**
+
+```
+// Calculate the sum of sums of nested lists
+LET nested = [[1, 2], [3, 4], [5]];
+LET sum = collect (
+    for nested as inner_list yeet (
+        collect inner_list as acc, num with acc + num
+    )
+) as outer_acc, inner_sum with outer_acc + inner_sum;
+PRINT sum;  // Output: 15
+```
+
+**Important Notes:**
+
+- The accumulator and element variables cannot shadow existing variables, parameters, or stores
+- The `<expression>` must return a value of the same type as the elements in the iterable
+- Empty iterables cannot be used in collect expressions, as the initial accumulator value cannot be determined
+- Both the accumulator and element are scoped to the collect expression only
 
