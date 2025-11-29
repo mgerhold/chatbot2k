@@ -10,6 +10,7 @@ class Precedence(IntEnum):
     TERNARY = auto()
     OR = auto()
     AND = auto()
+    RANGE = auto()
     EQUALITY = auto()
     COMPARISON = auto()
     SUM = auto()

@@ -29,6 +29,7 @@ _BUILTIN_KEYWORDS = {
     "with": TokenType.WITH,
     "split": TokenType.SPLIT,
     "join": TokenType.JOIN,
+    "sort": TokenType.SORT,
 }
 
 _SINGLE_CHAR_TOKENS = {
@@ -77,7 +78,8 @@ class Lexer:
                     self._advance()
                     while self._current().isdigit():
                         self._advance()
-                    if self._current() == ".":
+                    # Check for decimal point, but make sure it's not part of a range operator (..)
+                    if self._current() == "." and self._peek() != ".":
                         self._advance()
                         if not self._current().isdigit():
                             raise LexerError(
@@ -111,6 +113,25 @@ class Lexer:
                         tokens.append(self._create_token(TokenType.GREATER_THAN_EQUALS, start_offset))
                     else:
                         tokens.append(self._create_token(TokenType.GREATER_THAN, start_offset))
+                case ".":
+                    start_offset = self._current_offset
+                    self._advance()
+                    # Must be followed by another '.'
+                    if self._current() != ".":
+                        msg = f"Unexpected character '{self._current()}' after '.'."
+                        raise LexerError(msg, self._current_source_location)
+                    self._advance()
+                    # Range operators: ..= or ..<
+                    if self._current() == "=":
+                        self._advance()
+                        tokens.append(self._create_token(TokenType.DOT_DOT_EQUALS, start_offset))
+                        continue
+                    if self._current() == "<":
+                        self._advance()
+                        tokens.append(self._create_token(TokenType.DOT_DOT_LESS_THAN, start_offset))
+                        continue
+                    msg = f"Unexpected character '{self._current()}' after '..'."
+                    raise LexerError(msg, self._current_source_location)
                 case "!":
                     start_offset = self._current_offset
                     self._advance()
@@ -212,3 +233,8 @@ class Lexer:
             return result
         self._current_offset += 1
         return result
+
+    def _peek(self, offset: int = 1) -> str:
+        """Look ahead at the character at current position + offset without advancing."""
+        peek_offset: Final = self._current_offset + offset
+        return "\0" if peek_offset >= len(self._source) else self._source[peek_offset]

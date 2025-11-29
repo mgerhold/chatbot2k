@@ -17,8 +17,8 @@ def _tokenize_source(source: str) -> list[Token]:
 def test_tokenize_can_analyze_all_token_types() -> None:
     source: Final = (
         r";=+-*%/()STORE PRINT some_identifier_123 'my string 🐍\'quoted\'\ntext on second line' 3.14 "
-        + "LET PARAMS,$!:?true false== != < <= > >= and or not#[]string number bool list for as yeet collect with "
-        + "if split join"
+        + "LET PARAMS,$!:?true false== != < <= > >= ..= ..< and or not#[]string number bool list for as yeet "
+        + "collect with if split join sort"
     )
     tokens: Final = _tokenize_source(source)
 
@@ -141,81 +141,93 @@ def test_tokenize_can_analyze_all_token_types() -> None:
     assert tokens[28].source_location == SourceLocation(source, offset=129, length=2)
     assert tokens[28].source_location.lexeme == ">="
 
-    assert tokens[29].type == TokenType.AND
+    assert tokens[29].type == TokenType.DOT_DOT_EQUALS
     assert tokens[29].source_location == SourceLocation(source, offset=132, length=3)
-    assert tokens[29].source_location.lexeme == "and"
+    assert tokens[29].source_location.lexeme == "..="
 
-    assert tokens[30].type == TokenType.OR
-    assert tokens[30].source_location == SourceLocation(source, offset=136, length=2)
-    assert tokens[30].source_location.lexeme == "or"
+    assert tokens[30].type == TokenType.DOT_DOT_LESS_THAN
+    assert tokens[30].source_location == SourceLocation(source, offset=136, length=3)
+    assert tokens[30].source_location.lexeme == "..<"
 
-    assert tokens[31].type == TokenType.NOT
-    assert tokens[31].source_location == SourceLocation(source, offset=139, length=3)
-    assert tokens[31].source_location.lexeme == "not"
+    assert tokens[31].type == TokenType.AND
+    assert tokens[31].source_location == SourceLocation(source, offset=140, length=3)
+    assert tokens[31].source_location.lexeme == "and"
 
-    assert tokens[32].type == TokenType.HASH
-    assert tokens[32].source_location == SourceLocation(source, offset=142, length=1)
-    assert tokens[32].source_location.lexeme == "#"
+    assert tokens[32].type == TokenType.OR
+    assert tokens[32].source_location == SourceLocation(source, offset=144, length=2)
+    assert tokens[32].source_location.lexeme == "or"
 
-    assert tokens[33].type == TokenType.LEFT_SQUARE_BRACKET
-    assert tokens[33].source_location == SourceLocation(source, offset=143, length=1)
-    assert tokens[33].source_location.lexeme == "["
+    assert tokens[33].type == TokenType.NOT
+    assert tokens[33].source_location == SourceLocation(source, offset=147, length=3)
+    assert tokens[33].source_location.lexeme == "not"
 
-    assert tokens[34].type == TokenType.RIGHT_SQUARE_BRACKET
-    assert tokens[34].source_location == SourceLocation(source, offset=144, length=1)
-    assert tokens[34].source_location.lexeme == "]"
+    assert tokens[34].type == TokenType.HASH
+    assert tokens[34].source_location == SourceLocation(source, offset=150, length=1)
+    assert tokens[34].source_location.lexeme == "#"
 
-    assert tokens[35].type == TokenType.STRING
-    assert tokens[35].source_location == SourceLocation(source, offset=145, length=6)
-    assert tokens[35].source_location.lexeme == "string"
+    assert tokens[35].type == TokenType.LEFT_SQUARE_BRACKET
+    assert tokens[35].source_location == SourceLocation(source, offset=151, length=1)
+    assert tokens[35].source_location.lexeme == "["
 
-    assert tokens[36].type == TokenType.NUMBER
-    assert tokens[36].source_location == SourceLocation(source, offset=152, length=6)
-    assert tokens[36].source_location.lexeme == "number"
+    assert tokens[36].type == TokenType.RIGHT_SQUARE_BRACKET
+    assert tokens[36].source_location == SourceLocation(source, offset=152, length=1)
+    assert tokens[36].source_location.lexeme == "]"
 
-    assert tokens[37].type == TokenType.BOOL
-    assert tokens[37].source_location == SourceLocation(source, offset=159, length=4)
-    assert tokens[37].source_location.lexeme == "bool"
+    assert tokens[37].type == TokenType.STRING
+    assert tokens[37].source_location == SourceLocation(source, offset=153, length=6)
+    assert tokens[37].source_location.lexeme == "string"
 
-    assert tokens[38].type == TokenType.LIST
-    assert tokens[38].source_location == SourceLocation(source, offset=164, length=4)
-    assert tokens[38].source_location.lexeme == "list"
+    assert tokens[38].type == TokenType.NUMBER
+    assert tokens[38].source_location == SourceLocation(source, offset=160, length=6)
+    assert tokens[38].source_location.lexeme == "number"
 
-    assert tokens[39].type == TokenType.FOR
-    assert tokens[39].source_location == SourceLocation(source, offset=169, length=3)
-    assert tokens[39].source_location.lexeme == "for"
+    assert tokens[39].type == TokenType.BOOL
+    assert tokens[39].source_location == SourceLocation(source, offset=167, length=4)
+    assert tokens[39].source_location.lexeme == "bool"
 
-    assert tokens[40].type == TokenType.AS
-    assert tokens[40].source_location == SourceLocation(source, offset=173, length=2)
-    assert tokens[40].source_location.lexeme == "as"
+    assert tokens[40].type == TokenType.LIST
+    assert tokens[40].source_location == SourceLocation(source, offset=172, length=4)
+    assert tokens[40].source_location.lexeme == "list"
 
-    assert tokens[41].type == TokenType.YEET
-    assert tokens[41].source_location == SourceLocation(source, offset=176, length=4)
-    assert tokens[41].source_location.lexeme == "yeet"
+    assert tokens[41].type == TokenType.FOR
+    assert tokens[41].source_location == SourceLocation(source, offset=177, length=3)
+    assert tokens[41].source_location.lexeme == "for"
 
-    assert tokens[42].type == TokenType.COLLECT
-    assert tokens[42].source_location == SourceLocation(source, offset=181, length=7)
-    assert tokens[42].source_location.lexeme == "collect"
+    assert tokens[42].type == TokenType.AS
+    assert tokens[42].source_location == SourceLocation(source, offset=181, length=2)
+    assert tokens[42].source_location.lexeme == "as"
 
-    assert tokens[43].type == TokenType.WITH
-    assert tokens[43].source_location == SourceLocation(source, offset=189, length=4)
-    assert tokens[43].source_location.lexeme == "with"
+    assert tokens[43].type == TokenType.YEET
+    assert tokens[43].source_location == SourceLocation(source, offset=184, length=4)
+    assert tokens[43].source_location.lexeme == "yeet"
 
-    assert tokens[44].type == TokenType.IF
-    assert tokens[44].source_location == SourceLocation(source, offset=194, length=2)
-    assert tokens[44].source_location.lexeme == "if"
+    assert tokens[44].type == TokenType.COLLECT
+    assert tokens[44].source_location == SourceLocation(source, offset=189, length=7)
+    assert tokens[44].source_location.lexeme == "collect"
 
-    assert tokens[45].type == TokenType.SPLIT
-    assert tokens[45].source_location == SourceLocation(source, offset=197, length=5)
-    assert tokens[45].source_location.lexeme == "split"
+    assert tokens[45].type == TokenType.WITH
+    assert tokens[45].source_location == SourceLocation(source, offset=197, length=4)
+    assert tokens[45].source_location.lexeme == "with"
 
-    assert tokens[46].type == TokenType.JOIN
-    assert tokens[46].source_location == SourceLocation(source, offset=203, length=4)
-    assert tokens[46].source_location.lexeme == "join"
+    assert tokens[46].type == TokenType.IF
+    assert tokens[46].source_location == SourceLocation(source, offset=202, length=2)
+    assert tokens[46].source_location.lexeme == "if"
 
-    assert tokens[47].type == TokenType.END_OF_INPUT
-    assert tokens[47].source_location == SourceLocation(source, offset=207, length=1)
-    assert tokens[47].source_location.lexeme == ""
+    assert tokens[47].type == TokenType.SPLIT
+    assert tokens[47].source_location == SourceLocation(source, offset=205, length=5)
+    assert tokens[47].source_location.lexeme == "split"
+
+    assert tokens[48].type == TokenType.JOIN
+    assert tokens[48].source_location == SourceLocation(source, offset=211, length=4)
+    assert tokens[48].source_location.lexeme == "join"
+
+    assert tokens[49].type == TokenType.SORT
+    assert tokens[49].source_location == SourceLocation(source, offset=216, length=4)
+    assert tokens[49].source_location.lexeme == "sort"
+
+    assert tokens[50].type == TokenType.END_OF_INPUT
+    assert tokens[50].source_location == SourceLocation(source, offset=220, length=1)
+    assert tokens[50].source_location.lexeme == ""
 
 
 def test_invalid_escape_sequence_raises() -> None:

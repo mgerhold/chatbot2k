@@ -18,6 +18,8 @@ class TokenType(Enum):
     LESS_THAN_EQUALS = auto()
     GREATER_THAN = auto()
     GREATER_THAN_EQUALS = auto()
+    DOT_DOT_EQUALS = auto()
+    DOT_DOT_LESS_THAN = auto()
     PLUS = auto()
     MINUS = auto()
     ASTERISK = auto()
@@ -56,5 +58,6 @@ class TokenType(Enum):
     WITH = auto()
     SPLIT = auto()
     JOIN = auto()
+    SORT = auto()
 
     END_OF_INPUT = auto()

@@ -343,6 +343,135 @@ async def _create_callable_script(script_name: str, source: str) -> CallableScri
                 "split expects a string as the second argument, got 'number'",
             ),
         ),
+        # Sort expressions
+        (
+            "LET words = ['short', 'very long']; LET sorted = sort(words; lhs, rhs yeet "
+            + "'length'(lhs) < 'length'(rhs)); PRINT sorted;",
+            _Success("[short, very long]"),
+        ),
+        (
+            "LET words = ['short', 'very long']; LET sorted = sort(words; lhs, rhs yeet "
+            + "'length'(lhs) > 'length'(rhs)); PRINT sorted;",
+            _Success("[very long, short]"),
+        ),
+        (
+            "LET numbers = [3, 1, 4, 1, 5, 9, 2, 6]; LET sorted = sort(numbers; a, b yeet a < b); PRINT sorted;",
+            _Success("[1, 1, 2, 3, 4, 5, 6, 9]"),
+        ),
+        (
+            "LET numbers = [3, 1, 4, 1, 5]; LET sorted = sort(numbers; a, b yeet a > b); PRINT sorted;",
+            _Success("[5, 4, 3, 1, 1]"),
+        ),
+        (
+            "LET words = ['banana', 'apple', 'cherry']; LET sorted = sort(words; x, y yeet x < y); PRINT sorted;",
+            _Success("[apple, banana, cherry]"),
+        ),
+        ("LET empty: list<number> = []; LET sorted = sort(empty; a, b yeet a < b); PRINT sorted;", _Success("[]")),
+        ("LET single = [42]; LET sorted = sort(single; a, b yeet a < b); PRINT sorted;", _Success("[42]")),
+        ("PRINT 'type'(sort([1, 2, 3]; a, b yeet a < b));", _Success("list<number>")),
+        # Sort expressions without comparison (list<number> only)
+        (
+            "LET numbers = [3, 1, 4, 1, 5, 9, 2, 6]; LET sorted = sort(numbers); PRINT sorted;",
+            _Success("[1, 1, 2, 3, 4, 5, 6, 9]"),
+        ),
+        ("PRINT sort([5, 2, 8, 1, 9]);", _Success("[1, 2, 5, 8, 9]")),
+        ("LET empty: list<number> = []; PRINT sort(empty);", _Success("[]")),
+        ("PRINT sort([42]);", _Success("[42]")),
+        ("PRINT sort([3.14, 1.41, 2.71]);", _Success("[1.41, 2.71, 3.14]")),
+        (
+            "PRINT sort(['banana', 'apple']);",
+            _Error(
+                ParserTypeError,
+                "sort without comparison expression is only allowed for list<number>, got 'list<string>'",
+            ),
+        ),
+        (
+            "PRINT sort('not a list'; a, b yeet a < b);",
+            _Error(
+                ParserTypeError,
+                "sort expects a list as the first argument, got 'string'",
+            ),
+        ),
+        (
+            "PRINT sort([1, 2, 3]; a, b yeet a + b);",
+            _Error(
+                ParserTypeError,
+                "sort comparison expression must return bool, got 'number'",
+            ),
+        ),
+        # Range operators
+        ("PRINT 1 ..= 5;", _Success("[1, 2, 3, 4, 5]")),
+        ("PRINT 1 ..< 5;", _Success("[1, 2, 3, 4]")),
+        ("PRINT 0 ..= 0;", _Success("[0]")),
+        ("PRINT 0 ..< 0;", _Success("[]")),
+        ("PRINT 5 ..= 1;", _Success("[5, 4, 3, 2, 1]")),
+        ("PRINT 5 ..< 1;", _Success("[5, 4, 3, 2]")),
+        ("PRINT -2 ..= 2;", _Success("[-2, -1, 0, 1, 2]")),
+        ("PRINT -2 ..< 2;", _Success("[-2, -1, 0, 1]")),
+        ("LET range = 1 ..= 3; PRINT range;", _Success("[1, 2, 3]")),
+        ("PRINT 'type'(1 ..= 5);", _Success("list<number>")),
+        ("PRINT 'length'(0 ..= 10);", _Success("11")),
+        ("PRINT (1 ..= 5)[2];", _Success("3")),
+        ("PRINT for 1 ..= 5 as n yeet n * n;", _Success("[1, 4, 9, 16, 25]")),
+        ("PRINT collect 1 ..= 5 as acc, n with acc + n;", _Success("15")),
+        (
+            "PRINT 1.5 ..= 3;",
+            _Error(
+                ExecutionError,
+                "Range operator ..= requires integer operands, got non-integer start value 1.5",
+            ),
+        ),
+        (
+            "PRINT 1 ..= 3.5;",
+            _Error(
+                ExecutionError,
+                "Range operator ..= requires integer operands, got non-integer end value 3.5",
+            ),
+        ),
+        (
+            "PRINT 'a' ..= 'z';",
+            _Error(
+                ParserTypeError,
+                "Range operator ..= requires number operands, got 'string' for start",
+            ),
+        ),
+        (
+            "PRINT 1.5 ..< 3;",
+            _Error(
+                ExecutionError,
+                "Range operator ..< requires integer operands, got non-integer start value 1.5",
+            ),
+        ),
+        (
+            "PRINT 1 ..< 3.5;",
+            _Error(
+                ExecutionError,
+                "Range operator ..< requires integer operands, got non-integer end value 3.5",
+            ),
+        ),
+        # Range operators without spaces
+        ("PRINT 1..=5;", _Success("[1, 2, 3, 4, 5]")),
+        ("PRINT 1..<5;", _Success("[1, 2, 3, 4]")),
+        ("PRINT 10..=1;", _Success("[10, 9, 8, 7, 6, 5, 4, 3, 2, 1]")),
+        ("PRINT 0..=0;", _Success("[0]")),
+        ("PRINT 0..<0;", _Success("[]")),
+        ("PRINT -5..=5;", _Success("[-5, -4, -3, -2, -1, 0, 1, 2, 3, 4, 5]")),
+        ("LET x = 1..=5; PRINT x;", _Success("[1, 2, 3, 4, 5]")),
+        ("PRINT (1..=3)[1];", _Success("2")),
+        # Complex sort and calculation test case
+        (
+            # Advent of Code 2024, Day 1, Part 1 (Example Data)
+            "LET input = '3   4\\n4   3\\n2   5\\n1   3\\n3   9\\n3   3'; "
+            + r"LET lines = split(input, '\n'); "
+            + "LET left = for lines as line yeet $split(line, '   ')[0]; "
+            + "LET right = for lines as line yeet $split(line, '   ')[1]; "
+            + "LET sorted_left = sort(left); "
+            + "LET sorted_right = sort(right); "
+            + "LET diffs = for (0 ..< $'length'(sorted_left)) as i yeet $'abs'(sorted_left[i] - sorted_right[i]); "
+            + "LET sum = collect diffs as acc, diff with acc + diff; "
+            + "PRINT sum;",
+            _Success("11"),
+        ),
         # Integration
         ("PRINT 'First'; PRINT 'Second'; PRINT 'Third';", _Success("FirstSecondThird")),
         (

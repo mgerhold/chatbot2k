@@ -6,6 +6,7 @@ from typing import Final
 from typing import Literal
 from typing import Optional
 from typing import Self
+from typing import cast
 from typing import final
 from typing import override
 
@@ -53,6 +54,7 @@ class ExpressionType(StrEnum):
     COLLECT = "collect"
     SPLIT_OPERATION = "split_operation"
     JOIN_OPERATION = "join_operation"
+    SORT_OPERATION = "sort_operation"
 
 
 class BaseExpression(BaseModel, ABC):
@@ -256,6 +258,9 @@ class BinaryOperator(StrEnum):
     AND = "and"
     OR = "or"
 
+    RANGE_INCLUSIVE = "..="
+    RANGE_EXCLUSIVE = "..<"
+
 
 @final
 class UnaryOperator(StrEnum):
@@ -436,6 +441,21 @@ class BinaryOperationExpression(BaseExpression):
                 return NumberType()
             case (StringType(), BinaryOperator.ADD, StringType()):
                 return StringType()
+            case (NumberType(), BinaryOperator.RANGE_INCLUSIVE, NumberType()) | (
+                NumberType(),
+                BinaryOperator.RANGE_EXCLUSIVE,
+                NumberType(),
+            ):
+                return ListType(of_type=NumberType())
+            case (_, BinaryOperator.RANGE_INCLUSIVE, _) | (_, BinaryOperator.RANGE_EXCLUSIVE, _):
+                operator_name: Final = "..=" if self.operator == BinaryOperator.RANGE_INCLUSIVE else "..<"
+                left_data_type: Final = self.left.get_data_type()
+                right_data_type: Final = self.right.get_data_type()
+                if left_data_type != NumberType():
+                    msg = f"Range operator {operator_name} requires number operands, got '{left_data_type}' for start"
+                else:
+                    msg = f"Range operator {operator_name} requires number operands, got '{right_data_type}' for end"
+                raise TypeError(msg)
             case (ListType(of_type=left_type), BinaryOperator.ADD, ListType(of_type=right_type)):
                 if left_type != right_type:
                     msg = f"Operator {self.operator} is not supported for list operands of different element types"
@@ -521,6 +541,40 @@ class BinaryOperationExpression(BaseExpression):
                 return NumberValue(value=l % r)
             case StringValue(value=l), BinaryOperator.ADD, StringValue(value=r):
                 return StringValue(value=l + r)
+            case NumberValue(value=l), BinaryOperator.RANGE_INCLUSIVE, NumberValue(value=r):
+                if not l.is_integer():
+                    msg = f"Range operator ..= requires integer operands, got non-integer start value {l}"
+                    raise ExecutionError(msg)
+                if not r.is_integer():
+                    msg = f"Range operator ..= requires integer operands, got non-integer end value {r}"
+                    raise ExecutionError(msg)
+
+                start_int = int(l)
+                end_int = int(r)
+
+                if start_int <= end_int:
+                    elements = [NumberValue(value=float(i)) for i in range(start_int, end_int + 1)]
+                else:
+                    elements = [NumberValue(value=float(i)) for i in range(start_int, end_int - 1, -1)]
+
+                return ListValue(elements=cast(list[Value], elements), element_type=NumberType())
+            case NumberValue(value=l), BinaryOperator.RANGE_EXCLUSIVE, NumberValue(value=r):
+                if not l.is_integer():
+                    msg = f"Range operator ..< requires integer operands, got non-integer start value {l}"
+                    raise ExecutionError(msg)
+                if not r.is_integer():
+                    msg = f"Range operator ..< requires integer operands, got non-integer end value {r}"
+                    raise ExecutionError(msg)
+
+                start_int = int(l)
+                end_int = int(r)
+
+                if start_int <= end_int:
+                    elements = [NumberValue(value=float(i)) for i in range(start_int, end_int)]
+                else:
+                    elements = [NumberValue(value=float(i)) for i in range(start_int, end_int, -1)]
+
+                return ListValue(elements=cast(list[Value], elements), element_type=NumberType())
             case (
                 ListValue(elements=l, element_type=l_type),
                 BinaryOperator.ADD,
@@ -892,6 +946,143 @@ class JoinExpression(BaseExpression):
         return StringValue(value=delimiter.join(string_parts))
 
 
+class SortExpression(BaseExpression):
+    """
+    Expression of the form `sort(<list>)` or `sort(<list>; <lhs>, <rhs> yeet <comparison>)`.
+    For list<number>, the comparison expression is optional and defaults to ascending numeric order.
+    For other list types, a custom comparison expression is required.
+    The comparison expression should evaluate to true if lhs < rhs.
+    Returns a sorted list of the same type.
+    """
+
+    model_config = ConfigDict(frozen=True)
+
+    expression_type: Literal[ExpressionType.SORT_OPERATION] = ExpressionType.SORT_OPERATION
+    list_expression: "Expression"
+    lhs_variable_name: Optional[str]
+    rhs_variable_name: Optional[str]
+    comparison_expression: Optional["Expression"]
+
+    @override
+    def get_data_type(self) -> DataType:
+        return self.list_expression.get_data_type()
+
+    @override
+    async def evaluate(
+        self,
+        context: ExecutionContext,
+    ) -> Value:
+        list_value: Final = await self.list_expression.evaluate(context)
+        if not isinstance(list_value, ListValue):
+            msg = f"sort() requires a list, got '{list_value.get_data_type()}'"
+            raise ExecutionError(msg)
+
+        if len(list_value.elements) <= 1:
+            # Already sorted
+            return list_value
+
+        # If no comparison expression, use default numeric comparison for list<number>
+        if self.comparison_expression is None:
+            # Default sort for numbers (ascending)
+            def numeric_compare(lhs: Value, rhs: Value) -> int:
+                if not isinstance(lhs, NumberValue) or not isinstance(rhs, NumberValue):
+                    msg = "Default sort requires numeric values"
+                    raise ExecutionError(msg)
+                if lhs.value < rhs.value:
+                    return -1
+                if lhs.value > rhs.value:
+                    return 1
+                return 0
+
+            # Use merge sort with numeric comparison
+            def sync_merge_sort(elements: list[Value]) -> list[Value]:
+                if len(elements) <= 1:
+                    return elements
+
+                mid = len(elements) // 2
+                left = sync_merge_sort(elements[:mid])
+                right = sync_merge_sort(elements[mid:])
+
+                result: list[Value] = []
+                i = 0
+                j = 0
+
+                while i < len(left) and j < len(right):
+                    if numeric_compare(left[i], right[j]) <= 0:
+                        result.append(left[i])
+                        i += 1
+                    else:
+                        result.append(right[j])
+                        j += 1
+
+                result.extend(left[i:])
+                result.extend(right[j:])
+                return result
+
+            sorted_elements = sync_merge_sort(list_value.elements)
+            return ListValue(elements=sorted_elements, element_type=list_value.element_type)
+
+        # Custom comparison expression provided
+        async def compare(lhs: Value, rhs: Value) -> int:
+            if self.lhs_variable_name is None or self.rhs_variable_name is None or self.comparison_expression is None:
+                msg = "Variable names and comparison expression required for custom comparison"
+                raise ExecutionError(msg)
+            context.variables[self.lhs_variable_name] = lhs
+            context.variables[self.rhs_variable_name] = rhs
+            result: Final = await self.comparison_expression.evaluate(context)
+            if not isinstance(result, BoolValue):
+                msg = f"sort() comparison expression must return a bool, got '{result.get_data_type()}'"
+                raise ExecutionError(msg)
+
+            # If lhs < rhs returns True, then lhs should come before rhs
+            if result.value:
+                return -1
+
+            # Check if rhs < lhs (to determine if they're equal or rhs comes first)
+            context.variables[self.lhs_variable_name] = rhs
+            context.variables[self.rhs_variable_name] = lhs
+            reverse_result: Final = await self.comparison_expression.evaluate(context)
+            if not isinstance(reverse_result, BoolValue):
+                msg = f"sort() comparison expression must return a bool, got '{reverse_result.get_data_type()}'"
+                raise ExecutionError(msg)
+
+            if reverse_result.value:
+                return 1
+            return 0
+
+        # Use merge sort for O(n log n) performance with async comparison
+        async def async_merge_sort(elements: list[Value]) -> list[Value]:
+            if len(elements) <= 1:
+                return elements
+
+            # Divide
+            mid = len(elements) // 2
+            left = await async_merge_sort(elements[:mid])
+            right = await async_merge_sort(elements[mid:])
+
+            # Conquer (merge)
+            result: list[Value] = []
+            i = 0
+            j = 0
+
+            while i < len(left) and j < len(right):
+                cmp_result = await compare(left[i], right[j])
+                if cmp_result <= 0:
+                    result.append(left[i])
+                    i += 1
+                else:
+                    result.append(right[j])
+                    j += 1
+
+            # Append remaining elements
+            result.extend(left[i:])
+            result.extend(right[j:])
+            return result
+
+        sorted_elements = await async_merge_sort(list_value.elements)
+        return ListValue(elements=sorted_elements, element_type=list_value.element_type)
+
+
 type Expression = Annotated[
     StringLiteralExpression
     | NumberLiteralExpression
@@ -909,7 +1100,8 @@ type Expression = Annotated[
     | ListComprehensionExpression
     | CollectExpression
     | SplitExpression
-    | JoinExpression,
+    | JoinExpression
+    | SortExpression,
     Discriminator("expression_type"),
 ]
 
@@ -931,3 +1123,4 @@ ListComprehensionExpression.model_rebuild()
 CollectExpression.model_rebuild()
 SplitExpression.model_rebuild()
 JoinExpression.model_rebuild()
+SortExpression.model_rebuild()

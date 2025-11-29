@@ -77,6 +77,7 @@ The following keywords are reserved in the scripting language:
 - `or`
 - `PARAMS`
 - `PRINT`
+- `sort`
 - `split`
 - `string`
 - `STORE`
@@ -219,8 +220,10 @@ The following expressions are supported:
 - **Conversion to Boolean**: The prefix `?` operator converts a value to a boolean. For numbers, `0` is converted to `false`, all other numbers to `true`. For strings, only the literals `'true'` and `'false'` can be converted to their respective boolean values. Applying the operator to a boolean has no effect.
 - **Code Evaluation**: The prefix `!` operator evaluates a string as code and returns the result as a string. The evaluated source code must not contain any stores, or parameters. It cannot access any values from the surrounding script context.
 - **Function Calls**: Call builtin functions using the syntax `'function_name'(arg1, arg2, ...)`. See the Builtin Functions section below for available functions.
+- **Range Operators**: Create integer ranges using the `..=` (inclusive) or `..<` (exclusive) operators. Both operands must be numbers that represent integers (no fractional part). The operators return a `list<number>`. Ranges can be ascending (e.g., `1..=5` produces `[1, 2, 3, 4, 5]`) or descending (e.g., `5..=1` produces `[5, 4, 3, 2, 1]`). The exclusive operator `..<` excludes the end value (e.g., `1..<5` produces `[1, 2, 3, 4]`).
 - **Split Expressions**: Split a string into a list of strings using the syntax `split(string)` or `split(string, delimiter)`. If no delimiter is provided, the string is split by spaces. The result is always of type `list<string>`. Both arguments must be strings if a delimiter is provided.
 - **Join Expressions**: Join a list of strings into a single string using the syntax `join(list)` or `join(list, delimiter)`. If no delimiter is provided, the strings are joined with no separator. The first argument must be a `list<string>`, and the optional second argument must be a string.
+- **Sort Expressions**: Sort a list using the syntax `sort(list)` or `sort(list; lhs, rhs yeet comparison)`. For `list<number>`, the comparison expression is optional and defaults to ascending numeric order. For other list types, you must provide a custom comparison function. The comparison expression should evaluate to `true` if `lhs < rhs`. The identifiers `lhs` and `rhs` can be any names that don't shadow existing identifiers. Returns a sorted list of the same type.
 - **List Comprehensions**: Create new lists by transforming elements from an iterable (string or list) using the syntax
   `for <iterable> as <element> [if <condition>] yeet <expression>`. The optional `if <condition>` filters which
   elements are processed. See the List Comprehensions section below for details.
@@ -344,6 +347,69 @@ PRINT doubled;  // Output: [[2, 4], [6, 8], [10]]
 - The optional condition (if provided) must be a boolean expression
 - Empty list literals cannot be used in list comprehensions, as the type cannot be inferred
 - The type of the resulting list is determined by the type of the `<expression>`
+
+## Range Operators
+
+Range operators provide a convenient way to generate sequences of integers. The scripting language supports two range operators:
+
+- **Inclusive range (`..=`)**: Generates a list that includes both the start and end values
+- **Exclusive range (`..<`)**: Generates a list that includes the start value but excludes the end value
+
+### Syntax
+
+```
+<start> ..= <end>  // Inclusive range
+<start> ..< <end>  // Exclusive range
+```
+
+Both `<start>` and `<end>` must be numbers representing integers (no fractional part).
+
+### Behavior
+
+- **Ascending ranges**: When start ≤ end, the range generates values from start to end
+- **Descending ranges**: When start > end, the range generates values from start down to end
+- **Type**: Both operators return `list<number>`
+
+### Examples
+
+```
+// Basic ascending ranges
+PRINT 1..=5;    // Output: [1, 2, 3, 4, 5]
+PRINT 1..<5;    // Output: [1, 2, 3, 4]
+
+// Descending ranges
+PRINT 5..=1;    // Output: [5, 4, 3, 2, 1]
+PRINT 5..<1;    // Output: [5, 4, 3, 2]
+
+// Negative ranges
+PRINT -2..=2;   // Output: [-2, -1, 0, 1, 2]
+PRINT -5..<0;   // Output: [-5, -4, -3, -2, -1]
+
+// Edge cases
+PRINT 0..=0;    // Output: [0]
+PRINT 0..<0;    // Output: []
+
+// Integration with list comprehensions
+LET squares = for (1..=5) as n yeet n * n;
+PRINT squares;  // Output: [1, 4, 9, 16, 25]
+
+// Integration with collect
+LET sum = collect (1..=10) as acc, n with acc + n;
+PRINT sum;      // Output: 55
+
+// Using ranges for iteration
+LET data = ['a', 'b', 'c', 'd', 'e'];
+LET indices = 0..=4;
+LET indexed = for indices as i yeet data[i];
+PRINT indexed;  // Output: [a, b, c, d, e]
+```
+
+### Important Notes
+
+- Both operands must be numbers without fractional parts (integers)
+- Runtime error if operands have fractional parts (e.g., `1.5..=3` raises an error)
+- Type error if operands are not numbers (e.g., `'a'..='z'` raises a type error)
+- Ranges can be used anywhere a list expression is expected
 
 ## Collect Expressions
 

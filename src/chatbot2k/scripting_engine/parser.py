@@ -31,6 +31,7 @@ from chatbot2k.scripting_engine.types.expressions import ListLiteralExpression
 from chatbot2k.scripting_engine.types.expressions import ListOfEmptyListsLiteralExpression
 from chatbot2k.scripting_engine.types.expressions import NumberLiteralExpression
 from chatbot2k.scripting_engine.types.expressions import ParameterIdentifierExpression
+from chatbot2k.scripting_engine.types.expressions import SortExpression
 from chatbot2k.scripting_engine.types.expressions import SplitExpression
 from chatbot2k.scripting_engine.types.expressions import StoreIdentifierExpression
 from chatbot2k.scripting_engine.types.expressions import StringLiteralExpression
@@ -232,6 +233,9 @@ _BINARY_OPERATOR_BY_TOKEN_TYPE = {
     TokenType.LESS_THAN_EQUALS: BinaryOperator.LESS_THAN_OR_EQUAL,
     TokenType.GREATER_THAN: BinaryOperator.GREATER_THAN,
     TokenType.GREATER_THAN_EQUALS: BinaryOperator.GREATER_THAN_OR_EQUAL,
+    # Range operators.
+    TokenType.DOT_DOT_EQUALS: BinaryOperator.RANGE_INCLUSIVE,
+    TokenType.DOT_DOT_LESS_THAN: BinaryOperator.RANGE_EXCLUSIVE,
     # Logical operators.
     TokenType.AND: BinaryOperator.AND,
     TokenType.OR: BinaryOperator.OR,
@@ -966,6 +970,82 @@ class Parser:
             delimiter_expression=delimiter_expression,
         )
 
+    def _sort(
+        self,
+        context: _ParseContext,
+    ) -> Expression:
+        self._expect(TokenType.SORT, "'sort' keyword")  # This is a double-check.
+        self._expect(TokenType.LEFT_PARENTHESIS, "'(' after sort")
+
+        # Parse the list expression
+        list_expression: Final = self._expression(context, Precedence.UNKNOWN)
+        list_type: Final = list_expression.get_data_type()
+        if not isinstance(list_type, ListType):
+            raise ParserTypeError(f"sort expects a list as the first argument, got '{list_type}'")
+
+        # Check if semicolon is present (optional for list<number>)
+        if self._match(TokenType.SEMICOLON) is None:
+            # No semicolon - only allowed for list<number>
+            if not isinstance(list_type.of_type, NumberType):
+                raise ParserTypeError(
+                    f"sort without comparison expression is only allowed for list<number>, got '{list_type}'"
+                )
+            self._expect(TokenType.RIGHT_PARENTHESIS, "')' after sort expression")
+            return SortExpression(
+                list_expression=list_expression,
+                lhs_variable_name=None,
+                rhs_variable_name=None,
+                comparison_expression=None,
+            )
+
+        # Semicolon present - parse full comparison syntax
+        lhs_identifier: Final = self._expect(TokenType.IDENTIFIER, "lhs identifier in sort")
+        lhs_name: Final = lhs_identifier.source_location.lexeme
+        self._ensure_not_shadowed(lhs_name, context)
+
+        self._expect(TokenType.COMMA, "',' between lhs and rhs identifiers in sort")
+
+        rhs_identifier: Final = self._expect(TokenType.IDENTIFIER, "rhs identifier in sort")
+        rhs_name: Final = rhs_identifier.source_location.lexeme
+        self._ensure_not_shadowed(rhs_name, context)
+
+        # Add temporary variables to context for type checking
+        element_type: Final = list_type.of_type
+        context.variable_definitions.append(
+            VariableDefinitionStatement(
+                variable_name=lhs_name,
+                data_type=element_type,
+                initial_value=_create_default_value_expression(element_type),
+            )
+        )
+        context.variable_definitions.append(
+            VariableDefinitionStatement(
+                variable_name=rhs_name,
+                data_type=element_type,
+                initial_value=_create_default_value_expression(element_type),
+            )
+        )
+
+        self._expect(TokenType.YEET, "'yeet' in sort expression")
+
+        comparison_expression: Final = self._expression(context, Precedence.UNKNOWN)
+        comparison_type: Final = comparison_expression.get_data_type()
+        if not isinstance(comparison_type, BoolType):
+            raise ParserTypeError(f"sort comparison expression must return bool, got '{comparison_type}'")
+
+        # Remove temporary variables from context
+        context.variable_definitions.pop()
+        context.variable_definitions.pop()
+
+        self._expect(TokenType.RIGHT_PARENTHESIS, "')' after sort expression")
+
+        return SortExpression(
+            list_expression=list_expression,
+            lhs_variable_name=lhs_name,
+            rhs_variable_name=rhs_name,
+            comparison_expression=comparison_expression,
+        )
+
     def _ensure_not_shadowed(
         self,
         identifier_name: str,
@@ -1006,6 +1086,8 @@ class Parser:
         TokenType.LESS_THAN_EQUALS: _TableEntry(None, _binary_expression, Precedence.COMPARISON),
         TokenType.GREATER_THAN: _TableEntry(None, _binary_expression, Precedence.COMPARISON),
         TokenType.GREATER_THAN_EQUALS: _TableEntry(None, _binary_expression, Precedence.COMPARISON),
+        TokenType.DOT_DOT_EQUALS: _TableEntry(None, _binary_expression, Precedence.RANGE),
+        TokenType.DOT_DOT_LESS_THAN: _TableEntry(None, _binary_expression, Precedence.RANGE),
         TokenType.PLUS: _TableEntry(_unary_operation, _binary_expression, Precedence.SUM),
         TokenType.MINUS: _TableEntry(_unary_operation, _binary_expression, Precedence.SUM),
         TokenType.ASTERISK: _TableEntry(None, _binary_expression, Precedence.PRODUCT),
@@ -1038,6 +1120,7 @@ class Parser:
         TokenType.WITH: _TableEntry.unused(),
         TokenType.SPLIT: _TableEntry(_split, None, Precedence.UNKNOWN),
         TokenType.JOIN: _TableEntry(_join, None, Precedence.UNKNOWN),
+        TokenType.SORT: _TableEntry(_sort, None, Precedence.UNKNOWN),
         TokenType.END_OF_INPUT: _TableEntry.unused(),
     }
 
