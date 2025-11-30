@@ -417,39 +417,46 @@ Fold expressions provide a way to reduce an iterable (string or list) to a singl
 operation. This is similar to a fold/reduce operation in functional programming. The syntax is:
 
 ```
-fold <iterable> as <accumulator>, <element> with <expression>
+fold <iterable> as <start>, <accumulator>, <element> with <expression>
 ```
 
 - `<iterable>` can be a list or a string
+- `<start>` is an expression that provides the initial value for the accumulator
 - `<accumulator>` is the name of the variable that holds the accumulated result
 - `<element>` is the name of the variable that represents each element during iteration
-- `<expression>` is evaluated for each element and must return a value of the same type as the accumulator
+- `<expression>` is evaluated for each element and must return a value of the same type as the start value
 - The keyword `with` introduces the expression that combines the accumulator with each element
 
-For lists, the accumulator is initialized with the first element, and the iteration starts from the second element. For
-strings, the accumulator is initialized with an empty string, and all characters are processed.
+The type of the fold expression is determined by the type of `<start>` and `<expression>`, which allows the result type
+to differ from the element type of the iterable. The accumulator is initialized with the value of `<start>`, and all
+elements of the iterable are processed.
 
 **Examples:**
 
 ```
 // Sum all numbers in a list
 LET numbers = [1, 2, 3, 4, 5];
-LET sum = fold numbers as acc, elem with acc + elem;
+LET sum = fold numbers as 0, acc, elem with acc + elem;
 PRINT sum;  // Output: 15
 
 // Calculate the product of all numbers
 LET numbers = [1, 2, 3, 4];
-LET product = fold numbers as acc, elem with acc * elem;
+LET product = fold numbers as 1, acc, elem with acc * elem;
 PRINT product;  // Output: 24
 
 // Concatenate strings
 LET words = ['Hello', ' ', 'World', '!'];
-LET message = fold words as acc, elem with acc + elem;
+LET message = fold words as '', acc, elem with acc + elem;
 PRINT message;  // Output: Hello World!
 
-// Concatenate characters from a string
-LET result = fold 'hello' as acc, char with acc + 'upper'(char);
+// Concatenate and transform characters from a string
+LET result = fold 'hello' as '', acc, char with acc + 'upper'(char);
 PRINT result;  // Output: HELLO
+
+// Count elements in a list (demonstrates different result type)
+LET items = ['apple', 'banana', 'cherry'];
+LET count = fold items as 0, acc, elem with acc + 1;
+PRINT count;  // Output: 3 (number result from string list)
 ```
 
 **Complex Example - Combining List Comprehension and Fold:**
@@ -459,16 +466,16 @@ PRINT result;  // Output: HELLO
 LET nested = [[1, 2], [3, 4], [5]];
 LET sum = fold (
     for nested as inner_list yeet (
-        fold inner_list as acc, num with acc + num
+        fold inner_list as 0, acc, num with acc + num
     )
-) as outer_acc, inner_sum with outer_acc + inner_sum;
+) as 0, outer_acc, inner_sum with outer_acc + inner_sum;
 PRINT sum;  // Output: 15
 ```
 
 **Important Notes:**
 
 - The accumulator and element variables cannot shadow existing variables, parameters, or stores
-- The `<expression>` must return a value of the same type as the elements in the iterable
-- Empty iterables cannot be used in fold expressions, as the initial accumulator value cannot be determined
+- The `<expression>` must return a value of the same type as the `<start>` expression
+- The type of a fold expression is determined by `<start>` and `<expression>`, allowing the result type to differ from the iterable's element type
 - Both the accumulator and element are scoped to the fold expression only
 
