@@ -51,7 +51,7 @@ class ExpressionType(StrEnum):
     LIST_LITERAL = "list_literal"
     SUBSCRIPT_OPERATION = "subscript_operation"
     LIST_COMPREHENSION = "list_comprehension"
-    COLLECT = "collect"
+    FOLD = "fold"
     SPLIT_OPERATION = "split_operation"
     JOIN_OPERATION = "join_operation"
     SORT_OPERATION = "sort_operation"
@@ -807,9 +807,9 @@ class ListComprehensionExpression(BaseExpression):
 
 
 @final
-class CollectExpression(BaseExpression):
+class FoldExpression(BaseExpression):
     """
-    Expression of the form `collect <iterable> as <accumulator>, <element> with <expression>`,
+    Expression of the form `fold <iterable> as <accumulator>, <element> with <expression>`,
     where `<iterable>` can either be a list or a string. The types of `<accumulator>`, `<element>`, and
     `<expression>` have to be identical and are determined by the type of `<iterable>`. This is
     already checked by the parser.
@@ -817,7 +817,7 @@ class CollectExpression(BaseExpression):
 
     model_config = ConfigDict(frozen=True)
 
-    expression_type: Literal[ExpressionType.COLLECT] = ExpressionType.COLLECT
+    expression_type: Literal[ExpressionType.FOLD] = ExpressionType.FOLD
     iterable: "Expression"
     accumulator_variable_name: str
     element_variable_name: str
@@ -843,7 +843,7 @@ class CollectExpression(BaseExpression):
                 return string_accumulator
             case ListValue(elements=iterable_elements):
                 if not iterable_elements:
-                    msg = "Collect expression iterable must not be empty."
+                    msg = "Fold expression iterable must not be empty."
                     raise ExecutionError(msg)
                 list_accumulator = iterable_elements[0]
                 for item in iterable_elements[1:]:
@@ -852,7 +852,7 @@ class CollectExpression(BaseExpression):
                     list_accumulator = await self.expression.evaluate(context)
                 return list_accumulator
             case _:
-                msg = f"Collect expression iterable must be a string or a list, got {iterable_value.get_data_type()}"
+                msg = f"Fold expression iterable must be a string or a list, got {iterable_value.get_data_type()}"
                 raise ExecutionError(msg)
 
 
@@ -1098,7 +1098,7 @@ type Expression = Annotated[
     | ListLiteralExpression
     | SubscriptOperationExpression
     | ListComprehensionExpression
-    | CollectExpression
+    | FoldExpression
     | SplitExpression
     | JoinExpression
     | SortExpression,
@@ -1120,7 +1120,7 @@ CallOperationExpression.model_rebuild()
 SubscriptOperationExpression.model_rebuild()
 ListOfEmptyListsLiteralExpression.model_rebuild()
 ListComprehensionExpression.model_rebuild()
-CollectExpression.model_rebuild()
+FoldExpression.model_rebuild()
 SplitExpression.model_rebuild()
 JoinExpression.model_rebuild()
 SortExpression.model_rebuild()

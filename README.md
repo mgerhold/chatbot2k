@@ -55,7 +55,7 @@ Currently, the language supports the following data types:
   - `\'` for single quote
   - `\n` for newline
   - `\\` for backslash
-- **Lists**: Ordered collections of elements of the same type. Lists are created using square brackets `[]` and can
+- **Lists**: Ordered foldions of elements of the same type. Lists are created using square brackets `[]` and can
   contain any data type, including nested lists. All elements in a list must have the same type. The type is written as
   `list<element_type>` (e.g., `list<number>`, `list<string>`, `list<list<number>>`).
 
@@ -66,7 +66,7 @@ The following keywords are reserved in the scripting language:
 - `and`
 - `as`
 - `bool`
-- `collect`
+- `fold`
 - `false`
 - `for`
 - `if`
@@ -227,8 +227,8 @@ The following expressions are supported:
 - **List Comprehensions**: Create new lists by transforming elements from an iterable (string or list) using the syntax
   `for <iterable> as <element> [if <condition>] yeet <expression>`. The optional `if <condition>` filters which
   elements are processed. See the List Comprehensions section below for details.
-- **Collect Expressions**: Reduce an iterable (string or list) to a single value using the syntax
-  `collect <iterable> as <accumulator>, <element> with <expression>`. See the Collect Expressions section below for
+- **Fold Expressions**: Reduce an iterable (string or list) to a single value using the syntax
+  `fold <iterable> as <accumulator>, <element> with <expression>`. See the Fold Expressions section below for
   details.
 
 ## Builtin Functions
@@ -393,8 +393,8 @@ PRINT 0..<0;    // Output: []
 LET squares = for (1..=5) as n yeet n * n;
 PRINT squares;  // Output: [1, 4, 9, 16, 25]
 
-// Integration with collect
-LET sum = collect (1..=10) as acc, n with acc + n;
+// Integration with fold
+LET sum = fold (1..=10) as acc, n with acc + n;
 PRINT sum;      // Output: 55
 
 // Using ranges for iteration
@@ -411,13 +411,13 @@ PRINT indexed;  // Output: [a, b, c, d, e]
 - Type error if operands are not numbers (e.g., `'a'..='z'` raises a type error)
 - Ranges can be used anywhere a list expression is expected
 
-## Collect Expressions
+## Fold Expressions
 
-Collect expressions provide a way to reduce an iterable (string or list) to a single value by repeatedly applying an
+Fold expressions provide a way to reduce an iterable (string or list) to a single value by repeatedly applying an
 operation. This is similar to a fold/reduce operation in functional programming. The syntax is:
 
 ```
-collect <iterable> as <accumulator>, <element> with <expression>
+fold <iterable> as <accumulator>, <element> with <expression>
 ```
 
 - `<iterable>` can be a list or a string
@@ -434,32 +434,32 @@ strings, the accumulator is initialized with an empty string, and all characters
 ```
 // Sum all numbers in a list
 LET numbers = [1, 2, 3, 4, 5];
-LET sum = collect numbers as acc, elem with acc + elem;
+LET sum = fold numbers as acc, elem with acc + elem;
 PRINT sum;  // Output: 15
 
 // Calculate the product of all numbers
 LET numbers = [1, 2, 3, 4];
-LET product = collect numbers as acc, elem with acc * elem;
+LET product = fold numbers as acc, elem with acc * elem;
 PRINT product;  // Output: 24
 
 // Concatenate strings
 LET words = ['Hello', ' ', 'World', '!'];
-LET message = collect words as acc, elem with acc + elem;
+LET message = fold words as acc, elem with acc + elem;
 PRINT message;  // Output: Hello World!
 
 // Concatenate characters from a string
-LET result = collect 'hello' as acc, char with acc + 'upper'(char);
+LET result = fold 'hello' as acc, char with acc + 'upper'(char);
 PRINT result;  // Output: HELLO
 ```
 
-**Complex Example - Combining List Comprehension and Collect:**
+**Complex Example - Combining List Comprehension and Fold:**
 
 ```
 // Calculate the sum of sums of nested lists
 LET nested = [[1, 2], [3, 4], [5]];
-LET sum = collect (
+LET sum = fold (
     for nested as inner_list yeet (
-        collect inner_list as acc, num with acc + num
+        fold inner_list as acc, num with acc + num
     )
 ) as outer_acc, inner_sum with outer_acc + inner_sum;
 PRINT sum;  // Output: 15
@@ -469,6 +469,6 @@ PRINT sum;  // Output: 15
 
 - The accumulator and element variables cannot shadow existing variables, parameters, or stores
 - The `<expression>` must return a value of the same type as the elements in the iterable
-- Empty iterables cannot be used in collect expressions, as the initial accumulator value cannot be determined
-- Both the accumulator and element are scoped to the collect expression only
+- Empty iterables cannot be used in fold expressions, as the initial accumulator value cannot be determined
+- Both the accumulator and element are scoped to the fold expression only
 

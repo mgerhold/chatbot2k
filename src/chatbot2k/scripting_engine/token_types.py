@@ -54,7 +54,7 @@ class TokenType(Enum):
     AS = auto()
     IF = auto()
     YEET = auto()
-    COLLECT = auto()
+    FOLD = auto()
     WITH = auto()
     SPLIT = auto()
     JOIN = auto()

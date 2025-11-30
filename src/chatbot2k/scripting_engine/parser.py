@@ -23,8 +23,8 @@ from chatbot2k.scripting_engine.types.expressions import BinaryOperationExpressi
 from chatbot2k.scripting_engine.types.expressions import BinaryOperator
 from chatbot2k.scripting_engine.types.expressions import BoolLiteralExpression
 from chatbot2k.scripting_engine.types.expressions import CallOperationExpression
-from chatbot2k.scripting_engine.types.expressions import CollectExpression
 from chatbot2k.scripting_engine.types.expressions import Expression
+from chatbot2k.scripting_engine.types.expressions import FoldExpression
 from chatbot2k.scripting_engine.types.expressions import JoinExpression
 from chatbot2k.scripting_engine.types.expressions import ListComprehensionExpression
 from chatbot2k.scripting_engine.types.expressions import ListLiteralExpression
@@ -198,9 +198,9 @@ class ListComprehensionConditionTypeError(ParserError):
 
 
 @final
-class CollectExpressionTypeError(ParserError):
+class FoldExpressionTypeError(ParserError):
     def __init__(self, expected_type: DataType, actual_type: DataType) -> None:
-        super().__init__(f"Collect expression type error: expected '{expected_type}', got '{actual_type}'.")
+        super().__init__(f"Fold expression type error: expected '{expected_type}', got '{actual_type}'.")
 
 
 type _UnaryParser = Callable[
@@ -848,11 +848,11 @@ class Parser:
             expression=yield_expression,
         )
 
-    def _collect(
+    def _fold(
         self,
         context: _ParseContext,
     ) -> Expression:
-        self._expect(TokenType.COLLECT, "'collect' in collect expression")  # This is a double-check.
+        self._expect(TokenType.FOLD, "'fold' in fold expression")  # This is a double-check.
         iterable: Final = self._expression(context, Precedence.UNKNOWN)
         iterable_type: Final = iterable.get_data_type()
         element_type: DataType
@@ -886,22 +886,22 @@ class Parser:
             )
         )
         self._expect(TokenType.WITH, "'with' in collect expression")
-        collection_expression: Final = self._expression(context, Precedence.UNKNOWN)
-        collection_expression_type: Final = collection_expression.get_data_type()
-        if collection_expression_type != element_type:
-            raise CollectExpressionTypeError(
+        fold_expression: Final = self._expression(context, Precedence.UNKNOWN)
+        fold_expression_type: Final = fold_expression.get_data_type()
+        if fold_expression_type != element_type:
+            raise FoldExpressionTypeError(
                 expected_type=element_type,
-                actual_type=collection_expression_type,
+                actual_type=fold_expression_type,
             )
         # We remove the accumulator and element variables from the context after parsing the collect expression.
         # This way, we simulate having scopes, although we don't really support scopes.
         context.variable_definitions.pop()
         context.variable_definitions.pop()
-        return CollectExpression(
+        return FoldExpression(
             iterable=iterable,
             accumulator_variable_name=accumulator_name,
             element_variable_name=element_name,
-            expression=collection_expression,
+            expression=fold_expression,
         )
 
     def _split(
@@ -1116,7 +1116,7 @@ class Parser:
         TokenType.AS: _TableEntry.unused(),
         TokenType.IF: _TableEntry.unused(),
         TokenType.YEET: _TableEntry.unused(),
-        TokenType.COLLECT: _TableEntry(_collect, None, Precedence.UNKNOWN),
+        TokenType.FOLD: _TableEntry(_fold, None, Precedence.UNKNOWN),
         TokenType.WITH: _TableEntry.unused(),
         TokenType.SPLIT: _TableEntry(_split, None, Precedence.UNKNOWN),
         TokenType.JOIN: _TableEntry(_join, None, Precedence.UNKNOWN),

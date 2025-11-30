@@ -18,7 +18,7 @@ def test_tokenize_can_analyze_all_token_types() -> None:
     source: Final = (
         r";=+-*%/()STORE PRINT some_identifier_123 'my string 🐍\'quoted\'\ntext on second line' 3.14 "
         + "LET PARAMS,$!:?true false== != < <= > >= ..= ..< and or not#[]string number bool list for as yeet "
-        + "collect with if split join sort"
+        + "fold with if split join sort"
     )
     tokens: Final = _tokenize_source(source)
 
@@ -201,32 +201,32 @@ def test_tokenize_can_analyze_all_token_types() -> None:
     assert tokens[43].source_location == SourceLocation(source, offset=184, length=4)
     assert tokens[43].source_location.lexeme == "yeet"
 
-    assert tokens[44].type == TokenType.COLLECT
-    assert tokens[44].source_location == SourceLocation(source, offset=189, length=7)
-    assert tokens[44].source_location.lexeme == "collect"
+    assert tokens[44].type == TokenType.FOLD
+    assert tokens[44].source_location == SourceLocation(source, offset=189, length=4)
+    assert tokens[44].source_location.lexeme == "fold"
 
     assert tokens[45].type == TokenType.WITH
-    assert tokens[45].source_location == SourceLocation(source, offset=197, length=4)
+    assert tokens[45].source_location == SourceLocation(source, offset=194, length=4)
     assert tokens[45].source_location.lexeme == "with"
 
     assert tokens[46].type == TokenType.IF
-    assert tokens[46].source_location == SourceLocation(source, offset=202, length=2)
+    assert tokens[46].source_location == SourceLocation(source, offset=199, length=2)
     assert tokens[46].source_location.lexeme == "if"
 
     assert tokens[47].type == TokenType.SPLIT
-    assert tokens[47].source_location == SourceLocation(source, offset=205, length=5)
+    assert tokens[47].source_location == SourceLocation(source, offset=202, length=5)
     assert tokens[47].source_location.lexeme == "split"
 
     assert tokens[48].type == TokenType.JOIN
-    assert tokens[48].source_location == SourceLocation(source, offset=211, length=4)
+    assert tokens[48].source_location == SourceLocation(source, offset=208, length=4)
     assert tokens[48].source_location.lexeme == "join"
 
     assert tokens[49].type == TokenType.SORT
-    assert tokens[49].source_location == SourceLocation(source, offset=216, length=4)
+    assert tokens[49].source_location == SourceLocation(source, offset=213, length=4)
     assert tokens[49].source_location.lexeme == "sort"
 
     assert tokens[50].type == TokenType.END_OF_INPUT
-    assert tokens[50].source_location == SourceLocation(source, offset=220, length=1)
+    assert tokens[50].source_location == SourceLocation(source, offset=217, length=1)
     assert tokens[50].source_location.lexeme == ""
 
 

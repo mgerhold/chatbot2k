@@ -25,7 +25,7 @@ _BUILTIN_KEYWORDS = {
     "as": TokenType.AS,
     "if": TokenType.IF,
     "yeet": TokenType.YEET,
-    "collect": TokenType.COLLECT,
+    "fold": TokenType.FOLD,
     "with": TokenType.WITH,
     "split": TokenType.SPLIT,
     "join": TokenType.JOIN,
@@ -178,7 +178,7 @@ class Lexer:
                 case _ as char if not char.isascii():
                     msg = f"Invalid character '{char}'."
                     raise LexerError(msg, self._current_source_location)
-                case '\0':
+                case "\0":
                     break
                 case _:
                     msg = f"Unexpected character '{self._current()}' ({ord(self._current())})."
