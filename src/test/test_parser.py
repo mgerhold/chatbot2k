@@ -3,14 +3,23 @@ from typing import Final
 import pytest
 
 from chatbot2k.scripting_engine.lexer import Lexer
+from chatbot2k.scripting_engine.parser import DuplicateParameterNameError
+from chatbot2k.scripting_engine.parser import ExpectedTokenError
+from chatbot2k.scripting_engine.parser import ParameterShadowsStoreError
 from chatbot2k.scripting_engine.parser import Parser
 from chatbot2k.scripting_engine.parser import StoreRedefinitionError
+from chatbot2k.scripting_engine.parser import TernaryConditionTypeError
+from chatbot2k.scripting_engine.parser import TernaryOperatorTypeError
 from chatbot2k.scripting_engine.parser import UnknownVariableError
 from chatbot2k.scripting_engine.parser import VariableRedefinitionError
+from chatbot2k.scripting_engine.parser import VariableShadowsParameterError
+from chatbot2k.scripting_engine.parser import VariableShadowsStoreError
 from chatbot2k.scripting_engine.types.ast import Script
-from chatbot2k.scripting_engine.types.data_types import DataType
+from chatbot2k.scripting_engine.types.data_types import NumberType
+from chatbot2k.scripting_engine.types.data_types import StringType
 from chatbot2k.scripting_engine.types.expressions import BinaryOperationExpression
 from chatbot2k.scripting_engine.types.expressions import BinaryOperator
+from chatbot2k.scripting_engine.types.expressions import BoolLiteralExpression
 from chatbot2k.scripting_engine.types.expressions import NumberLiteralExpression
 from chatbot2k.scripting_engine.types.expressions import StoreIdentifierExpression
 from chatbot2k.scripting_engine.types.expressions import StringLiteralExpression
@@ -59,11 +68,11 @@ def test_parser_parses_stores() -> None:
     script: Final = _parse_source("STORE fizzle = 0; STORE wizzle = 'chizzle'; PRINT fizzle; PRINT wizzle;")
     assert len(script.stores) == 2
     assert script.stores[0].name == "fizzle"
-    assert script.stores[0].data_type == DataType.NUMBER
+    assert isinstance(script.stores[0].data_type, NumberType)
     assert isinstance(script.stores[0].value, NumberLiteralExpression)
     assert script.stores[0].value.value == 0.0
     assert script.stores[1].name == "wizzle"
-    assert script.stores[1].data_type == DataType.STRING
+    assert isinstance(script.stores[1].data_type, StringType)
     assert isinstance(script.stores[1].value, StringLiteralExpression)
     assert script.stores[1].value.value == "chizzle"
     assert len(script.statements) == 2
@@ -74,7 +83,7 @@ def test_parser_parses_store_with_expression() -> None:
     script: Final = _parse_source("STORE result = 5 + 3; PRINT result;")
     assert len(script.stores) == 1
     assert script.stores[0].name == "result"
-    assert script.stores[0].data_type == DataType.NUMBER
+    assert isinstance(script.stores[0].data_type, NumberType)
     assert isinstance(script.stores[0].value, BinaryOperationExpression)
     assert script.stores[0].value.operator == BinaryOperator.ADD
 
@@ -458,6 +467,116 @@ def test_parser_parses_double_negation() -> None:
             pytest.fail(f"Unexpected statement structure: {script.statements[0]}")
 
 
+def test_parser_parses_string_to_number_operator_with_string_literal() -> None:
+    # $'42' should be parsed as UnaryOperation(TO_NUMBER, StringLiteral('42'))
+    script: Final = _parse_source("PRINT $'42';")
+    assert len(script.statements) == 1
+
+    match script.statements[0]:
+        case PrintStatement(
+            argument=UnaryOperationExpression(
+                operator=UnaryOperator.TO_NUMBER,
+                operand=StringLiteralExpression(value="42"),
+            )
+        ):
+            pass  # Test passed
+        case _:
+            pytest.fail(f"Unexpected statement structure: {script.statements[0]}")
+
+
+def test_parser_parses_string_to_number_operator_with_string_expression() -> None:
+    # $('3' + '.14') should be parsed correctly
+    script: Final = _parse_source("PRINT $('3' + '.14');")
+    assert len(script.statements) == 1
+
+    match script.statements[0]:
+        case PrintStatement(
+            argument=UnaryOperationExpression(
+                operator=UnaryOperator.TO_NUMBER,
+                operand=BinaryOperationExpression(
+                    operator=BinaryOperator.ADD,
+                    left=StringLiteralExpression(value="3"),
+                    right=StringLiteralExpression(value=".14"),
+                ),
+            )
+        ):
+            pass  # Test passed
+        case _:
+            pytest.fail(f"Unexpected statement structure: {script.statements[0]}")
+
+
+def test_parser_parses_string_to_number_operator_with_store() -> None:
+    # $my_store should be parsed as UnaryOperation(TO_NUMBER, StoreIdentifier('my_store'))
+    script: Final = _parse_source("STORE my_store = '123'; PRINT $my_store;")
+    assert len(script.statements) == 1
+
+    match script.statements[0]:
+        case PrintStatement(
+            argument=UnaryOperationExpression(
+                operator=UnaryOperator.TO_NUMBER,
+                operand=StoreIdentifierExpression(store_name="my_store"),
+            )
+        ):
+            pass  # Test passed
+        case _:
+            pytest.fail(f"Unexpected statement structure: {script.statements[0]}")
+
+
+def test_parser_parses_evaluate_operator_with_string_literal() -> None:
+    # !'PRINT 5;' should be parsed as UnaryOperation(EVALUATE, StringLiteral('PRINT 5;'))
+    script: Final = _parse_source("PRINT !'PRINT 5;';")
+    assert len(script.statements) == 1
+
+    match script.statements[0]:
+        case PrintStatement(
+            argument=UnaryOperationExpression(
+                operator=UnaryOperator.EVALUATE,
+                operand=StringLiteralExpression(value="PRINT 5;"),
+            )
+        ):
+            pass  # Test passed
+        case _:
+            pytest.fail(f"Unexpected statement structure: {script.statements[0]}")
+
+
+def test_parser_parses_evaluate_operator_with_string_expression() -> None:
+    # !('PRINT ' + '42;') should be parsed correctly
+    script: Final = _parse_source("PRINT !('PRINT ' + '42;');")
+    assert len(script.statements) == 1
+
+    match script.statements[0]:
+        case PrintStatement(
+            argument=UnaryOperationExpression(
+                operator=UnaryOperator.EVALUATE,
+                operand=BinaryOperationExpression(
+                    operator=BinaryOperator.ADD,
+                    left=StringLiteralExpression(value="PRINT "),
+                    right=StringLiteralExpression(value="42;"),
+                ),
+            )
+        ):
+            pass  # Test passed
+        case _:
+            pytest.fail(f"Unexpected statement structure: {script.statements[0]}")
+
+
+def test_parser_parses_evaluate_operator_with_store() -> None:
+    # !code_store should be parsed as UnaryOperation(EVALUATE, StoreIdentifier('code_store'))
+    script: Final = _parse_source("STORE code_store = 'PRINT 100;'; PRINT !code_store;")
+    assert len(script.statements) == 1
+
+    match script.statements[0]:
+        case PrintStatement(
+            argument=UnaryOperationExpression(
+                operator=UnaryOperator.EVALUATE,
+                operand=StoreIdentifierExpression(store_name="code_store"),
+            )
+        ):
+            pass  # Test passed
+        case _:
+            pytest.fail(f"Unexpected statement structure: {script.statements[0]}")
+
+
 def test_parser_parses_grouped_expression() -> None:
     # (5) should just return the number
     script: Final = _parse_source("PRINT (5);")
@@ -545,3 +664,142 @@ def test_parser_handles_complex_expression_with_parentheses_and_unary() -> None:
             pass  # Test passed
         case _:
             pytest.fail(f"Unexpected statement structure: {script.statements[0]}")
+
+
+def test_parser_parses_no_parameters() -> None:
+    """Test that a script without parameters works correctly."""
+    script: Final = _parse_source("PRINT 'no params';")
+    assert len(script.stores) == 0
+    assert len(script.parameters) == 0
+    assert len(script.statements) == 1
+
+
+def test_parser_parses_single_parameter() -> None:
+    """Test parsing a script with a single parameter."""
+    script: Final = _parse_source("PARAMS my_param; PRINT 'test';")
+    assert len(script.parameters) == 1
+    assert script.parameters[0].name == "my_param"
+
+
+def test_parser_parses_multiple_parameters() -> None:
+    """Test parsing a script with multiple parameters."""
+    script: Final = _parse_source("PARAMS first, second, third; PRINT 'test';")
+    assert len(script.parameters) == 3
+    assert script.parameters[0].name == "first"
+    assert script.parameters[1].name == "second"
+    assert script.parameters[2].name == "third"
+
+
+def test_parser_parses_two_parameters() -> None:
+    """Test parsing a script with exactly two parameters."""
+    script: Final = _parse_source("PARAMS alpha, beta; PRINT 'test';")
+    assert len(script.parameters) == 2
+    assert script.parameters[0].name == "alpha"
+    assert script.parameters[1].name == "beta"
+
+
+def test_parser_parses_parameters_with_stores() -> None:
+    """Test that parameters can be used together with stores."""
+    script: Final = _parse_source("STORE counter = 0; PARAMS user_id; PRINT counter;")
+    assert len(script.parameters) == 1
+    assert script.parameters[0].name == "user_id"
+    assert len(script.stores) == 1
+    assert script.stores[0].name == "counter"
+
+
+def test_parser_does_not_allow_parameters_before_stores() -> None:
+    """Test that stores must come before parameters."""
+    with pytest.raises(ExpectedTokenError, match="Expected statement"):
+        _ = _parse_source("PARAMS name; STORE value = 42; PRINT value;")
+
+
+def test_parser_raises_on_duplicate_parameter_names() -> None:
+    """Test that duplicate parameter names raise an error."""
+    with pytest.raises(DuplicateParameterNameError, match="Parameter 'duplicate' is already defined."):
+        _parse_source("PARAMS duplicate, duplicate; PRINT 'test';")
+
+
+def test_parser_raises_on_duplicate_parameter_in_longer_list() -> None:
+    """Test that duplicate parameter names are caught even in longer lists."""
+    with pytest.raises(DuplicateParameterNameError, match="Parameter 'second' is already defined."):
+        _parse_source("PARAMS first, second, third, second; PRINT 'test';")
+
+
+def test_parser_parses_trailing_comma_in_parameters() -> None:
+    """Test that trailing comma before semicolon is handled."""
+    script: Final = _parse_source("PARAMS param1, param2,; PRINT 'test';")
+    assert len(script.parameters) == 2
+    assert script.parameters[0].name == "param1"
+    assert script.parameters[1].name == "param2"
+
+
+def test_parser_allows_parameter_names_similar_to_keywords() -> None:
+    """Test that parameter names can be similar to keywords (but not exact matches)."""
+    script: Final = _parse_source("PARAMS store, print, let; PRINT 'test';")
+    assert len(script.parameters) == 3
+    assert script.parameters[0].name == "store"
+    assert script.parameters[1].name == "print"
+    assert script.parameters[2].name == "let"
+
+
+def test_parser_does_not_allow_parameter_name_identical_to_store_name() -> None:
+    """Test that a parameter name identical to a store name raises an error."""
+    with pytest.raises(
+        ParameterShadowsStoreError,
+        match="Parameter 'data' shadows store with the same name.",
+    ):
+        _parse_source("STORE data = 100; PARAMS data; PRINT data;")
+
+
+def test_parser_does_not_allow_variable_name_identical_to_parameter_name() -> None:
+    """Test that a variable name identical to a parameter name raises an error."""
+    with pytest.raises(
+        VariableShadowsParameterError,
+        match="Variable 'input' shadows parameter with the same name.",
+    ):
+        _parse_source("PARAMS input; LET input = 5; PRINT input;")
+
+
+def test_parser_does_not_allow_variable_name_identical_to_store_name() -> None:
+    """Test that a variable name identical to a store name raises an error."""
+    with pytest.raises(
+        VariableShadowsStoreError,
+        match="Variable 'config' shadows store with the same name.",
+    ):
+        _parse_source("STORE config = 'value'; LET config = 10; PRINT config;")
+
+
+def test_parser_parses_bool_literals() -> None:
+    """Test that boolean literals are parsed correctly."""
+    script: Final = _parse_source("PRINT true; PRINT false;")
+    assert len(script.statements) == 2
+
+    match script.statements[0]:
+        case PrintStatement(argument=BoolLiteralExpression(value=True)):
+            pass  # Test passed
+        case _:
+            pytest.fail(f"Unexpected statement structure: {script.statements[0]}")
+
+    match script.statements[1]:
+        case PrintStatement(argument=BoolLiteralExpression(value=False)):
+            pass  # Test passed
+        case _:
+            pytest.fail(f"Unexpected statement structure: {script.statements[1]}")
+
+
+def test_parser_does_not_allow_non_bool_expression_for_ternary_condition() -> None:
+    """Test that non-boolean expressions cannot be used as conditions in ternary operations."""
+    with pytest.raises(
+        TernaryConditionTypeError,
+        match="Ternary operator condition must be of type 'bool', got 'number'",
+    ):
+        _parse_source("PRINT 5 ? 'yes' : 'no';")
+
+
+def test_parser_does_not_allow_different_types_for_ternary_branches() -> None:
+    """Test that the true and false branches of a ternary operation must be of the same type."""
+    with pytest.raises(
+        TernaryOperatorTypeError,
+        match="Ternary operator branches must have the same type, got 'string' and 'number'",
+    ):
+        _parse_source("PRINT true ? 'yes' : 0;")

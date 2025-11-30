@@ -25,7 +25,7 @@ class Globals(AppState):
     def __init__(self) -> None:
         self._is_soundboard_enabled = True
         self._config: Final = Config()
-        self._database: Final = Database(self.config.database_file, echo=True)
+        self._database: Final = Database(self.config.database_file, echo=False)
         self._soundboard_clips_url_queues: Final[dict[UUID, asyncio.Queue[str]]] = {}
         self._command_handlers = self._reload_command_handlers()
         self._broadcasters = Globals._load_broadcasters(self)

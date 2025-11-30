@@ -1,10 +1,19 @@
 from enum import IntEnum
+from enum import auto
 from typing import final
 
 
 @final
 class Precedence(IntEnum):
-    UNKNOWN = 0
-    SUM = 1
-    PRODUCT = 2
-    UNARY = 3
+    # From weakest to strongest.
+    UNKNOWN = auto()
+    TERNARY = auto()
+    OR = auto()
+    AND = auto()
+    RANGE = auto()
+    EQUALITY = auto()
+    COMPARISON = auto()
+    SUM = auto()
+    PRODUCT = auto()
+    UNARY = auto()
+    CALL = auto()

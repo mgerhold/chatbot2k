@@ -9,8 +9,45 @@ from chatbot2k.scripting_engine.token_types import TokenType
 
 _BUILTIN_KEYWORDS = {
     "STORE": TokenType.STORE,
+    "PARAMS": TokenType.PARAMS,
     "PRINT": TokenType.PRINT,
     "LET": TokenType.LET,
+    "true": TokenType.BOOL_LITERAL,
+    "false": TokenType.BOOL_LITERAL,
+    "and": TokenType.AND,
+    "or": TokenType.OR,
+    "not": TokenType.NOT,
+    "string": TokenType.STRING,
+    "number": TokenType.NUMBER,
+    "bool": TokenType.BOOL,
+    "list": TokenType.LIST,
+    "for": TokenType.FOR,
+    "as": TokenType.AS,
+    "if": TokenType.IF,
+    "yeet": TokenType.YEET,
+    "fold": TokenType.FOLD,
+    "with": TokenType.WITH,
+    "split": TokenType.SPLIT,
+    "join": TokenType.JOIN,
+    "sort": TokenType.SORT,
+}
+
+_SINGLE_CHAR_TOKENS = {
+    ":": TokenType.COLON,
+    ",": TokenType.COMMA,
+    "$": TokenType.DOLLAR,
+    "?": TokenType.QUESTION_MARK,
+    ";": TokenType.SEMICOLON,
+    "+": TokenType.PLUS,
+    "-": TokenType.MINUS,
+    "*": TokenType.ASTERISK,
+    "%": TokenType.PERCENT,
+    "/": TokenType.SLASH,
+    "(": TokenType.LEFT_PARENTHESIS,
+    ")": TokenType.RIGHT_PARENTHESIS,
+    "[": TokenType.LEFT_SQUARE_BRACKET,
+    "]": TokenType.RIGHT_SQUARE_BRACKET,
+    "#": TokenType.HASH,
 }
 
 
@@ -32,37 +69,17 @@ class Lexer:
         while not self._is_at_end():
             self._discard_whitespace()
             match self._current():
-                case ";":
+                case c if c in _SINGLE_CHAR_TOKENS:
                     self._advance()
-                    tokens.append(self._create_token(TokenType.SEMICOLON))
-                case "=":
-                    self._advance()
-                    tokens.append(self._create_token(TokenType.EQUALS))
-                case "+":
-                    self._advance()
-                    tokens.append(self._create_token(TokenType.PLUS))
-                case "-":
-                    self._advance()
-                    tokens.append(self._create_token(TokenType.MINUS))
-                case "*":
-                    self._advance()
-                    tokens.append(self._create_token(TokenType.ASTERISK))
-                case "/":
-                    self._advance()
-                    tokens.append(self._create_token(TokenType.SLASH))
-                case "(":
-                    self._advance()
-                    tokens.append(self._create_token(TokenType.LEFT_PARENTHESIS))
-                case ")":
-                    self._advance()
-                    tokens.append(self._create_token(TokenType.RIGHT_PARENTHESIS))
+                    tokens.append(self._create_token(_SINGLE_CHAR_TOKENS[c]))
                 case _ as char if char.isdigit():
                     # Number literal (we don't differentiate between integers and floats).
                     start_offset = self._current_offset
                     self._advance()
                     while self._current().isdigit():
                         self._advance()
-                    if self._current() == ".":
+                    # Check for decimal point, but make sure it's not part of a range operator (..)
+                    if self._current() == "." and self._peek() != ".":
                         self._advance()
                         if not self._current().isdigit():
                             raise LexerError(
@@ -72,6 +89,57 @@ class Lexer:
                         while self._current().isdigit():
                             self._advance()
                     tokens.append(self._create_token(TokenType.NUMBER_LITERAL, start_offset))
+                case "=":
+                    start_offset = self._current_offset
+                    self._advance()
+                    if self._current() == "=":
+                        self._advance()
+                        tokens.append(self._create_token(TokenType.EQUALS_EQUALS, start_offset))
+                    else:
+                        tokens.append(self._create_token(TokenType.EQUALS, start_offset))
+                case "<":
+                    start_offset = self._current_offset
+                    self._advance()
+                    if self._current() == "=":
+                        self._advance()
+                        tokens.append(self._create_token(TokenType.LESS_THAN_EQUALS, start_offset))
+                    else:
+                        tokens.append(self._create_token(TokenType.LESS_THAN, start_offset))
+                case ">":
+                    start_offset = self._current_offset
+                    self._advance()
+                    if self._current() == "=":
+                        self._advance()
+                        tokens.append(self._create_token(TokenType.GREATER_THAN_EQUALS, start_offset))
+                    else:
+                        tokens.append(self._create_token(TokenType.GREATER_THAN, start_offset))
+                case ".":
+                    start_offset = self._current_offset
+                    self._advance()
+                    # Must be followed by another '.'
+                    if self._current() != ".":
+                        msg = f"Unexpected character '{self._current()}' after '.'."
+                        raise LexerError(msg, self._current_source_location)
+                    self._advance()
+                    # Range operators: ..= or ..<
+                    if self._current() == "=":
+                        self._advance()
+                        tokens.append(self._create_token(TokenType.DOT_DOT_EQUALS, start_offset))
+                        continue
+                    if self._current() == "<":
+                        self._advance()
+                        tokens.append(self._create_token(TokenType.DOT_DOT_LESS_THAN, start_offset))
+                        continue
+                    msg = f"Unexpected character '{self._current()}' after '..'."
+                    raise LexerError(msg, self._current_source_location)
+                case "!":
+                    start_offset = self._current_offset
+                    self._advance()
+                    if self._current() == "=":
+                        self._advance()
+                        tokens.append(self._create_token(TokenType.EXCLAMATION_MARK_EQUALS, start_offset))
+                    else:
+                        tokens.append(self._create_token(TokenType.EXCLAMATION_MARK, start_offset))
                 case "'":
                     # String literal.
                     start_offset = self._current_offset
@@ -110,8 +178,10 @@ class Lexer:
                 case _ as char if not char.isascii():
                     msg = f"Invalid character '{char}'."
                     raise LexerError(msg, self._current_source_location)
+                case "\0":
+                    break
                 case _:
-                    msg = f"Unexpected character '{self._current()}'."
+                    msg = f"Unexpected character '{self._current()}' ({ord(self._current())})."
                     raise LexerError(msg, self._current_source_location)
         tokens.append(
             Token(
@@ -165,3 +235,8 @@ class Lexer:
             return result
         self._current_offset += 1
         return result
+
+    def _peek(self, offset: int = 1) -> str:
+        """Look ahead at the character at current position + offset without advancing."""
+        peek_offset: Final = self._current_offset + offset
+        return "\0" if peek_offset >= len(self._source) else self._source[peek_offset]

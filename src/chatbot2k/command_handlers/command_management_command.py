@@ -10,7 +10,7 @@ from chatbot2k.database.engine import ScriptStoreData
 from chatbot2k.scripting_engine.lexer import Lexer
 from chatbot2k.scripting_engine.parser import Parser
 from chatbot2k.scripting_engine.stores import StoreKey
-from chatbot2k.scripting_engine.types.value import Value
+from chatbot2k.scripting_engine.types.expressions import ExecutionContext
 from chatbot2k.translation_key import TranslationKey
 from chatbot2k.types.chat_command import ChatCommand
 from chatbot2k.types.chat_response import ChatResponse
@@ -48,7 +48,7 @@ class CommandManagementCommand(CommandHandler):
                     chat_command,
                 )
             case CommandManagementCommand._ADD_SCRIPT_SUBCOMMAND if argc >= 3:
-                success, response = CommandManagementCommand._add_script_command(
+                success, response = await CommandManagementCommand._add_script_command(
                     self._app_state,
                     chat_command,
                 )
@@ -187,7 +187,7 @@ class CommandManagementCommand(CommandHandler):
         )
 
     @staticmethod
-    def _add_script_command(
+    async def _add_script_command(
         app_state: AppState,
         chat_command: ChatCommand,
     ) -> tuple[bool, str]:
@@ -221,7 +221,18 @@ class CommandManagementCommand(CommandHandler):
 
             # Evaluate store initial values.
             store_data: Final[list[ScriptStoreData]] = []
-            initial_store_values: Final[dict[StoreKey, Value]] = {}
+
+            async def _script_caller(script_name: str, *args: str) -> str:
+                raise NotImplementedError
+
+            execution_context: Final = ExecutionContext(
+                app_state=app_state,
+                call_stack=[script.name],
+                stores={},
+                parameters={},  # Empty dict because parameter definitions do not access values.
+                variables={},  # Empty dict because variables cannot be defined before stores.
+                call_script=_script_caller,
+            )
 
             for store in script.stores:
                 store_key = StoreKey(
@@ -230,12 +241,8 @@ class CommandManagementCommand(CommandHandler):
                 )
                 # Evaluate the initial value expression.
                 try:
-                    value = store.value.evaluate(
-                        script_name=script.name,
-                        stores=initial_store_values,
-                        variables={},  # Empty dict because variables cannot defined before stores.
-                    )
-                    initial_store_values[store_key] = value
+                    value = await store.value.evaluate(execution_context)
+                    execution_context.stores[store_key] = value
 
                     # Serialize to JSON.
                     store_json = store.model_dump_json()

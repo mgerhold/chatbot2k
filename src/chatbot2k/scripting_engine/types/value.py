@@ -10,16 +10,22 @@ from pydantic import BaseModel
 from pydantic import ConfigDict
 from pydantic import Discriminator
 
+from chatbot2k.scripting_engine.types.data_types import BoolType
 from chatbot2k.scripting_engine.types.data_types import DataType
+from chatbot2k.scripting_engine.types.data_types import ListType
+from chatbot2k.scripting_engine.types.data_types import NumberType
+from chatbot2k.scripting_engine.types.data_types import StringType
 
 
 @final
 class ValueKind(StrEnum):
     NUMBER = "number"
     STRING = "string"
+    BOOL = "bool"
+    LIST = "list"
 
 
-class BasicValue(ABC):
+class BasicValue(BaseModel, ABC):
     @abstractmethod
     def get_data_type(self) -> DataType: ...
 
@@ -28,7 +34,7 @@ class BasicValue(ABC):
 
 
 @final
-class NumberValue(BaseModel, BasicValue):
+class NumberValue(BasicValue):
     model_config = ConfigDict(frozen=True)
 
     kind: Literal[ValueKind.NUMBER] = ValueKind.NUMBER
@@ -36,7 +42,7 @@ class NumberValue(BaseModel, BasicValue):
 
     @override
     def get_data_type(self) -> DataType:
-        return DataType.NUMBER
+        return NumberType()
 
     @override
     def to_string(self) -> str:
@@ -46,7 +52,7 @@ class NumberValue(BaseModel, BasicValue):
 
 
 @final
-class StringValue(BaseModel, BasicValue):
+class StringValue(BasicValue):
     model_config = ConfigDict(frozen=True)
 
     kind: Literal[ValueKind.STRING] = ValueKind.STRING
@@ -54,11 +60,46 @@ class StringValue(BaseModel, BasicValue):
 
     @override
     def get_data_type(self) -> DataType:
-        return DataType.STRING
+        return StringType()
 
     @override
     def to_string(self) -> str:
         return self.value
 
 
-type Value = Annotated[NumberValue | StringValue, Discriminator("kind")]
+@final
+class BoolValue(BasicValue):
+    model_config = ConfigDict(frozen=True)
+
+    kind: Literal[ValueKind.BOOL] = ValueKind.BOOL
+    value: bool
+
+    @override
+    def get_data_type(self) -> DataType:
+        return BoolType()
+
+    @override
+    def to_string(self) -> str:
+        return str(self.value).lower()
+
+
+@final
+class ListValue(BasicValue):
+    model_config = ConfigDict(frozen=True)
+
+    kind: Literal[ValueKind.LIST] = ValueKind.LIST
+    element_type: DataType  # Needed for empty lists.
+    elements: list["Value"]
+
+    @override
+    def get_data_type(self) -> DataType:
+        return ListType(of_type=self.element_type)
+
+    @override
+    def to_string(self) -> str:
+        return "[" + ", ".join(element.to_string() for element in self.elements) + "]"
+
+
+type Value = Annotated[NumberValue | StringValue | BoolValue | ListValue, Discriminator("kind")]
+
+ListValue.model_rebuild()

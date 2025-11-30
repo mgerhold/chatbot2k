@@ -18,3 +18,12 @@ class BasicPersistentStore(ABC):
 
     @abstractmethod
     def store_values(self, values: dict[StoreKey, Value]) -> None: ...
+
+
+@final
+class AlwaysEmptyPersistentStore(BasicPersistentStore):
+    def read_values(self, keys: set[StoreKey]) -> dict[StoreKey, Value]:
+        return {}
+
+    def store_values(self, values: dict[StoreKey, Value]) -> None:
+        pass
