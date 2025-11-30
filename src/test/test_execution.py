@@ -480,6 +480,21 @@ async def _create_callable_script(script_name: str, source: str) -> CallableScri
             """,
             _Success("11"),
         ),
+        (
+            # Advent of Code 2024, Day 1, Part 2 (Example Data)
+            r"""
+            LET input = 'trim'('read_file'('aoc/2024/day01_example.txt'));
+            LET lines = split(input, '\n');
+            LET left = for lines as line yeet $split(line, '   ')[0];
+            LET right = for lines as line yeet $split(line, '   ')[1];
+            LET products = for 0..<$'length'(lines) as i yeet (
+                left[i] * $'length'(for right as r if r == left[i] yeet 1)
+            );
+            LET sum = fold products as acc, product with acc + product;
+            PRINT sum;
+            """,
+            _Success("31"),
+        ),
         # Integration
         ("PRINT 'First'; PRINT 'Second'; PRINT 'Third';", _Success("FirstSecondThird")),
         (
