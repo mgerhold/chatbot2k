@@ -1,8 +1,12 @@
+import asyncio
 from collections.abc import Callable
 from typing import Final
+from typing import NamedTuple
 from typing import Optional
 from typing import final
 from typing import override
+
+import requests
 
 from chatbot2k.app_state import AppState
 from chatbot2k.command_handlers.command_handler import CommandHandler
@@ -15,6 +19,15 @@ from chatbot2k.translation_key import TranslationKey
 from chatbot2k.types.chat_command import ChatCommand
 from chatbot2k.types.chat_response import ChatResponse
 from chatbot2k.types.permission_level import PermissionLevel
+
+
+@final
+class _SerializedScript(NamedTuple):
+    script_json: str
+    store_data: list[ScriptStoreData]
+
+
+type _ErrorMessage = str
 
 
 @final
@@ -210,6 +223,45 @@ class CommandManagementCommand(CommandHandler):
                 app_state.translations_manager.get_translation(TranslationKey.COMMAND_ALREADY_EXISTS),
             )
 
+        serialized_script = await CommandManagementCommand._try_serialize_script(app_state, name, source_code)
+
+        if isinstance(serialized_script, str):
+            # Parsing did not work. Let's try to interpret the source code as a URL to a script file.
+            try:
+                response: Final = await asyncio.to_thread(requests.get, source_code)
+            except Exception as e:
+                return (
+                    False,
+                    f"Failed to fetch script from URL: {e}",
+                )
+            serialized_script = await CommandManagementCommand._try_serialize_script(app_state, name, response.text)
+
+        match serialized_script:
+            case str():
+                return (
+                    False,
+                    serialized_script,
+                )
+            case _SerializedScript(script_json, store_data):
+                # Add to database.
+                app_state.database.add_script(
+                    command=name,
+                    source_code=source_code,
+                    script_json=script_json,
+                    stores=store_data,
+                )
+
+                return (
+                    True,
+                    app_state.translations_manager.get_translation(TranslationKey.COMMAND_ADDED),
+                )
+
+    @staticmethod
+    async def _try_serialize_script(
+        app_state: AppState,
+        name: str,
+        source_code: str,
+    ) -> _SerializedScript | _ErrorMessage:
         try:
             # Tokenize the source code.
             lexer: Final = Lexer(source_code)
@@ -256,33 +308,12 @@ class CommandManagementCommand(CommandHandler):
                         )
                     )
                 except Exception as e:
-                    return (
-                        False,
-                        f"Error evaluating store '{store.name}': {e}",
-                    )
+                    return f"Error evaluating store '{store.name}': {e}"
 
-            # Serialize the script to JSON.
-            script_json = script.model_dump_json()
-
-            # Add to database.
-            app_state.database.add_script(
-                command=name,
-                source_code=source_code,
-                script_json=script_json,
-                stores=store_data,
-            )
-
-            return (
-                True,
-                app_state.translations_manager.get_translation(TranslationKey.COMMAND_ADDED),
-            )
-
+            return _SerializedScript(script.model_dump_json(), store_data)
         except Exception as e:
             # Catch lexer/parser errors and return a friendly message.
-            return (
-                False,
-                f"Script parsing error: {e}",
-            )
+            return f"Script parsing error: {e}"
 
     @staticmethod
     def _remove_command(app_state: AppState, chat_command: ChatCommand) -> tuple[bool, str]:
