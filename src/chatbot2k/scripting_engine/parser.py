@@ -878,7 +878,7 @@ class Parser:
         context.variable_definitions.append(
             VariableDefinitionStatement(
                 variable_name=accumulator_name,
-                data_type=element_type,
+                data_type=start_value_type,
                 initial_value=_create_default_value_expression(ListType(of_type=element_type)),
             )
         )
