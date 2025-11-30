@@ -1,13 +1,20 @@
+import asyncio
 import re
 from typing import Final
 from typing import NamedTuple
 from typing import Optional
 from typing import final
+from typing import override
+from uuid import UUID
 
 import pytest
 
 from chatbot2k.app_state import AppState
-from chatbot2k.globals import Globals
+from chatbot2k.broadcasters.broadcaster import Broadcaster
+from chatbot2k.command_handlers.command_handler import CommandHandler
+from chatbot2k.config import Config
+from chatbot2k.database.engine import Database
+from chatbot2k.dictionary import Dictionary
 from chatbot2k.scripting_engine.lexer import Lexer
 from chatbot2k.scripting_engine.parser import AssignmentTypeError
 from chatbot2k.scripting_engine.parser import EmptyListLiteralAssignmentToNonListError
@@ -35,6 +42,7 @@ from chatbot2k.scripting_engine.types.script_caller import ScriptCaller
 from chatbot2k.scripting_engine.types.value import NumberValue
 from chatbot2k.scripting_engine.types.value import StringValue
 from chatbot2k.scripting_engine.types.value import Value
+from chatbot2k.translations_manager import TranslationsManager
 from test.mock_store import MockStore
 
 
@@ -67,8 +75,73 @@ async def _execute(
     return output
 
 
+@final
+class _MockAppState(AppState):
+    def __init__(self) -> None:
+        self._config: Final = Config()
+
+    @property
+    @override
+    def config(self) -> Config:
+        return self._config
+
+    @property
+    @override
+    def database(self) -> Database:
+        raise NotImplementedError
+
+    @property
+    @override
+    def command_handlers(self) -> dict[str, CommandHandler]:
+        raise NotImplementedError
+
+    @property
+    @override
+    def broadcasters(self) -> list[Broadcaster]:
+        raise NotImplementedError
+
+    @property
+    @override
+    def dictionary(self) -> Dictionary:
+        raise NotImplementedError
+
+    @property
+    @override
+    def translations_manager(self) -> TranslationsManager:
+        raise NotImplementedError
+
+    @property
+    @override
+    def soundboard_clips_url_queues(self) -> dict[UUID, asyncio.Queue[str]]:
+        raise NotImplementedError
+
+    @property
+    @override
+    def is_soundboard_enabled(self) -> bool:
+        raise NotImplementedError
+
+    @is_soundboard_enabled.setter
+    @override
+    def is_soundboard_enabled(self, value: bool) -> None:
+        raise NotImplementedError
+
+    def _on_commands_changed(self) -> None:
+        raise NotImplementedError
+
+    def _reload_command_handlers(self) -> dict[str, CommandHandler]:
+        raise NotImplementedError
+
+    @staticmethod
+    def _load_broadcasters(app_state: AppState) -> list[Broadcaster]:
+        raise NotImplementedError
+
+    @staticmethod
+    def _load_dictionary(database: Database) -> Dictionary:
+        raise NotImplementedError
+
+
 def _app_state() -> AppState:
-    return Globals()
+    return _MockAppState()
 
 
 async def _extract_store_data_from_script(
