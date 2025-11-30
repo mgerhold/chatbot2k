@@ -461,15 +461,15 @@ async def _create_callable_script(script_name: str, source: str) -> CallableScri
         # Complex sort and calculation test case
         (
             # Advent of Code 2024, Day 1, Part 1 (Example Data)
-            "LET input = '3   4\\n4   3\\n2   5\\n1   3\\n3   9\\n3   3'; "
-            + r"LET lines = split(input, '\n'); "
-            + "LET left = for lines as line yeet $split(line, '   ')[0]; "
-            + "LET right = for lines as line yeet $split(line, '   ')[1]; "
-            + "LET sorted_left = sort(left); "
-            + "LET sorted_right = sort(right); "
-            + "LET diffs = for (0 ..< $'length'(sorted_left)) as i yeet $'abs'(sorted_left[i] - sorted_right[i]); "
-            + "LET sum = collect diffs as acc, diff with acc + diff; "
-            + "PRINT sum;",
+            r"""
+            LET input = '3   4\n4   3\n2   5\n1   3\n3   9\n3   3';
+            LET lines = split(input, '\n');
+            LET left = sort(for lines as line yeet $split(line, '   ')[0]);
+            LET right = sort(for lines as line yeet $split(line, '   ')[1]);
+            LET diffs = for 0..<$'length'(lines) as i yeet $'abs'(left[i] - right[i]);
+            LET sum = collect diffs as acc, diff with acc + diff;
+            PRINT sum;
+            """,
             _Success("11"),
         ),
         # Integration
