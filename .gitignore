@@ -17,3 +17,4 @@ static/soundboard/*
 storage/
 
 .coverage
+data/

@@ -559,6 +559,32 @@ class _DateFunction(BuiltinFunction):
         return now.strftime(format_value.value)
 
 
+@final
+class _ReadFileFunction(BuiltinFunction):
+    """Builtin function that reads the content of a file given its path relative
+    to the root data path (see `Config` class)."""
+
+    @property
+    @override
+    def arity(self) -> int | _Variadic:
+        return 1
+
+    @override
+    async def execute(self, *args: "Expression", context: "ExecutionContext") -> str:
+        assert len(args) == 1
+        path_value: Final = await args[0].evaluate(context)
+        if not isinstance(path_value, StringValue):
+            msg = f"'read_file' requires a string argument for the file path, got {path_value.get_data_type()}"
+            raise ExecutionError(msg)
+        path: Final = context.app_state.config.data_root_path / path_value.value
+        try:
+            return path.read_text(encoding="utf-8")
+        except FileNotFoundError as e:
+            raise ExecutionError(f"File not found: '{path_value.value}'") from e
+        except Exception as e:
+            raise ExecutionError(f"Error reading file '{path_value.value}': {e}") from e
+
+
 BUILTIN_FUNCTIONS: Final[dict[str, BuiltinFunction]] = {
     "type": _TypeFunction(),
     "length": _LengthFunction(),
@@ -580,4 +606,5 @@ BUILTIN_FUNCTIONS: Final[dict[str, BuiltinFunction]] = {
     "random": _RandomFunction(),
     "timestamp": _TimestampFunction(),
     "date": _DateFunction(),
+    "read_file": _ReadFileFunction(),
 }

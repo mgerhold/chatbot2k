@@ -48,6 +48,7 @@ class ScriptCommandHandler(CommandHandler):
                     self._persistent_store,
                     chat_command.arguments,
                     self._call_script,
+                    self._app_state,
                 )
             )
             await asyncio.wait(

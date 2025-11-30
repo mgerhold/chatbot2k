@@ -226,6 +226,7 @@ class CommandManagementCommand(CommandHandler):
                 raise NotImplementedError
 
             execution_context: Final = ExecutionContext(
+                app_state=app_state,
                 call_stack=[script.name],
                 stores={},
                 parameters={},  # Empty dict because parameter definitions do not access values.

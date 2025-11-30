@@ -363,6 +363,7 @@ class UnaryOperationExpression(BaseExpression):
                     AlwaysEmptyPersistentStore(),
                     [],
                     call_script=context.call_script,
+                    app_state=context.app_state,
                 )
                 if script_output is None:
                     raise ExecutionError("Evaluated script did not produce any output")

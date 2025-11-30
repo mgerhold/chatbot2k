@@ -9,6 +9,7 @@ from pydantic import BaseModel
 from pydantic import ConfigDict
 from pydantic import Field
 
+from chatbot2k.app_state import AppState
 from chatbot2k.scripting_engine.stores import BasicPersistentStore
 from chatbot2k.scripting_engine.stores import StoreKey
 from chatbot2k.scripting_engine.types.data_types import DataType
@@ -57,6 +58,7 @@ class Script(BaseModel):
         persistent_store: BasicPersistentStore,
         arguments: list[str],
         call_script: ScriptCaller,
+        app_state: AppState,
     ) -> Optional[str]:
         arity: Final = len(self.parameters)
         if len(arguments) != arity:
@@ -69,6 +71,7 @@ class Script(BaseModel):
         output: Optional[str] = None
 
         execution_context: Final = ExecutionContext(
+            app_state=app_state,
             call_stack=[self.name],
             stores=persistent_store.read_values(self._collect_required_stores()),
             parameters=parameters,

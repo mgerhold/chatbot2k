@@ -50,6 +50,7 @@ class Config:
         self._locale: Optional[str] = None
         self._bot_name: Optional[str] = None
         self._author_name: Optional[str] = None
+        self._data_root_path: Optional[Path] = None
         self._twitch_client_id: Optional[str] = None
         self._twitch_client_secret: Optional[TwitchClientSecret] = None
         self._twitch_credentials: Optional[OAuthTokens] = None
@@ -65,6 +66,7 @@ class Config:
         self._locale = get_environment_variable_or_raise("LOCALE")
         self._bot_name = get_environment_variable_or_raise("BOT_NAME")
         self._author_name = get_environment_variable_or_raise("AUTHOR_NAME")
+        self._data_root_path = Path(get_environment_variable_or_raise("DATA_ROOT_PATH"))
         self._twitch_client_id = get_environment_variable_or_raise("TWITCH_CLIENT_ID")
         self._twitch_client_secret = get_environment_variable_or_raise("TWITCH_CLIENT_SECRET")
         twitch_access_token: Final = get_environment_variable_or_default("TWITCH_ACCESS_TOKEN", None)
@@ -112,6 +114,12 @@ class Config:
         if self._author_name is None:
             raise AssertionError("Author name is not set. This should not happen.")
         return self._author_name
+
+    @property
+    def data_root_path(self) -> Path:
+        if self._data_root_path is None:
+            raise AssertionError("Data root path is not set. This should not happen.")
+        return self._data_root_path
 
     @property
     def twitch_client_id(self) -> str:

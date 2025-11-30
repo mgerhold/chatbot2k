@@ -59,6 +59,7 @@ def load_commands(app_state: AppState) -> dict[str, CommandHandler]:
             persistent_store=database_persistent_store,
             arguments=list(args),
             call_script=_call_script,
+            app_state=app_state,
         )
         if script_output is None:
             msg = f"Script '{script_name}' did not return any output."

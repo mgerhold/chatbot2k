@@ -6,6 +6,8 @@ from typing import final
 
 import pytest
 
+from chatbot2k.app_state import AppState
+from chatbot2k.globals import Globals
 from chatbot2k.scripting_engine.lexer import Lexer
 from chatbot2k.scripting_engine.parser import AssignmentTypeError
 from chatbot2k.scripting_engine.parser import EmptyListLiteralAssignmentToNonListError
@@ -65,6 +67,10 @@ async def _execute(
     return output
 
 
+def _app_state() -> AppState:
+    return Globals()
+
+
 async def _extract_store_data_from_script(
     script_name: str,
     script: Script,
@@ -75,6 +81,7 @@ async def _extract_store_data_from_script(
         key = StoreKey(script_name, store.name)
         value = await store.value.evaluate(
             ExecutionContext(
+                app_state=_app_state(),
                 call_stack=[script_name],
                 stores=data,
                 parameters={},
@@ -109,6 +116,7 @@ async def _execute_with_store(
             persistent_store=callee.store,
             arguments=list(args),
             call_script=_call_script,
+            app_state=_app_state(),
         )
         if return_value is None:
             raise ExecutionError(f"Called script '{script_name}' did not return a value")
@@ -125,7 +133,7 @@ async def _execute_with_store(
             mock_store = store_or_store_overrides
         case None:
             mock_store = MockStore(await _extract_store_data_from_script(script_name, script, _call_script))
-    output = await script.execute(mock_store, [], _call_script)
+    output = await script.execute(mock_store, [], _call_script, _app_state())
     return output, mock_store
 
 
@@ -462,7 +470,7 @@ async def _create_callable_script(script_name: str, source: str) -> CallableScri
         (
             # Advent of Code 2024, Day 1, Part 1 (Example Data)
             r"""
-            LET input = '3   4\n4   3\n2   5\n1   3\n3   9\n3   3';
+            LET input = 'trim'('read_file'('aoc/2024/day01_example.txt'));
             LET lines = split(input, '\n');
             LET left = sort(for lines as line yeet $split(line, '   ')[0]);
             LET right = sort(for lines as line yeet $split(line, '   ')[1]);
@@ -1082,7 +1090,10 @@ async def test_recursion() -> None:
         if script_name != "fibonacci":
             raise ExecutionError(f"Called script '{script_name}' not found")
         return_value: Final = await script.execute(
-            persistent_store=MockStore(initial_data={}), arguments=list(args), call_script=_script_caller
+            persistent_store=MockStore(initial_data={}),
+            arguments=list(args),
+            call_script=_script_caller,
+            app_state=_app_state(),
         )
         if return_value is None:
             raise ExecutionError(f"Called script '{script_name}' did not return a value")
