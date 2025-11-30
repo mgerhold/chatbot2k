@@ -421,7 +421,8 @@ async def _create_callable_script(script_name: str, source: str) -> CallableScri
         ("PRINT 'length'(0 ..= 10);", _Success("11")),
         ("PRINT (1 ..= 5)[2];", _Success("3")),
         ("PRINT for 1 ..= 5 as n yeet n * n;", _Success("[1, 4, 9, 16, 25]")),
-        ("PRINT fold 1 ..= 5 as acc, n with acc + n;", _Success("15")),
+        ("PRINT fold 1 ..= 5 as 0, acc, n with acc + n;", _Success("15")),
+        ("PRINT fold 1 ..= 5 as 10, acc, n with acc + n;", _Success("25")),
         (
             "PRINT 1.5 ..= 3;",
             _Error(
@@ -475,7 +476,7 @@ async def _create_callable_script(script_name: str, source: str) -> CallableScri
             LET left = sort(for lines as line yeet $split(line, '   ')[0]);
             LET right = sort(for lines as line yeet $split(line, '   ')[1]);
             LET diffs = for 0..<$'length'(lines) as i yeet $'abs'(left[i] - right[i]);
-            LET sum = fold diffs as acc, diff with acc + diff;
+            LET sum = fold diffs as 0, acc, diff with acc + diff;
             PRINT sum;
             """,
             _Success("11"),
@@ -490,7 +491,7 @@ async def _create_callable_script(script_name: str, source: str) -> CallableScri
             LET products = for 0..<$'length'(lines) as i yeet (
                 left[i] * $'length'(for right as r if r == left[i] yeet 1)
             );
-            LET sum = fold products as acc, product with acc + product;
+            LET sum = fold products as 0, acc, product with acc + product;
             PRINT sum;
             """,
             _Success("31"),
@@ -908,84 +909,95 @@ async def _create_callable_script(script_name: str, source: str) -> CallableScri
         # Fold
         (
             "LET numbers = [1, 2, 3];"
-            + "LET sum = fold numbers as accumulator, element with accumulator + element;"
+            + "LET sum = fold numbers as 0, accumulator, element with accumulator + element;"
             + "PRINT sum;",
             _Success("6"),
         ),
         (
-            "LET numbers = [1, 2, 3];" + "LET product = fold numbers as acc, elem with acc * elem;" + "PRINT product;",
+            "LET numbers = [1, 2, 3];"
+            + "LET product = fold numbers as 1, acc, elem with acc * elem;"
+            + "PRINT product;",
             _Success("6"),
         ),
         (
             "LET words = ['Hello', ' ', 'World', '!'];"
-            + "LET message = fold words as acc, elem with acc + elem;"
+            + "LET message = fold words as '', acc, elem with acc + elem;"
             + "PRINT message;",
             _Success("Hello World!"),
         ),
         (
-            "LET result = fold [] as acc, elem with acc + elem;" + "PRINT result;",
+            "LET result = fold [] as [123], acc, elem with acc + elem;" + "PRINT result;",
             _Error(
                 ExecutionError,
                 "Unable to deduce type of empty list literal.",
             ),
         ),
         (
-            "LET shadowed = 0; LET result = fold [1, 2, 3] as shadowed, elem with shadowed + elem;" + "PRINT result;",
+            "LET shadowed = 0; LET result = fold [1, 2, 3] as 0..<0, shadowed, elem with shadowed + elem;"
+            + "PRINT result;",
             _Error(
                 VariableRedefinitionError,
                 "Variable 'shadowed' is already defined",
             ),
         ),
         (
-            "LET shadowed = 0; LET result = fold [1, 2, 3] as acc, shadowed with acc + shadowed;" + "PRINT result;",
+            "LET shadowed = 0; LET result = fold [1, 2, 3] as 0..<0, acc, shadowed with acc + shadowed;"
+            + "PRINT result;",
             _Error(
                 VariableRedefinitionError,
                 "Variable 'shadowed' is already defined",
             ),
         ),
         (
-            "STORE shadowed = 0; LET result = fold [1, 2, 3] as shadowed, elem with shadowed + elem;" + "PRINT result;",
+            "STORE shadowed = 0; LET result = fold [1, 2, 3] as 0..<0, shadowed, elem with shadowed + elem;"
+            + "PRINT result;",
             _Error(
                 VariableShadowsStoreError,
                 "Variable 'shadowed' shadows store with the same name.",
             ),
         ),
         (
-            "STORE shadowed = 0; LET result = fold [1, 2, 3] as acc, shadowed with acc + shadowed;" + "PRINT result;",
+            "STORE shadowed = 0; LET result = fold [1, 2, 3] as 0..<0, acc, shadowed with acc + shadowed;"
+            + "PRINT result;",
             _Error(
                 VariableShadowsStoreError,
                 "Variable 'shadowed' shadows store with the same name.",
             ),
         ),
         (
-            "PARAMS shadowed; LET result = fold [1, 2, 3] as shadowed, elem with shadowed + elem;" + "PRINT result;",
+            "PARAMS shadowed; LET result = fold [1, 2, 3] as 0..<0, shadowed, elem with shadowed + elem;"
+            + "PRINT result;",
             _Error(
                 VariableShadowsParameterError,
                 "Variable 'shadowed' shadows parameter with the same name.",
             ),
         ),
         (
-            "PARAMS shadowed; LET result = fold [1, 2, 3] as acc, shadowed with acc + shadowed;" + "PRINT result;",
+            "PARAMS shadowed; LET result = fold [1, 2, 3] as 0..<0, acc, shadowed with acc + shadowed;"
+            + "PRINT result;",
             _Error(
                 VariableShadowsParameterError,
                 "Variable 'shadowed' shadows parameter with the same name.",
             ),
         ),
         (
-            "LET words = ['Hello', ' ', 'World', '!'];" + "LET message = fold words as acc, elem with $acc + $elem;",
+            "LET words = ['Hello', ' ', 'World', '!'];"
+            + "LET message = fold words as 'text', acc, elem with $acc + $elem;",
             _Error(
                 FoldExpressionTypeError,
                 "Fold expression type error: expected 'string', got 'number'.",
             ),
         ),
         (
-            """LET nested = [[1, 2], [3, 4], [5]];
-LET sum = fold (
-    for nested as inner_list yeet (
-        fold inner_list as acc, num with acc + num
-    )
-) as outer_acc, inner_sum with outer_acc + inner_sum;
-PRINT sum;""",
+            """
+            LET nested = [[1, 2], [3, 4], [5]];
+            LET sum = fold (
+                for nested as inner_list yeet (
+                    fold inner_list as 0, acc, num with acc + num
+                )
+            ) as 0, outer_acc, inner_sum with outer_acc + inner_sum;
+            PRINT sum;
+            """,
             _Success("15"),
         ),
     ],

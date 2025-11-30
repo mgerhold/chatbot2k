@@ -810,16 +810,18 @@ class ListComprehensionExpression(BaseExpression):
 @final
 class FoldExpression(BaseExpression):
     """
-    Expression of the form `fold <iterable> as <accumulator>, <element> with <expression>`,
-    where `<iterable>` can either be a list or a string. The types of `<accumulator>`, `<element>`, and
-    `<expression>` have to be identical and are determined by the type of `<iterable>`. This is
-    already checked by the parser.
+    Expression of the form `fold <iterable> as <start>, <accumulator>, <element> with <expression>`,
+    where `<iterable>` can either be a list or a string. `<start>` is the initial value of the accumulator,
+    whose type may differ from the element type of `<iterable>`. `<accumulator>` and `<element>` are variable names
+    that can be freely chosen as long as they don't shadow existing names in the context. The type of
+    `<expression>` must match the type of `<start>`, and is also the type of the whole fold expression.
     """
 
     model_config = ConfigDict(frozen=True)
 
     expression_type: Literal[ExpressionType.FOLD] = ExpressionType.FOLD
     iterable: "Expression"
+    start: "Expression"
     accumulator_variable_name: str
     element_variable_name: str
     expression: "Expression"
@@ -836,25 +838,69 @@ class FoldExpression(BaseExpression):
         iterable_value: Final = await self.iterable.evaluate(context)
         match iterable_value:
             case StringValue(value=s):
-                string_accumulator = StringValue(value="")
-                for char in s:
-                    context.variables[self.accumulator_variable_name] = string_accumulator
-                    context.variables[self.element_variable_name] = StringValue(value=char)
-                    string_accumulator = await self.expression.evaluate(context)
-                return string_accumulator
+                return await self._evaluate_string(s, context)
             case ListValue(elements=iterable_elements):
-                if not iterable_elements:
-                    msg = "Fold expression iterable must not be empty."
-                    raise ExecutionError(msg)
-                list_accumulator = iterable_elements[0]
-                for item in iterable_elements[1:]:
-                    context.variables[self.accumulator_variable_name] = list_accumulator
-                    context.variables[self.element_variable_name] = item
-                    list_accumulator = await self.expression.evaluate(context)
-                return list_accumulator
+                return await self._evaluate_list(iterable_elements, context)
             case _:
                 msg = f"Fold expression iterable must be a string or a list, got {iterable_value.get_data_type()}"
                 raise ExecutionError(msg)
+
+    async def _evaluate_string(
+        self,
+        string: str,
+        context: ExecutionContext,
+    ) -> Value:
+        start_value: Final = await self.start.evaluate(context)
+        if start_value.get_data_type() != self.expression.get_data_type():
+            msg = (
+                "Fold expression start value type must match expression type: "
+                + f"got start type '{start_value.get_data_type()}' and expression "
+                + f"type '{self.expression.get_data_type()}'"
+            )
+            raise ExecutionError(msg)
+        accumulator = start_value
+        for char in string:
+            context.variables[self.accumulator_variable_name] = accumulator
+            context.variables[self.element_variable_name] = StringValue(value=char)
+            accumulator = await self.expression.evaluate(context)
+            if accumulator.get_data_type() != self.expression.get_data_type():
+                msg = (
+                    "Fold expression accumulator type must match expression type: "
+                    + f"got accumulator type '{accumulator.get_data_type()}' and expression "
+                    + f"type '{self.expression.get_data_type()}'"
+                )
+                raise ExecutionError(msg)
+        return accumulator
+
+    async def _evaluate_list(
+        self,
+        elements: list[Value],
+        context: ExecutionContext,
+    ) -> Value:
+        if not elements:
+            msg = "Fold expression iterable must not be empty."
+            raise ExecutionError(msg)
+        start_value: Final = await self.start.evaluate(context)
+        if start_value.get_data_type() != self.expression.get_data_type():
+            msg = (
+                "Fold expression start value type must match expression type: "
+                + f"got start type '{start_value.get_data_type()}' and expression "
+                + f"type '{self.expression.get_data_type()}'"
+            )
+            raise ExecutionError(msg)
+        accumulator = start_value
+        for item in elements:
+            context.variables[self.accumulator_variable_name] = accumulator
+            context.variables[self.element_variable_name] = item
+            accumulator = await self.expression.evaluate(context)
+            if accumulator.get_data_type() != self.expression.get_data_type():
+                msg = (
+                    "Fold expression accumulator type must match expression type: "
+                    + f"got accumulator type '{accumulator.get_data_type()}' and expression "
+                    + f"type '{self.expression.get_data_type()}'"
+                )
+                raise ExecutionError(msg)
+        return accumulator
 
 
 @final

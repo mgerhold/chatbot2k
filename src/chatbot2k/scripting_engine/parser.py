@@ -863,14 +863,18 @@ class Parser:
                 element_type = element_type_
             case _:
                 raise TypeNotIterableError(iterable_type)
-        self._expect(TokenType.AS, "'as' in collect expression")
+        self._expect(TokenType.AS, "'as' in fold expression")
+        start_value: Final = self._expression(context, Precedence.UNKNOWN)
+        start_value_type: Final = start_value.get_data_type()
+        self._expect(TokenType.COMMA, "',' after start value in fold expression")
         accumulator_identifier: Final = self._expect(TokenType.IDENTIFIER, "accumulator identifier")
         accumulator_name: Final = accumulator_identifier.source_location.lexeme
         self._ensure_not_shadowed(accumulator_name, context)
-        self._expect(TokenType.COMMA, "',' in collect expression")
+        self._expect(TokenType.COMMA, "',' in fold expression")
         element_identifier: Final = self._expect(TokenType.IDENTIFIER, "element identifier")
         element_name: Final = element_identifier.source_location.lexeme
         self._ensure_not_shadowed(element_name, context)
+        self._expect(TokenType.WITH, "'with' in fold expression")
         context.variable_definitions.append(
             VariableDefinitionStatement(
                 variable_name=accumulator_name,
@@ -885,20 +889,20 @@ class Parser:
                 initial_value=_create_default_value_expression(element_type),
             )
         )
-        self._expect(TokenType.WITH, "'with' in collect expression")
         fold_expression: Final = self._expression(context, Precedence.UNKNOWN)
         fold_expression_type: Final = fold_expression.get_data_type()
-        if fold_expression_type != element_type:
+        if fold_expression_type != start_value_type:
             raise FoldExpressionTypeError(
                 expected_type=element_type,
                 actual_type=fold_expression_type,
             )
-        # We remove the accumulator and element variables from the context after parsing the collect expression.
+        # We remove the accumulator and element variables from the context after parsing the fold expression.
         # This way, we simulate having scopes, although we don't really support scopes.
         context.variable_definitions.pop()
         context.variable_definitions.pop()
         return FoldExpression(
             iterable=iterable,
+            start=start_value,
             accumulator_variable_name=accumulator_name,
             element_variable_name=element_name,
             expression=fold_expression,
