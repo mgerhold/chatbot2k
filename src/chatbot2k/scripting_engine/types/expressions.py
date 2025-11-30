@@ -463,7 +463,10 @@ class BinaryOperationExpression(BaseExpression):
                     raise TypeError(msg)
                 return ListType(of_type=left_type)
             case (NumberType(), _, _) | (_, _, NumberType()):
-                msg = f"Operator {self.operator} is not supported for number operands"
+                msg = (
+                    f"Operator {self.operator} is not supported for number operands "
+                    + f"(got '{self.left.get_data_type()}' and '{self.right.get_data_type()}')"
+                )
                 raise TypeError(msg)
             case (StringType(), _, _) | (_, _, StringType()):
                 msg = f"Operator {self.operator} is not supported for string operands"
