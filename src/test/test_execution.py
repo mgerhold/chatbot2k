@@ -496,6 +496,35 @@ async def _create_callable_script(script_name: str, source: str) -> CallableScri
             """,
             _Success("31"),
         ),
+        (
+            # Advent of Code 2024, Day 2, Part 1 (Example Data)
+            r"""
+            LET lines = split('trim'('read_file'('aoc/2024/day02_example.txt')), '\n');
+            LET reports = for lines as line yeet (for split(line, ' ') as str yeet $str);
+            LET diffs = for reports as report yeet (
+                for 0..<$'length'(report) - 1 as i yeet report[i + 1] - report[i]
+            );
+            LET all_increasing = for diffs as diff_list yeet (
+                fold diff_list as true, acc, diff with acc and (diff > 0)
+            );
+            LET all_decreasing = for diffs as diff_list yeet (
+                fold diff_list as true, acc, diff with acc and (diff < 0)
+            );
+            LET diffs_ok = for diffs as diff_list yeet (
+                fold diff_list
+                as true, acc, diff
+                with acc and $'abs'(diff) >= 1 and $'abs'(diff) <= 3
+            );
+            LET is_report_safe = for 0..<$'length'(reports) as i yeet (
+                diffs_ok[i] and (all_increasing[i] or all_decreasing[i])
+            );
+            LET num_safe_reports = fold is_report_safe as 0, acc, is_safe with (
+                is_safe ? acc + 1 : acc
+            );
+            PRINT num_safe_reports;
+            """,
+            _Success("2"),
+        ),
         # Integration
         ("PRINT 'First'; PRINT 'Second'; PRINT 'Third';", _Success("FirstSecondThird")),
         (
