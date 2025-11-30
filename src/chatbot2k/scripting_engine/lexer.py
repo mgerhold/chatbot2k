@@ -178,8 +178,10 @@ class Lexer:
                 case _ as char if not char.isascii():
                     msg = f"Invalid character '{char}'."
                     raise LexerError(msg, self._current_source_location)
+                case '\0':
+                    break
                 case _:
-                    msg = f"Unexpected character '{self._current()}'."
+                    msg = f"Unexpected character '{self._current()}' ({ord(self._current())})."
                     raise LexerError(msg, self._current_source_location)
         tokens.append(
             Token(
