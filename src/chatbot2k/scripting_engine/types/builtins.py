@@ -576,7 +576,13 @@ class _ReadFileFunction(BuiltinFunction):
         if not isinstance(path_value, StringValue):
             msg = f"'read_file' requires a string argument for the file path, got {path_value.get_data_type()}"
             raise ExecutionError(msg)
-        path: Final = context.app_state.config.data_root_path / path_value.value
+        path: Final = (context.app_state.config.data_root_path / path_value.value).resolve()
+
+        # Make sure that the path is within the data root path to prevent directory traversal attacks.
+        resolved_root: Final = context.app_state.config.data_root_path.resolve()
+        if resolved_root not in path.parents:
+            msg = f"Access to file '{path_value.value}' is outside of the data root path"
+            raise ExecutionError(msg)
         try:
             return path.read_text(encoding="utf-8")
         except FileNotFoundError as e:
