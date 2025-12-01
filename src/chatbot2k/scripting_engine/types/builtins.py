@@ -51,6 +51,11 @@ class _Variadic(NamedTuple):
 class BuiltinFunction(ABC):
     @property
     @abstractmethod
+    def name(self) -> str:
+        """Return the name of this builtin function."""
+
+    @property
+    @abstractmethod
     def arity(self) -> int | _Variadic:
         """Return the number of arguments this builtin function expects, or Variadic for variadic functions."""
 
@@ -63,11 +68,16 @@ class BuiltinFunction(ABC):
         match self.arity:
             case int() as arity:
                 if len(args) != arity:
-                    msg = f"Expected {arity} argument(s), got {len(args)}"
+                    msg = (
+                        f"Expected {arity} argument(s), got {len(args)} argument(s) for built-in function {self.name}."
+                    )
                     raise ExecutionError(msg)
             case _Variadic() as variadic:
                 if variadic.min_num_arguments is not None and len(args) < variadic.min_num_arguments:
-                    msg = f"Expected at least {variadic.min_num_arguments} argument(s), got {len(args)}"
+                    msg = (
+                        f"Expected at least {variadic.min_num_arguments} argument(s), "
+                        + f"got {len(args)} for built-in function {self.name}."
+                    )
                     raise ExecutionError(msg)
         return await self.execute(*args, context=context)
 
@@ -75,6 +85,11 @@ class BuiltinFunction(ABC):
 @final
 class _TypeFunction(BuiltinFunction):
     """Builtin function that returns the data type of its argument as a string."""
+
+    @property
+    @override
+    def name(self) -> str:
+        return "type"
 
     @property
     @override
@@ -90,6 +105,11 @@ class _TypeFunction(BuiltinFunction):
 @final
 class _LengthFunction(BuiltinFunction):
     """Builtin function that returns the length of a string argument."""
+
+    @property
+    @override
+    def name(self) -> str:
+        return "length"
 
     @property
     @override
@@ -116,6 +136,11 @@ class _UpperFunction(BuiltinFunction):
 
     @property
     @override
+    def name(self) -> str:
+        return "upper"
+
+    @property
+    @override
     def arity(self) -> int | _Variadic:
         return 1
 
@@ -132,6 +157,11 @@ class _UpperFunction(BuiltinFunction):
 @final
 class _LowerFunction(BuiltinFunction):
     """Builtin function that converts a string argument to lowercase."""
+
+    @property
+    @override
+    def name(self) -> str:
+        return "lower"
 
     @property
     @override
@@ -154,6 +184,11 @@ class _TrimFunction(BuiltinFunction):
 
     @property
     @override
+    def name(self) -> str:
+        return "trim"
+
+    @property
+    @override
     def arity(self) -> int | _Variadic:
         return 1
 
@@ -170,6 +205,11 @@ class _TrimFunction(BuiltinFunction):
 @final
 class _ReplaceFunction(BuiltinFunction):
     """Builtin function that replaces occurrences of a substring in a string argument."""
+
+    @property
+    @override
+    def name(self) -> str:
+        return "replace"
 
     @property
     @override
@@ -207,6 +247,11 @@ class _ReplaceFunction(BuiltinFunction):
 @final
 class _ContainsFunction(BuiltinFunction):
     """Builtin function that checks if a string contains a substring."""
+
+    @property
+    @override
+    def name(self) -> str:
+        return "contains"
 
     @property
     @override
@@ -266,6 +311,11 @@ class _StartsWithFunction(BuiltinFunction):
 
     @property
     @override
+    def name(self) -> str:
+        return "starts_with"
+
+    @property
+    @override
     def arity(self) -> int | _Variadic:
         return 2
 
@@ -287,6 +337,11 @@ class _StartsWithFunction(BuiltinFunction):
 @final
 class _EndsWithFunction(BuiltinFunction):
     """Builtin function that checks if a string ends with a given suffix."""
+
+    @property
+    @override
+    def name(self) -> str:
+        return "ends_with"
 
     @property
     @override
@@ -314,6 +369,11 @@ class _AbsFunction(BuiltinFunction):
 
     @property
     @override
+    def name(self) -> str:
+        return "abs"
+
+    @property
+    @override
     def arity(self) -> int | _Variadic:
         return 1
 
@@ -330,6 +390,11 @@ class _AbsFunction(BuiltinFunction):
 @final
 class _MinFunction(BuiltinFunction):
     """Builtin function that returns the minimum value among its number arguments."""
+
+    @property
+    @override
+    def name(self) -> str:
+        return "min"
 
     @property
     @override
@@ -367,6 +432,11 @@ class _MaxFunction(BuiltinFunction):
 
     @property
     @override
+    def name(self) -> str:
+        return "max"
+
+    @property
+    @override
     def arity(self) -> int | _Variadic:
         return _Variadic.with_min_num_arguments(1)
 
@@ -401,6 +471,11 @@ class _RoundFunction(BuiltinFunction):
 
     @property
     @override
+    def name(self) -> str:
+        return "round"
+
+    @property
+    @override
     def arity(self) -> int | _Variadic:
         return 1
 
@@ -417,6 +492,11 @@ class _RoundFunction(BuiltinFunction):
 @final
 class _FloorFunction(BuiltinFunction):
     """Builtin function that returns the largest integer less than or equal to a number."""
+
+    @property
+    @override
+    def name(self) -> str:
+        return "floor"
 
     @property
     @override
@@ -439,6 +519,11 @@ class _CeilFunction(BuiltinFunction):
 
     @property
     @override
+    def name(self) -> str:
+        return "ceil"
+
+    @property
+    @override
     def arity(self) -> int | _Variadic:
         return 1
 
@@ -455,6 +540,11 @@ class _CeilFunction(BuiltinFunction):
 @final
 class _SqrtFunction(BuiltinFunction):
     """Builtin function that returns the square root of a number."""
+
+    @property
+    @override
+    def name(self) -> str:
+        return "sqrt"
 
     @property
     @override
@@ -480,6 +570,11 @@ class _PowFunction(BuiltinFunction):
 
     @property
     @override
+    def name(self) -> str:
+        return "pow"
+
+    @property
+    @override
     def arity(self) -> int | _Variadic:
         return 2
 
@@ -501,6 +596,11 @@ class _PowFunction(BuiltinFunction):
 @final
 class _RandomFunction(BuiltinFunction):
     """Builtin function that returns a random number between two given numbers."""
+
+    @property
+    @override
+    def name(self) -> str:
+        return "random"
 
     @property
     @override
@@ -529,6 +629,11 @@ class _TimestampFunction(BuiltinFunction):
 
     @property
     @override
+    def name(self) -> str:
+        return "timestamp"
+
+    @property
+    @override
     def arity(self) -> int | _Variadic:
         return 0
 
@@ -542,6 +647,11 @@ class _TimestampFunction(BuiltinFunction):
 @final
 class _DateFunction(BuiltinFunction):
     """Builtin function that returns the current date formatted according to a given format string."""
+
+    @property
+    @override
+    def name(self) -> str:
+        return "date"
 
     @property
     @override
@@ -563,6 +673,11 @@ class _DateFunction(BuiltinFunction):
 class _ReadFileFunction(BuiltinFunction):
     """Builtin function that reads the content of a file given its path relative
     to the root data path (see `Config` class)."""
+
+    @property
+    @override
+    def name(self) -> str:
+        return "read_file"
 
     @property
     @override
@@ -591,26 +706,28 @@ class _ReadFileFunction(BuiltinFunction):
             raise ExecutionError(f"Error reading file '{path_value.value}': {e}") from e
 
 
-BUILTIN_FUNCTIONS: Final[dict[str, BuiltinFunction]] = {
-    "type": _TypeFunction(),
-    "length": _LengthFunction(),
-    "upper": _UpperFunction(),
-    "lower": _LowerFunction(),
-    "trim": _TrimFunction(),
-    "replace": _ReplaceFunction(),
-    "contains": _ContainsFunction(),
-    "starts_with": _StartsWithFunction(),
-    "ends_with": _EndsWithFunction(),
-    "abs": _AbsFunction(),
-    "min": _MinFunction(),
-    "max": _MaxFunction(),
-    "round": _RoundFunction(),
-    "floor": _FloorFunction(),
-    "ceil": _CeilFunction(),
-    "sqrt": _SqrtFunction(),
-    "pow": _PowFunction(),
-    "random": _RandomFunction(),
-    "timestamp": _TimestampFunction(),
-    "date": _DateFunction(),
-    "read_file": _ReadFileFunction(),
-}
+_BUILTIN_FUNCTION_LIST: list[BuiltinFunction] = [
+    _TypeFunction(),
+    _LengthFunction(),
+    _UpperFunction(),
+    _LowerFunction(),
+    _TrimFunction(),
+    _ReplaceFunction(),
+    _ContainsFunction(),
+    _StartsWithFunction(),
+    _EndsWithFunction(),
+    _AbsFunction(),
+    _MinFunction(),
+    _MaxFunction(),
+    _RoundFunction(),
+    _FloorFunction(),
+    _CeilFunction(),
+    _SqrtFunction(),
+    _PowFunction(),
+    _RandomFunction(),
+    _TimestampFunction(),
+    _DateFunction(),
+    _ReadFileFunction(),
+]
+
+BUILTIN_FUNCTIONS: dict[str, BuiltinFunction] = {func.name: func for func in _BUILTIN_FUNCTION_LIST}
