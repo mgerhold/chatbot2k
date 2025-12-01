@@ -21,7 +21,7 @@ logger: Final = logging.getLogger(__name__)
 class ScriptCommandHandler(CommandHandler):
     """Command handler that executes a stored script."""
 
-    _EXECUTION_TIMEOUT_SECONDS: Final = 5.0
+    _EXECUTION_TIMEOUT_SECONDS: Final = 15.0
 
     def __init__(
         self,
