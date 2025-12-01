@@ -493,7 +493,29 @@ class BinaryOperationExpression(BaseExpression):
         context: ExecutionContext,
     ) -> Value:
         left_value: Final = await self.left.evaluate(context)
-        right_value: Final = await self.right.evaluate(context)
+        # Special cases for short-circuiting logical operators.
+        match left_value, self.operator:
+            case BoolValue(value=l), BinaryOperator.AND:
+                if not l:
+                    return BoolValue(value=False)
+                right_value = await self.right.evaluate(context)
+                if not isinstance(right_value, BoolValue):
+                    msg = f"Operator {self.operator} requires boolean operands, got '{right_value.get_data_type()}'"
+                    raise ExecutionError(msg)
+                return BoolValue(value=right_value.value)
+            case BoolValue(value=l), BinaryOperator.OR:
+                if l:
+                    return BoolValue(value=True)
+                right_value = await self.right.evaluate(context)
+                if not isinstance(right_value, BoolValue):
+                    msg = f"Operator {self.operator} requires boolean operands, got '{right_value.get_data_type()}'"
+                    raise ExecutionError(msg)
+                return BoolValue(value=right_value.value)
+            case _:
+                # Other cases are handled below.
+                pass
+
+        right_value = await self.right.evaluate(context)
         match left_value, self.operator, right_value:
             case (
                 (BoolValue(value=l), BinaryOperator.EQUALS, BoolValue(value=r))
@@ -523,10 +545,10 @@ class BinaryOperationExpression(BaseExpression):
                 return BoolValue(value=l > r)
             case StringValue(value=l), BinaryOperator.GREATER_THAN_OR_EQUAL, StringValue(value=r):
                 return BoolValue(value=l >= r)
-            case BoolValue(value=l), BinaryOperator.AND, BoolValue(value=r):
-                return BoolValue(value=l and r)
-            case BoolValue(value=l), BinaryOperator.OR, BoolValue(value=r):
-                return BoolValue(value=l or r)
+            case BoolValue(), BinaryOperator.AND, BoolValue():
+                raise AssertionError("Logical AND operator should have been short-circuited")
+            case BoolValue(), BinaryOperator.OR, BoolValue():
+                raise AssertionError("Logical OR operator should have been short-circuited")
             case NumberValue(value=l), BinaryOperator.ADD, NumberValue(value=r):
                 return NumberValue(value=l + r)
             case NumberValue(value=l), BinaryOperator.SUBTRACT, NumberValue(value=r):
