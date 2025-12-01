@@ -7,11 +7,6 @@
     <title>Overlay</title>
     <style>
         html, body { margin:0; height:100%; background:transparent; }
-        /* optional visual status */
-        #status { position: fixed; left: 8px; bottom: 8px; font: 12px ui-sans-serif,system-ui; color:#9ca3af; }
-        #status .dot { display:inline-block; width:8px; height:8px; border-radius:999px; background:#b91c1c; margin-right:6px; vertical-align:middle; }
-        #status.ok .dot { background:#10b981; }
-        /* user gesture button (only appears in regular browsers if autoplay is blocked) */
         .overlay-video {
           position: fixed;
           inset: 0;                 /* top:0; right:0; bottom:0; left:0 */
@@ -124,17 +119,40 @@
         el.addEventListener("pause", () => { if (el.ended) dispose(); });
       }
 
-      // ---- SSE hookup (unchanged) ----
-      const es = new EventSource('overlay/events');
-      es.onmessage = (ev) => {
-        try {
-          const data = JSON.parse(ev.data);
-          if (data && typeof data.clip_url === "string" && data.clip_url.length) {
-            playClip(data.clip_url);
-          }
-        } catch {}
-      };
+      // ---- SSE hookup with auto-reconnect ----
+      let eventSource = null;
+      const RECONNECT_DELAY = 5000; // 5 seconds
+      
+      function connect() {
+        if (eventSource) {
+          try { eventSource.close(); } catch {}
+          eventSource = null;
+        }
 
+        eventSource = new EventSource('overlay/events');
+        
+        eventSource.onopen = () => {
+          console.log('SSE connected');
+        };
+
+        eventSource.onmessage = (ev) => {
+          try {
+            const data = JSON.parse(ev.data);
+            if (data && typeof data.clip_url === "string" && data.clip_url.length) {
+              playClip(data.clip_url);
+            }
+          } catch {}
+        };
+
+        eventSource.onerror = () => {
+          console.log('SSE connection error, attempting to reconnect...');
+          eventSource.close();
+          
+          setTimeout(connect, RECONNECT_DELAY);
+        };
+      }
+
+      connect();
       primeAudio();
     })();
 </script>
