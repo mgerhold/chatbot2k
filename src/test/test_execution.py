@@ -1102,6 +1102,23 @@ async def _create_callable_script(script_name: str, source: str) -> CallableScri
             """,
             _Success("15"),
         ),
+        # Short-circuiting for logical operators.
+        (
+            """
+            LET n = 0;
+            LET result = n != 0 and (10 / n) > 1;
+            PRINT result;
+            """,
+            _Success("false"),
+        ),
+        (
+            """
+            LET n = 5;
+            LET result = n == 0 or (10 / n) > 1;
+            PRINT result;
+            """,
+            _Success("true"),
+        ),
     ],
 )
 async def test_script_execution(source: str, expected: _Result) -> None:
