@@ -1,8 +1,9 @@
 import asyncio
 import logging
+from collections.abc import Awaitable
+from collections.abc import Callable
 from collections.abc import Sequence
 from typing import Final
-from typing import Optional
 from typing import final
 
 from chatbot2k.app_state import AppState
@@ -72,10 +73,12 @@ async def run_main_loop(app_state: AppState) -> None:
                     if not chats[i].feature_flags.regular_chat:
                         # This chat is not capable of processing regular chat messages.
                         continue
-                    responses = await _process_chat_message(chat_message, app_state)
-                    if responses is not None:
-                        responses = _preprocess_outbound_messages_for_chat(responses, chats[i])
-                        await chats[i].send_responses(responses)
+
+                    async def _callback(responses: list[ChatResponse], chat: Chat) -> None:
+                        responses = _preprocess_outbound_messages_for_chat(responses, chat)
+                        await chat.send_responses(responses)
+
+                    asyncio.create_task(_process_chat_message(chat_message, app_state, _callback, chats[i]))
                 case BroadcastMessage():
                     for j, chat in enumerate(chats):
                         if j not in active_participant_indices:
@@ -91,11 +94,16 @@ async def run_main_loop(app_state: AppState) -> None:
 async def _process_chat_message(
     chat_message: ChatMessage,
     app_state: AppState,
-) -> Optional[list[ChatResponse]]:
+    callback: Callable[[list[ChatResponse], Chat], Awaitable[None]],
+    chat: Chat,
+) -> None:
     logging.debug(f"Processing chat message from {chat_message.sender_name}: {chat_message.text}")
     command: Final = ChatCommand.from_chat_message(chat_message)
     if command is None:
-        return app_state.dictionary.get_explanations(chat_message)  # Maybe `None`.
+        explanation_result: Final = app_state.dictionary.get_explanations(chat_message)  # Maybe `None`.
+        if explanation_result is not None:
+            await callback(explanation_result, chat)
+        return None
 
     if command.name not in app_state.command_handlers:
         return None  # No known command.
@@ -111,11 +119,12 @@ async def _process_chat_message(
         f"Processing command {command.name} from user {chat_message.sender_name} "
         + f"with permission level {chat_message.sender_permission_level} ({chat_message.sender_permission_level.name})"
     )
-    responses: Final = await command_handler.handle_command(command)
+    responses: Final = await asyncio.create_task(command_handler.handle_command(command))
     dictionary_entries: Final = app_state.dictionary.get_explanations(chat_message)
     if dictionary_entries is not None and responses is not None:
         responses.extend(dictionary_entries)
-    return (
+
+    result: Final = (
         responses
         if responses is not None
         else [
@@ -125,6 +134,9 @@ async def _process_chat_message(
             )
         ]
     )
+
+    await callback(result, chat)
+    return None
 
 
 def _preprocess_outbound_messages_for_chat[T: ChatResponse | BroadcastMessage](
