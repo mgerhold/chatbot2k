@@ -31,7 +31,11 @@
             <span class="navbar-brand">{{ bot_name }}</span>
         </div>
         <div class="navbar-right">
+            {% if current_user %}
+            <span class="navbar-user">{{ current_user.display_name | e }}</span>
+            {% else %}
             <a href="/login" class="navbar-link">Login</a>
+            {% endif %}
         </div>
     </div>
 </nav>

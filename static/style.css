@@ -90,6 +90,11 @@ body {
   outline-offset: 2px;
 }
 
+.navbar-user {
+  color: var(--text);
+  font-weight: 500;
+}
+
 .container {
   max-width: 1100px;
   margin: 4rem auto;
