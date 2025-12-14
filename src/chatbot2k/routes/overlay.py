@@ -48,7 +48,8 @@ async def overlay_events(
                 try:
                     clip_url = await asyncio.wait_for(app_state.soundboard_clips_url_queues[uuid].get(), timeout=2.0)
                 except TimeoutError:
-                    # No new soundboard clips, continue waiting.
+                    # No new soundboard clips--we send a comment message as keep-alive and continue waiting.
+                    yield b": keep-alive\r\n\r\n"
                     continue
                 yield sse_encode(
                     SoundboardEvent(
