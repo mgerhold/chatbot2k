@@ -55,6 +55,10 @@ class Config:
         self._twitch_client_secret: Optional[TwitchClientSecret] = None
         self._twitch_credentials: Optional[OAuthTokens] = None
         self._twitch_channel: Optional[str] = None
+        self._twitch_chatbot_web_interface_client_id: Optional[str] = None
+        self._twitch_chatbot_web_interface_client_secret: Optional[str] = None
+        self._twitch_redirect_uri: Optional[str] = None
+        self._jwt_secret: Optional[str] = None
         self._discord_token: Optional[str] = None
         self._discord_moderator_role_id: Optional[int] = None
         self.reload()
@@ -76,6 +80,14 @@ class Config:
         else:
             self._twitch_credentials = None
         self._twitch_channel = get_environment_variable_or_raise("TWITCH_CHANNEL")
+        self._twitch_chatbot_web_interface_client_id = get_environment_variable_or_raise(
+            "TWITCH_CHATBOT_WEB_INTERFACE_CLIENT_ID"
+        )
+        self._twitch_chatbot_web_interface_client_secret = get_environment_variable_or_raise(
+            "TWITCH_CHATBOT_WEB_INTERFACE_CLIENT_SECRET"
+        )
+        self._twitch_redirect_uri = get_environment_variable_or_raise("TWITCH_REDIRECT_URI")
+        self._jwt_secret = get_environment_variable_or_raise("JWT_SECRET")
         self._discord_token = get_environment_variable_or_raise("DISCORD_BOT_TOKEN")
         discord_moderator_role_id_str: Final = get_environment_variable_or_default("DISCORD_MODERATOR_ROLE_ID", None)
         if discord_moderator_role_id_str is not None:
@@ -142,6 +154,30 @@ class Config:
         if self._twitch_channel is None:
             raise AssertionError("Twitch channel is not set. This should not happen.")
         return self._twitch_channel
+
+    @property
+    def twitch_chatbot_web_interface_client_id(self) -> str:
+        if self._twitch_chatbot_web_interface_client_id is None:
+            raise AssertionError("Twitch chatbot web interface client ID is not set. This should not happen.")
+        return self._twitch_chatbot_web_interface_client_id
+
+    @property
+    def twitch_chatbot_web_interface_client_secret(self) -> str:
+        if self._twitch_chatbot_web_interface_client_secret is None:
+            raise AssertionError("Twitch chatbot web interface client secret is not set. This should not happen.")
+        return self._twitch_chatbot_web_interface_client_secret
+
+    @property
+    def twitch_redirect_uri(self) -> str:
+        if self._twitch_redirect_uri is None:
+            raise AssertionError("Twitch redirect URI is not set. This should not happen.")
+        return self._twitch_redirect_uri
+
+    @property
+    def jwt_secret(self) -> str:
+        if self._jwt_secret is None:
+            raise AssertionError("JWT secret is not set. This should not happen.")
+        return self._jwt_secret
 
     @property
     def discord_token(self) -> str:
