@@ -1119,6 +1119,46 @@ async def _create_callable_script(script_name: str, source: str) -> CallableScri
             """,
             _Success("true"),
         ),
+        (
+            # Advent of Code 2025, Day 2, Part 2 (Example Data)
+            """LET input = '11-22,95-115,998-1012,1188511880-1188511890,222220-222224,1698522-1698528,446443-446449,'
+            + '38593856-38593862,565653-565659,824824821-824824827,2121212118-2121212124';
+LET parts = for split('trim'(input), ',') as part yeet (split(part, '-'));
+LET ranges = for parts as part yeet ($part[0]..=$part[1]);
+LET string_ranges = for ranges as range yeet (for range as n yeet #n);
+LET filtered_ranges = for string_ranges as range yeet (
+    for range as number_string
+    if (
+        $'length'(number_string) >= 2
+        and (
+            fold (
+                for 2..=$'length'(number_string) as num_parts if $'length'(number_string) % num_parts == 0 yeet (
+                    ?(
+                        fold (
+                            for 0..<num_parts as i yeet (
+                                join(
+                                    for i * $'length'(number_string) / num_parts ..< (i + 1) * $'length'(number_string) / num_parts
+                                    as j yeet number_string[j]
+                                )
+                            )
+                        ) as ['', 'true'], acc, part
+                        with [acc[0] == '' ? part : acc[0], #(acc[0] == '' or (?acc[1] and acc[0] == part))]
+                    )[1]
+                )
+            ) as false, acc, is_repeated with acc or is_repeated
+        )
+    )
+    yeet $number_string
+);
+LET sum = fold filtered_ranges as 0, acc, range with (
+    $'length'(range) == 0
+    ? acc
+    : (fold range as 0, inner_acc, n with inner_acc + n) + acc
+);
+PRINT sum;
+""",
+            _Success("4174379265"),
+        )
     ],
 )
 async def test_script_execution(source: str, expected: _Result) -> None:
