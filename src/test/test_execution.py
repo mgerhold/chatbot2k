@@ -1137,7 +1137,10 @@ LET filtered_ranges = for string_ranges as range yeet (
                         fold (
                             for 0..<num_parts as i yeet (
                                 join(
-                                    for i * $'length'(number_string) / num_parts ..< (i + 1) * $'length'(number_string) / num_parts
+                                    for
+                                        i
+                                        * $'length'(number_string) / num_parts ..< (i + 1)
+                                        * $'length'(number_string) / num_parts
                                     as j yeet number_string[j]
                                 )
                             )
@@ -1158,7 +1161,7 @@ LET sum = fold filtered_ranges as 0, acc, range with (
 PRINT sum;
 """,
             _Success("4174379265"),
-        )
+        ),
     ],
 )
 async def test_script_execution(source: str, expected: _Result) -> None:
