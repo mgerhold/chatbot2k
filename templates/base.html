@@ -6,8 +6,8 @@
     <meta name="color-scheme" content="dark"/>
     <title>{% block title %}{{ bot_name }}{% endblock %}</title>
 
-    <link rel="preload" href="/static/commands.css" as="style"/>
-    <link rel="stylesheet" href="/static/commands.css"/>
+    <link rel="preload" href="/static/style.css" as="style"/>
+    <link rel="stylesheet" href="/static/style.css"/>
 
     <!-- Favicons -->
     <link rel="icon" type="image/png" sizes="16x16" href="/static/favicon16.png">
@@ -25,6 +25,16 @@
     {% block head_extra %}{% endblock %}
 </head>
 <body>
+<nav class="navbar" role="navigation" aria-label="Main navigation">
+    <div class="navbar-content">
+        <div class="navbar-left">
+            <span class="navbar-brand">{{ bot_name }}</span>
+        </div>
+        <div class="navbar-right">
+            <a href="/login" class="navbar-link">Login</a>
+        </div>
+    </div>
+</nav>
 <main class="container">
     {% block header %}{% endblock %}
 
