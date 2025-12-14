@@ -20,20 +20,18 @@ from fastapi.responses import Response
 from twitchAPI.helper import first
 from twitchAPI.oauth import UserAuthenticator
 from twitchAPI.twitch import Twitch
-from twitchAPI.type import AuthScope
 
 from chatbot2k.app_state import AppState
 from chatbot2k.dependencies import get_app_state
+from chatbot2k.routes.auth_constants import JWT_ALG
+from chatbot2k.routes.auth_constants import JWT_EXPIRY_DAYS
+from chatbot2k.routes.auth_constants import OAUTH_STATE_COOKIE
+from chatbot2k.routes.auth_constants import SCOPES
+from chatbot2k.routes.auth_constants import SESSION_COOKIE
 
 logger: Final = logging.getLogger(__name__)
 
 router: Final = APIRouter(prefix="/auth/twitch")
-
-SCOPES = [AuthScope.USER_READ_MODERATED_CHANNELS]
-JWT_ALG = "HS256"
-SESSION_COOKIE = "session"
-OAUTH_STATE_COOKIE = "twitch_oauth_state"
-JWT_EXPIRY_DAYS = 7
 
 
 def _build_authorize_url(app_state: AppState, state: str) -> str:
