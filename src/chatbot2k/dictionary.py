@@ -115,5 +115,14 @@ class Dictionary:
 
     @staticmethod
     def _build_regex(word: str) -> re.Pattern[str]:
-        pattern: Final = rf"\b{re.escape(word)}\b"
-        return re.compile(pattern, re.IGNORECASE)
+        escaped = re.escape(word)
+
+        # Always match the base abbreviation case-insensitively.
+        base: Final = rf"(?i:{escaped})"
+
+        # Additionally match a plural form only if the persisted abbreviation is ALL CAPS
+        # and the user wrote the ALL-CAPS abbreviation followed by a *lowercase* 's' (e.g. "ABCs").
+        if word.isupper():
+            plural = f"{escaped}s"  # case-sensitive
+            return re.compile(rf"\b(?:{base}|{plural})\b")
+        return re.compile(rf"\b{base}\b")
