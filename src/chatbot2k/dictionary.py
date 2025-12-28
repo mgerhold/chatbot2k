@@ -10,6 +10,7 @@ from chatbot2k.database.engine import Database
 from chatbot2k.types.chat_message import ChatMessage
 from chatbot2k.types.chat_platform import ChatPlatform
 from chatbot2k.types.chat_response import ChatResponse
+from chatbot2k.utils.urls import remove_urls
 
 
 @final
@@ -44,10 +45,13 @@ class Dictionary:
 
     def get_explanations(self, chat_message: ChatMessage) -> Optional[list[ChatResponse]]:
         chat_platform: Final = chat_message.sender_chat.platform
+        # If a dictionary entry is found in a URL, we ignore it. E.g., to avoid
+        # explaining "COM" in "example.com".
+        stripped_text: Final = remove_urls(chat_message.text)
         matching_entries = [
             (entry.word, entry.explanation)
             for entry in self._entries
-            if entry.pattern.search(chat_message.text) is not None
+            if entry.pattern.search(stripped_text) is not None
             and not self._is_in_cooldown(
                 chat_platform,
                 entry.word,
