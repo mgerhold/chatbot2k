@@ -161,9 +161,8 @@ class Config:
         - Appends missing keys at the end.
         - Atomic write (temp file + os.replace).
         """
-        p: Final = Path(path)
         try:
-            original = p.read_text(encoding="utf-8")
+            original = path.read_text(encoding="utf-8")
         except FileNotFoundError:
             original = ""
 
@@ -197,13 +196,13 @@ class Config:
         new_content = "".join(new_lines)
 
         # Atomic write
-        p.parent.mkdir(parents=True, exist_ok=True)
-        with NamedTemporaryFile("w", encoding="utf-8", dir=str(p.parent), delete=False) as tmp:
+        path.parent.mkdir(parents=True, exist_ok=True)
+        with NamedTemporaryFile("w", encoding="utf-8", dir=str(path.parent), delete=False) as tmp:
             tmp.write(new_content)
             tmp.flush()
             os.fsync(tmp.fileno())
             tmp_path = tmp.name
-        os.replace(tmp_path, p)
+        os.replace(tmp_path, path)
 
     def update_twitch_tokens(self, new_access_token: str, new_refresh_token: str) -> None:
         self._twitch_credentials = OAuthTokens(new_access_token, new_refresh_token)
