@@ -1,5 +1,6 @@
 import os
 
+os.environ.setdefault("ENVIRONMENT", "production")
 os.environ.setdefault("DATABASE_FILE", "dummy")
 os.environ.setdefault("TIMEZONE", "Europe/Berlin")
 os.environ.setdefault("LOCALE", "de_DE.UTF-8")
@@ -11,5 +12,9 @@ os.environ.setdefault("TWITCH_CLIENT_SECRET", "dummy")
 os.environ.setdefault("TWITCH_ACCESS_TOKEN", "dummy")
 os.environ.setdefault("TWITCH_REFRESH_TOKEN", "dummy")
 os.environ.setdefault("TWITCH_CHANNEL", "dummy")
+os.environ.setdefault("TWITCH_CHATBOT_WEB_INTERFACE_CLIENT_ID", "dummy")
+os.environ.setdefault("TWITCH_CHATBOT_WEB_INTERFACE_CLIENT_SECRET", "dummy")
+os.environ.setdefault("TWITCH_REDIRECT_URI", "dummy")
+os.environ.setdefault("JWT_SECRET", "dummy")
 os.environ.setdefault("DISCORD_BOT_TOKEN", "dummy")
 os.environ.setdefault("DISCORD_MODERATOR_ROLE_ID", "1234")

@@ -19,8 +19,8 @@ from chatbot2k.utils.auth import get_user_profile_image_url
 router: Final = APIRouter()
 
 
-@router.get("/imprint", tags=["Imprint"])
-async def imprint(
+@router.get("/login", tags=["Login"])
+async def login(
     request: Request,
     app_state: Annotated[AppState, Depends(get_app_state)],
     templates: Annotated[Jinja2Templates, Depends(get_templates)],
@@ -30,7 +30,7 @@ async def imprint(
 
     return templates.TemplateResponse(
         request=request,
-        name="imprint.html",
+        name="login.html",
         context={
             "bot_name": app_state.config.bot_name,
             "author_name": app_state.config.author_name,

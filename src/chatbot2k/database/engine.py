@@ -25,6 +25,7 @@ from chatbot2k.database.tables import ScriptStore
 from chatbot2k.database.tables import SoundboardCommand
 from chatbot2k.database.tables import StaticCommand
 from chatbot2k.database.tables import Translation
+from chatbot2k.database.tables import TwitchTokenSet
 from chatbot2k.models.parameterized_command import ParameterizedCommand as ParameterizedCommandModel
 from chatbot2k.translation_key import TranslationKey
 
@@ -374,4 +375,45 @@ class Database:
 
             store.value_json = value_json
             s.add(store)
+            s.commit()
+
+    def add_or_update_twitch_token_set(
+        self,
+        *,
+        user_id: str,
+        access_token: str,
+        refresh_token: str,
+        expires_at: int,
+    ) -> None:
+        """Add or update a Twitch token set for a user."""
+        with self._session() as s:
+            token_set = s.get(TwitchTokenSet, user_id)
+            if token_set is None:
+                token_set = TwitchTokenSet(
+                    id=None,
+                    user_id=user_id,
+                    access_token=access_token,
+                    refresh_token=refresh_token,
+                    expires_at=expires_at,
+                )
+            else:
+                token_set.access_token = access_token
+                token_set.refresh_token = refresh_token
+                token_set.expires_at = expires_at
+
+            s.add(token_set)
+            s.commit()
+
+    def get_twitch_token_set(self, *, user_id: str) -> Optional[TwitchTokenSet]:
+        """Get a Twitch token set for a user."""
+        with self._session() as s:
+            return s.exec(select(TwitchTokenSet).where(TwitchTokenSet.user_id == user_id)).one_or_none()
+
+    def delete_twitch_token_set(self, *, user_id: str) -> None:
+        """Delete a Twitch token set for a user."""
+        with self._session() as s:
+            token_set: Final = s.exec(select(TwitchTokenSet).where(TwitchTokenSet.user_id == user_id)).one_or_none()
+            if token_set is None:
+                return
+            s.delete(token_set)
             s.commit()
