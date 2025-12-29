@@ -1,0 +1,36 @@
+{
+  "name": "chatbot2k",
+  "version": "1.0.0",
+  "description": "Chatbot2k is a chatbot application that is able to connect to multiple chat platforms at the same time (currently supporting Discord and Twitch).",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "build": "esbuild frontend/scripts_tab.js --bundle --format=esm --outfile=static/js/scripts_tab.bundle.js",
+    "dev": "esbuild frontend/scripts_tab.js --bundle --format=esm --outfile=static/js/scripts_tab.bundle.js --watch"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/mgerhold/chatbot2k.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/mgerhold/chatbot2k/issues"
+  },
+  "homepage": "https://github.com/mgerhold/chatbot2k#readme",
+  "dependencies": {
+    "@codemirror/autocomplete": "^6.20.0",
+    "@codemirror/commands": "^6.10.1",
+    "@codemirror/lang-javascript": "^6.2.4",
+    "@codemirror/language": "^6.12.1",
+    "@codemirror/lint": "^6.9.2",
+    "@codemirror/search": "^6.5.11",
+    "@codemirror/state": "^6.5.3",
+    "@codemirror/theme-one-dark": "^6.1.3",
+    "@codemirror/view": "^6.39.7"
+  },
+  "devDependencies": {
+    "esbuild": "^0.27.2"
+  }
+}
