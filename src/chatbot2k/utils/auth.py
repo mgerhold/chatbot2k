@@ -4,6 +4,7 @@ from datetime import datetime
 from typing import Final
 from typing import Optional
 
+from cachetools import TTLCache
 from twitchAPI.twitch import Twitch
 
 from chatbot2k.app_state import AppState
@@ -11,6 +12,8 @@ from chatbot2k.routes.auth_constants import JWT_EXPIRY_DAYS
 from chatbot2k.routes.auth_constants import SCOPES
 
 logger: Final = logging.getLogger(__name__)
+
+_PROFILE_IMAGE_CACHE: TTLCache[str, str] = TTLCache(maxsize=1000, ttl=5 * 60)
 
 
 async def get_authenticated_twitch_client(app_state: AppState, user_id: str) -> Twitch:
@@ -65,12 +68,21 @@ async def is_user_moderator(twitch: Twitch, broadcaster_id: str, user_id: str) -
 
 
 async def get_user_profile_image_url(app_state: AppState, user_id: str) -> Optional[str]:
-    """Fetch the current profile image URL for a user from Twitch."""
+    """Fetch the current profile image URL for a user from Twitch.
+
+    Results are cached for 5 minutes to improve performance.
+    """
+    if user_id in _PROFILE_IMAGE_CACHE:
+        return _PROFILE_IMAGE_CACHE[user_id]
+
     twitch: Final = await get_authenticated_twitch_client(app_state, user_id)
     try:
         users: Final = [user async for user in twitch.get_users(user_ids=[user_id])]
         if not users:
             return None
-        return users[0].profile_image_url
+        profile_image_url: Final = users[0].profile_image_url
+
+        _PROFILE_IMAGE_CACHE[user_id] = profile_image_url
+        return profile_image_url
     finally:
         await twitch.close()
