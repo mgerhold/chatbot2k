@@ -114,3 +114,14 @@ class ScriptStore(SQLModel, table=True):
     value_json: str  # JSON representation of the current `Value`.
 
     script: Script = Relationship(back_populates="stores")
+
+
+@final
+class TwitchTokenSet(SQLModel, table=True):
+    """Represents a set of Twitch tokens for API access."""
+
+    id: Optional[int] = Field(default=None, primary_key=True)
+    user_id: str
+    access_token: str
+    refresh_token: str
+    expires_at: int  # Unix timestamp of expiration time.

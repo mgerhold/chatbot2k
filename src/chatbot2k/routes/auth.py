@@ -102,15 +102,22 @@ async def twitch_callback(
             detail="Failed to retrieve user information from Twitch",
         )
 
-    # TODO: Persist tokens in database associated with the user (by their ID).
-
     now: Final = datetime.now(UTC)
     expires_at: Final = now + timedelta(days=JWT_EXPIRY_DAYS)
+    expires_at_timestamp: Final = int(expires_at.timestamp())
+
+    app_state.database.add_or_update_twitch_token_set(
+        user_id=user.id,
+        access_token=access_token,
+        refresh_token=refresh_token,
+        expires_at=expires_at_timestamp,
+    )
+
     payload: Final = {
         "sub": user.id,
         "login": user.login,
         "display_name": user.display_name,
-        "exp": int(expires_at.timestamp()),
+        "exp": expires_at_timestamp,
         "iat": int(now.timestamp()),  # Issued at.
     }
     logger.info(f"{user.id = }, {user.login = }, {user.display_name = }")
