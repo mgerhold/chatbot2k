@@ -1,4 +1,5 @@
 import os
+from enum import Enum
 from pathlib import Path
 from tempfile import NamedTemporaryFile
 from typing import Final
@@ -41,10 +42,17 @@ type TwitchClientSecret = str
 
 
 @final
+class Environment(Enum):
+    PRODUCTION = "production"
+    DEVELOPMENT = "development"
+
+
+@final
 class Config:
     _ENV_FILE_PATH = Path(os.getcwd()) / ".env"
 
     def __init__(self) -> None:
+        self._environment: Optional[Environment] = None
         self._database_file: Optional[Path] = None
         self._timezone: Optional[ZoneInfo] = None
         self._locale: Optional[str] = None
@@ -65,6 +73,7 @@ class Config:
 
     def reload(self) -> None:
         load_dotenv()
+        self._environment = Environment(get_environment_variable_or_raise("ENVIRONMENT").lower())
         self._database_file = Path(get_environment_variable_or_raise(DATABASE_FILE_ENV_VARIABLE))
         self._timezone = ZoneInfo(get_environment_variable_or_raise("TIMEZONE"))
         self._locale = get_environment_variable_or_raise("LOCALE")
@@ -96,6 +105,12 @@ class Config:
             self._discord_moderator_role_id = None
 
         self._database_file.parent.mkdir(parents=True, exist_ok=True)
+
+    @property
+    def environment(self) -> Environment:
+        if self._environment is None:
+            raise AssertionError("Environment is not set. This should not happen.")
+        return self._environment
 
     @property
     def database_file(self) -> Path:

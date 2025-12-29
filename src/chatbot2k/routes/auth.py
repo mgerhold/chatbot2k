@@ -22,6 +22,7 @@ from twitchAPI.oauth import UserAuthenticator
 from twitchAPI.twitch import Twitch
 
 from chatbot2k.app_state import AppState
+from chatbot2k.config import Environment
 from chatbot2k.dependencies import get_app_state
 from chatbot2k.routes.auth_constants import JWT_ALG
 from chatbot2k.routes.auth_constants import JWT_EXPIRY_DAYS
@@ -56,7 +57,7 @@ async def twitch_login(app_state: Annotated[AppState, Depends(get_app_state)]) -
         value=state,
         max_age=600,
         httponly=True,
-        secure=True,
+        secure=app_state.config.environment == Environment.PRODUCTION,
         samesite="lax",
         path="/auth/twitch",
     )
@@ -131,7 +132,7 @@ async def twitch_callback(
         value=session_jwt,
         max_age=JWT_EXPIRY_DAYS * 24 * 60 * 60,
         httponly=True,
-        secure=True,
+        secure=app_state.config.environment == Environment.PRODUCTION,
         samesite="lax",
         path="/",
     )
