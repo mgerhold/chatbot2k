@@ -32,7 +32,7 @@
         </div>
         <div class="navbar-right">
             {% if current_user %}
-            <span class="navbar-user">{{ current_user.display_name | e }}</span>
+            <span class="navbar-user">{{ current_user.display_name | e }} (<a href="/auth/twitch/logout" class="navbar-link">logout</a>)</span>
             {% else %}
             <a href="/login" class="navbar-link">Login</a>
             {% endif %}
