@@ -18,3 +18,4 @@ storage/
 
 .coverage
 data/
+node_modules/

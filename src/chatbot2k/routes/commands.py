@@ -1,8 +1,10 @@
+import logging
 from datetime import datetime
 from typing import Annotated
 from typing import Final
 from typing import Optional
 
+import httpx
 from fastapi import Depends
 from fastapi import Request
 from fastapi.routing import APIRouter
@@ -11,6 +13,7 @@ from starlette.templating import Jinja2Templates
 
 from chatbot2k.app_state import AppState
 from chatbot2k.command_handlers.clip_handler import ClipHandler
+from chatbot2k.command_handlers.script_command_handler import ScriptCommandHandler
 from chatbot2k.dependencies import UserInfo
 from chatbot2k.dependencies import get_app_state
 from chatbot2k.dependencies import get_current_user
@@ -20,6 +23,8 @@ from chatbot2k.utils.auth import get_user_profile_image_url
 from chatbot2k.utils.markdown import markdown_to_sanitized_html
 
 router: Final = APIRouter()
+
+logger: Final = logging.getLogger(__name__)
 
 
 def _permission_level_to_string(permission_level: PermissionLevel) -> str:
@@ -32,6 +37,21 @@ def _permission_level_to_string(permission_level: PermissionLevel) -> str:
             return "Administrator"
         case _:
             return "Unknown"
+
+
+async def _fetch_script_source(source_code: str) -> str:
+    """Fetch script source code from URL if needed, otherwise return as-is."""
+    # Check if source_code looks like a URL
+    if source_code.startswith(("http://", "https://")):
+        try:
+            async with httpx.AsyncClient(timeout=10.0) as client:
+                response = await client.get(source_code)
+                response.raise_for_status()
+                return response.text
+        except Exception:
+            # If fetching fails, return the URL itself
+            return source_code
+    return source_code
 
 
 @router.get("/")
@@ -49,10 +69,31 @@ async def show_main_page(
                 "required_permission_level": _permission_level_to_string(handler.min_required_permission_level),
             }
             for handler in app_state.command_handlers.values()
-            if not isinstance(handler, ClipHandler)  # Ignore the soundboard on the main page.
+            if not isinstance(handler, ClipHandler) and not isinstance(handler, ScriptCommandHandler)
         ),
         key=lambda x: x["command"],
     )
+    # Fetch script commands and their source code (from URL if needed).
+    script_commands_data: Final[list[dict[str, str]]] = []
+    for handler in app_state.command_handlers.values():
+        if not isinstance(handler, ScriptCommandHandler):
+            continue
+        script = app_state.database.get_script(handler.name)
+        if script is None:
+            logger.error(f"Script command handler '{handler.name}' has no associated script in the database.")
+            continue
+        script_commands_data.append(
+            {
+                "command": handler.usage,
+                "source_code": script.source_code,
+            }
+        )
+
+    # Fetch actual source code for URLs.
+    for script in script_commands_data:
+        script["source_code"] = await _fetch_script_source(script["source_code"])
+
+    script_commands: Final = sorted(script_commands_data, key=lambda x: x["command"])
     constants: Final = sorted(
         {constant.name: constant.text for constant in app_state.database.get_constants()}.items(),
         key=lambda x: x[0],
@@ -91,6 +132,7 @@ async def show_main_page(
             "bot_name": app_state.config.bot_name,
             "commands": commands,
             "constants": constants,
+            "script_commands": script_commands,
             "soundboard_commands": soundboard_commands,
             "dictionary_entries": dictionary_entries,
             "author_name": app_state.config.author_name,

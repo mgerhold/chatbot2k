@@ -3,13 +3,22 @@
 
 {% block title %}{{ bot_name }} Commands & Dictionary{% endblock %}
 
-{# Enable the 3rd and 4th tabs with the same selected styling/behavior as the others #}
+{# Enable the 3rd, 4th, and 5th tabs with the same selected styling/behavior as the others #}
 {% block head_extra %}
 <style>
     /* Show the Constants panel when its radio is checked */
     #tab-constants:checked ~ .tab-panels #panel-constants { display: block; }
     /* Apply the "selected" look to the Constants tab label */
     #tab-constants:checked ~ .tablist #label-constants {
+      opacity: 1;
+      box-shadow: 0 -1px 0 var(--accent) inset, 0 2px 12px rgba(0,0,0,0.35);
+      background: linear-gradient(180deg, #101a33, #0b1322);
+    }
+
+    /* Show the Scripts panel when its radio is checked */
+    #tab-scripts:checked ~ .tab-panels #panel-scripts { display: block; }
+    /* Apply the "selected" look to the Scripts tab label */
+    #tab-scripts:checked ~ .tablist #label-scripts {
       opacity: 1;
       box-shadow: 0 -1px 0 var(--accent) inset, 0 2px 12px rgba(0,0,0,0.35);
       background: linear-gradient(180deg, #101a33, #0b1322);
@@ -23,6 +32,70 @@
       box-shadow: 0 -1px 0 var(--accent) inset, 0 2px 12px rgba(0,0,0,0.35);
       background: linear-gradient(180deg, #101a33, #0b1322);
     }
+
+    /* CodeMirror 6 styling */
+    .cm-editor {
+      width: 100%;
+      border: 1px solid #333;
+      border-radius: 4px;
+      font-size: 14px;
+      display: block;
+      position: relative;
+      contain: size layout style paint;
+      /* height is set dynamically by JavaScript */
+    }
+
+    .cm-scroller {
+      overflow-y: auto !important;
+      overflow-x: auto !important;
+      width: 100% !important;
+      max-width: 100% !important;
+    }
+
+    .cm-content {
+      white-space: pre !important;
+      word-wrap: normal !important;
+      width: max-content !important;
+    }
+
+    .cm-line {
+      white-space: pre !important;
+    }
+
+    .script-editor-container {
+      margin: 10px 0;
+      width: 100%;
+      display: block;
+      position: relative;
+    }
+
+    /* Prevent table container from scrolling horizontally for scripts table */
+    #panel-scripts .table-container {
+      overflow-x: hidden !important;
+      overflow-y: auto;
+    }
+
+    .scripts.data-table {
+      table-layout: auto;
+      width: 100%;
+    }
+
+    .scripts td {
+      vertical-align: top;
+    }
+
+    .scripts td:first-child {
+      width: 1px;
+      white-space: nowrap;
+    }
+
+    .scripts .source-code-cell {
+      width: 99%;
+    }
+
+    .script-data {
+      display: none;
+    }
 </style>
 {% endblock %}
 
@@ -34,6 +107,7 @@
 <section class="tabs" aria-label="Sections">
     <input class="tab-radio" type="radio" name="section" id="tab-commands" checked>
     <input class="tab-radio" type="radio" name="section" id="tab-constants">
+    <input class="tab-radio" type="radio" name="section" id="tab-scripts">
     <input class="tab-radio" type="radio" name="section" id="tab-dictionary">
     <input class="tab-radio" type="radio" name="section" id="tab-soundboard">
 
@@ -41,6 +115,7 @@
         <label class="tab" for="tab-commands" id="label-commands" role="tab"
                aria-controls="panel-commands">Commands</label>
         <label class="tab" for="tab-constants" id="label-constants" role="tab" aria-controls="panel-constants">Constants</label>
+        <label class="tab" for="tab-scripts" id="label-scripts" role="tab" aria-controls="panel-scripts">Scripts</label>
         <label class="tab" for="tab-dictionary" id="label-dictionary" role="tab" aria-controls="panel-dictionary">Dictionary</label>
         <label class="tab" for="tab-soundboard" id="label-soundboard" role="tab" aria-controls="panel-soundboard">Soundboard</label>
     </div>
@@ -56,6 +131,37 @@
         <section id="panel-constants" class="tab-panel" role="tabpanel" aria-labelledby="label-constants">
             <h2 id="constants-heading" class="sr-only">Constants</h2>
             {{ constants_table(constants) }}
+        </section>
+
+        <!-- Scripts panel -->
+        <section id="panel-scripts" class="tab-panel" role="tabpanel" aria-labelledby="label-scripts">
+            <h2 id="scripts-heading" class="sr-only">Scripts</h2>
+            <div class="table-container" role="region" aria-labelledby="scripts-heading" tabindex="0">
+                <table class="scripts data-table">
+                    <caption class="sr-only">Script commands</caption>
+                    <thead>
+                    <tr>
+                        <th scope="col">Command</th>
+                        <th scope="col">Source Code</th>
+                    </tr>
+                    </thead>
+                    <tbody>
+                    {% for script in script_commands %}
+                    <tr>
+                        <td class="mono"><code>{{ script.command | e }}</code></td>
+                        <td class="source-code-cell">
+                            <div class="script-editor-container" data-script-command="{{ script.command | e }}"></div>
+                            <script class="script-data" type="application/json" data-command="{{ script.command | e }}">{{ script.source_code | tojson }}</script>
+                        </td>
+                    </tr>
+                    {% else %}
+                    <tr>
+                        <td colspan="2" class="empty">No script commands available.</td>
+                    </tr>
+                    {% endfor %}
+                    </tbody>
+                </table>
+            </div>
         </section>
 
         <!-- Dictionary panel -->
@@ -110,4 +216,10 @@
         </section>
     </div>
 </section>
+
+<!-- CodeMirror 6 -->
+<script type="module">
+  import { wireScriptsTab } from "/static/js/scripts_tab.bundle.js";
+  document.addEventListener("DOMContentLoaded", wireScriptsTab);
+</script>
 {% endblock %}
