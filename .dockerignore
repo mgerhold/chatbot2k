@@ -1,4 +1,4 @@
 .venv
-static
+static/js/scripts_tab.bundle.js
 storage/
 .env
