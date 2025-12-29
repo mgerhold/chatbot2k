@@ -1,3 +1,4 @@
+import logging
 from datetime import datetime
 from typing import Annotated
 from typing import Final
@@ -22,6 +23,8 @@ from chatbot2k.utils.auth import get_user_profile_image_url
 from chatbot2k.utils.markdown import markdown_to_sanitized_html
 
 router: Final = APIRouter()
+
+logger: Final = logging.getLogger(__name__)
 
 
 def _permission_level_to_string(permission_level: PermissionLevel) -> str:
@@ -71,14 +74,20 @@ async def show_main_page(
         key=lambda x: x["command"],
     )
     # Fetch script commands and their source code (from URL if needed).
-    script_commands_data: Final = [
-        {
-            "command": handler.usage,
-            "source_code": app_state.database.get_script(handler._name).source_code,
-        }
-        for handler in app_state.command_handlers.values()
-        if isinstance(handler, ScriptCommandHandler)
-    ]
+    script_commands_data: Final[list[dict[str, str]]] = []
+    for handler in app_state.command_handlers.values():
+        if not isinstance(handler, ScriptCommandHandler):
+            continue
+        script = app_state.database.get_script(handler.name)
+        if script is None:
+            logger.error(f"Script command handler '{handler.name}' has no associated script in the database.")
+            continue
+        script_commands_data.append(
+            {
+                "command": handler.usage,
+                "source_code": script.source_code,
+            }
+        )
 
     # Fetch actual source code for URLs.
     for script in script_commands_data:
