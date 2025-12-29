@@ -408,3 +408,12 @@ class Database:
         """Get a Twitch token set for a user."""
         with self._session() as s:
             return s.exec(select(TwitchTokenSet).where(TwitchTokenSet.user_id == user_id)).one_or_none()
+
+    def delete_twitch_token_set(self, *, user_id: str) -> None:
+        """Delete a Twitch token set for a user."""
+        with self._session() as s:
+            token_set: Final = s.exec(select(TwitchTokenSet).where(TwitchTokenSet.user_id == user_id)).one_or_none()
+            if token_set is None:
+                return
+            s.delete(token_set)
+            s.commit()
