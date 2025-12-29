@@ -23,7 +23,7 @@ COPY . .
 RUN chmod +x /app/entrypoint.sh
 
 # Build CodeMirror bundle
-RUN npm ci && npm run build
+RUN mkdir -p static/js && npm ci && npm run build
 
 # Create venv and install deps + the project
 RUN uv sync --frozen
