@@ -16,6 +16,7 @@ from chatbot2k.dependencies import get_app_state
 from chatbot2k.dependencies import get_current_user
 from chatbot2k.dependencies import get_templates
 from chatbot2k.types.permission_level import PermissionLevel
+from chatbot2k.utils.auth import get_user_profile_image_url
 from chatbot2k.utils.markdown import markdown_to_sanitized_html
 
 router: Final = APIRouter()
@@ -34,7 +35,7 @@ def _permission_level_to_string(permission_level: PermissionLevel) -> str:
 
 
 @router.get("/")
-def show_main_page(
+async def show_main_page(
     request: Request,
     app_state: Annotated[AppState, Depends(get_app_state)],
     templates: Annotated[Jinja2Templates, Depends(get_templates)],
@@ -81,6 +82,8 @@ def show_main_page(
         key=lambda x: x["word"].lower(),
     )
 
+    profile_image_url: Final = await get_user_profile_image_url(app_state, current_user.id) if current_user else None
+
     return templates.TemplateResponse(
         request=request,
         name="commands.html",
@@ -93,5 +96,6 @@ def show_main_page(
             "author_name": app_state.config.author_name,
             "copyright_year": datetime.now().year,
             "current_user": current_user,
+            "profile_image_url": profile_image_url,
         },
     )

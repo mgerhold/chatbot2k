@@ -2,6 +2,7 @@ import logging
 from datetime import UTC
 from datetime import datetime
 from typing import Final
+from typing import Optional
 
 from twitchAPI.twitch import Twitch
 
@@ -61,3 +62,15 @@ async def is_user_moderator(twitch: Twitch, broadcaster_id: str, user_id: str) -
 
     moderated_channels: Final = [channel async for channel in twitch.get_moderated_channels(user_id=user_id)]
     return any(channel.broadcaster_id == broadcaster_id for channel in moderated_channels)
+
+
+async def get_user_profile_image_url(app_state: AppState, user_id: str) -> Optional[str]:
+    """Fetch the current profile image URL for a user from Twitch."""
+    twitch: Final = await get_authenticated_twitch_client(app_state, user_id)
+    try:
+        users: Final = [user async for user in twitch.get_users(user_ids=[user_id])]
+        if not users:
+            return None
+        return users[0].profile_image_url
+    finally:
+        await twitch.close()

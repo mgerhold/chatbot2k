@@ -32,6 +32,9 @@
         </div>
         <div class="navbar-right">
             {% if current_user %}
+            {% if profile_image_url %}
+            <img src="{{ profile_image_url | e }}" alt="{{ current_user.display_name | e }}'s profile" class="navbar-profile-pic">
+            {% endif %}
             <span class="navbar-user">{{ current_user.display_name | e }} (<a href="/auth/twitch/logout" class="navbar-link">logout</a>)</span>
             {% else %}
             <a href="/login" class="navbar-link">Login</a>
