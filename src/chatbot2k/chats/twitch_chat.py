@@ -27,6 +27,7 @@ from chatbot2k.types.chat_platform import ChatPlatform
 from chatbot2k.types.chat_response import ChatResponse
 from chatbot2k.types.feature_flags import FeatureFlags
 from chatbot2k.types.feature_flags import FormattingSupport
+from chatbot2k.types.live_notification import LiveNotification
 from chatbot2k.types.permission_level import PermissionLevel
 
 
@@ -40,6 +41,7 @@ class TwitchChat(Chat):
                 regular_chat=True,
                 broadcasting=True,
                 formatting_support=FormattingSupport.NONE,
+                can_post_live_notifications=False,
                 can_trigger_soundboard=True,
                 supports_giveaways=True,
             ),
@@ -121,6 +123,10 @@ class TwitchChat(Chat):
             return
         logging.info(f"Sending broadcast message to Twitch chat: {message.text}")
         await self._send_message(message.text)
+
+    @override
+    async def post_live_notification(self, notification: LiveNotification) -> None:
+        raise NotImplementedError
 
     @property
     @override

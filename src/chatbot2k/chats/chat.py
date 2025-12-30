@@ -9,6 +9,7 @@ from chatbot2k.types.chat_message import ChatMessage
 from chatbot2k.types.chat_platform import ChatPlatform
 from chatbot2k.types.chat_response import ChatResponse
 from chatbot2k.types.feature_flags import FeatureFlags
+from chatbot2k.types.live_notification import LiveNotification
 
 
 class Chat(ABC):
@@ -30,6 +31,10 @@ class Chat(ABC):
 
     @abstractmethod
     async def send_broadcast(self, message: BroadcastMessage) -> None:
+        pass
+
+    @abstractmethod
+    async def post_live_notification(self, notification: LiveNotification) -> None:
         pass
 
     @property
