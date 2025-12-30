@@ -9,6 +9,7 @@ from chatbot2k.config import Config
 from chatbot2k.database.engine import Database
 from chatbot2k.dictionary import Dictionary
 from chatbot2k.translations_manager import TranslationsManager
+from chatbot2k.types.live_notification import LiveNotification
 
 if TYPE_CHECKING:
     # We have to avoid circular imports, so we use a string annotation below.
@@ -49,6 +50,11 @@ class AppState(ABC):
     @property
     @abstractmethod
     def soundboard_clips_url_queues(self) -> dict[UUID, asyncio.Queue[str]]:
+        pass
+
+    @property
+    @abstractmethod
+    def live_notifications_queue(self) -> asyncio.Queue[LiveNotification]:
         pass
 
     @property

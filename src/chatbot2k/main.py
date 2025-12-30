@@ -19,6 +19,8 @@ from chatbot2k.routes import commands
 from chatbot2k.routes import imprint
 from chatbot2k.routes import login
 from chatbot2k.routes import overlay
+from chatbot2k.types.live_notification import LiveNotification
+from chatbot2k.types.live_notification import LiveNotificationTextTemplate
 
 logging.basicConfig(level=logging.INFO)
 
@@ -32,6 +34,15 @@ async def lifespan(_: FastAPI) -> AsyncGenerator[None]:
 
     async def _on_stream_live(event: StreamLiveEvent) -> None:
         logger.info(f"Stream has gone live: {event.broadcaster_name} (ID = {event.broadcaster_id})")
+        await app_state.live_notifications_queue.put(
+            LiveNotification(
+                broadcaster=event.broadcaster_name,
+                target_channel="bot-test",
+                text_template=LiveNotificationTextTemplate(
+                    "{broadcaster} ist jetzt live! Schaut vorbei: https://twitch.tv/{broadcaster}"
+                ),
+            )
+        )
 
     main_task: Final = asyncio.create_task(run_main_loop(app_state))
 

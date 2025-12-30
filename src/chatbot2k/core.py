@@ -26,7 +26,7 @@ class Sentinel:
 
 
 async def run_main_loop(app_state: AppState) -> None:
-    chats: Final = [
+    chats: Final[list[Chat]] = [
         await TwitchChat.create(app_state),
         await DiscordChat.create(app_state),
     ]
@@ -48,12 +48,22 @@ async def run_main_loop(app_state: AppState) -> None:
             # we signal that it is done.
             await queue.put((i, Sentinel()))
 
+    async def _process_live_notifications(chats: list[Chat]) -> None:
+        while True:
+            notification = await app_state.live_notifications_queue.get()
+            for chat in chats:
+                if not chat.feature_flags.can_post_live_notifications:
+                    continue
+                await chat.post_live_notification(notification)
+
     async with asyncio.TaskGroup() as task_group:
         for i, chat in enumerate(chats):
             task_group.create_task(_producer(i, chat))
 
         for i, broadcaster in enumerate(app_state.broadcasters):
             task_group.create_task(_producer(i + len(chats), broadcaster))
+
+        task_group.create_task(_process_live_notifications(chats))
 
         while active_participant_indices:
             i, chat_message = await queue.get()

@@ -18,6 +18,7 @@ from chatbot2k.config import Config
 from chatbot2k.database.engine import Database
 from chatbot2k.dictionary import Dictionary
 from chatbot2k.translations_manager import TranslationsManager
+from chatbot2k.types.live_notification import LiveNotification
 
 
 @final
@@ -26,6 +27,7 @@ class Globals(AppState):
         self._is_soundboard_enabled = True
         self._config: Final = Config()
         self._database: Final = Database(self.config.database_file, echo=False)
+        self._live_notifications_queue: Final = asyncio.Queue[LiveNotification]()
         self._soundboard_clips_url_queues: Final[dict[UUID, asyncio.Queue[str]]] = {}
         self._command_handlers = self._reload_command_handlers()
         self._broadcasters = Globals._load_broadcasters(self)
@@ -68,6 +70,11 @@ class Globals(AppState):
     @override
     def soundboard_clips_url_queues(self) -> dict[UUID, asyncio.Queue[str]]:
         return self._soundboard_clips_url_queues
+
+    @property
+    @override
+    def live_notifications_queue(self) -> asyncio.Queue[LiveNotification]:
+        return self._live_notifications_queue
 
     @property
     @override
