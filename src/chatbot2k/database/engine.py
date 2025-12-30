@@ -447,6 +447,27 @@ class Database:
         with self._session() as s:
             return list(s.exec(select(LiveNotificationChannel)).all())
 
+    def update_live_notification_channel(
+        self,
+        *,
+        id_: int,
+        broadcaster: str,
+        text_template: str,
+        target_channel: str,
+    ) -> None:
+        """Update a live notification channel."""
+        with self._session() as s:
+            channel: Final = s.exec(
+                select(LiveNotificationChannel).where(LiveNotificationChannel.id == id_)
+            ).one_or_none()
+            if channel is None:
+                raise KeyError(f"Live notification channel with id '{id_}' not found")
+            channel.broadcaster = broadcaster
+            channel.text_template = text_template
+            channel.target_channel = target_channel
+            s.add(channel)
+            s.commit()
+
     def remove_live_notification_channel(self, *, broadcaster: str) -> None:
         """Remove a live notification channel for a broadcaster."""
         with self._session() as s:
