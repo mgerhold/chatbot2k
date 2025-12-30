@@ -96,7 +96,6 @@ async def add_live_notification_channel(
 async def update_live_notification_channel(
     channel_id: int,
     app_state: Annotated[AppState, Depends(get_app_state)],
-    current_user: Annotated[UserInfo, Depends(get_broadcaster_user)],
     broadcaster: Annotated[str, Form()],
     text_template: Annotated[str, Form()],
     target_channel: Annotated[str, Form()],
@@ -118,7 +117,6 @@ async def update_live_notification_channel(
 async def delete_live_notification_channel(
     channel_id: int,
     app_state: Annotated[AppState, Depends(get_app_state)],
-    current_user: Annotated[UserInfo, Depends(get_broadcaster_user)],
 ) -> Response:
     """Delete a live notification channel."""
     channels: Final = app_state.database.get_live_notification_channels()
