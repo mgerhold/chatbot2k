@@ -13,6 +13,7 @@ from sqlalchemy.engine.interfaces import DBAPIConnection
 from sqlalchemy.pool.base import ConnectionPoolEntry
 from sqlmodel import Session
 from sqlmodel import create_engine
+from sqlmodel import desc
 from sqlmodel import select
 
 from chatbot2k.database.tables import Broadcast
@@ -408,8 +409,11 @@ class Database:
     def get_twitch_token_set(self, *, user_id: str) -> Optional[TwitchTokenSet]:
         """Get a Twitch token set for a user."""
         with self._session() as s:
-            # TODO: Fetch the entry with the highest expires_at if multiple exist for the same user_id.
-            return s.exec(select(TwitchTokenSet).where(TwitchTokenSet.user_id == user_id)).one_or_none()
+            return s.exec(
+                select(TwitchTokenSet)
+                .where(TwitchTokenSet.user_id == user_id)
+                .order_by(desc(TwitchTokenSet.expires_at))
+            ).first()
 
     def delete_twitch_token_set(self, *, user_id: str) -> None:
         """Delete a Twitch token set for a user."""
