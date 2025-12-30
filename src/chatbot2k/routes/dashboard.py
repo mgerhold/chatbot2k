@@ -43,19 +43,19 @@ async def dashboard_welcome(
     )
 
 
-@router.get("/monitored-channels")
-async def dashboard_monitored_channels(
+@router.get("/live-notifications")
+async def dashboard_live_notifications(
     request: Request,
     app_state: Annotated[AppState, Depends(get_app_state)],
     templates: Annotated[Jinja2Templates, Depends(get_templates)],
     current_user: Annotated[UserInfo, Depends(get_broadcaster_user)],
 ) -> Response:
-    """Dashboard page for managing monitored Twitch channels."""
+    """Dashboard page for managing live notifications."""
     profile_image_url: Final = await get_user_profile_image_url(app_state, current_user.id)
 
     return templates.TemplateResponse(
         request=request,
-        name="dashboard/monitored_channels.html",
+        name="dashboard/live_notifications.html",
         context={
             "bot_name": app_state.config.bot_name,
             "author_name": app_state.config.author_name,
@@ -63,6 +63,6 @@ async def dashboard_monitored_channels(
             "current_user": current_user,
             "profile_image_url": profile_image_url,
             "is_broadcaster": True,
-            "active_page": "monitored_channels",
+            "active_page": "live_notifications",
         },
     )
