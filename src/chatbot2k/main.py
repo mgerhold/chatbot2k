@@ -10,7 +10,6 @@ import uvicorn
 from fastapi import FastAPI
 from starlette.staticfiles import StaticFiles
 
-from chatbot2k.config import Environment
 from chatbot2k.core import run_main_loop
 from chatbot2k.dependencies import get_app_state
 from chatbot2k.live_notifications import StreamLiveEvent
