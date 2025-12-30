@@ -2,9 +2,12 @@ import logging
 from datetime import datetime
 from typing import Annotated
 from typing import Final
+from typing import NamedTuple
 from typing import Optional
+from typing import final
 
 import httpx
+from cachetools import TTLCache
 from fastapi import Depends
 from fastapi import Request
 from fastapi.routing import APIRouter
@@ -39,19 +42,36 @@ def _permission_level_to_string(permission_level: PermissionLevel) -> str:
             return "Unknown"
 
 
-async def _fetch_script_source(source_code: str) -> str:
-    """Fetch script source code from URL if needed, otherwise return as-is."""
-    # Check if source_code looks like a URL
-    if source_code.startswith(("http://", "https://")):
-        try:
-            async with httpx.AsyncClient(timeout=10.0) as client:
-                response = await client.get(source_code)
-                response.raise_for_status()
-                return response.text
-        except Exception:
-            # If fetching fails, return the URL itself
-            return source_code
-    return source_code
+def _looks_like_url(text: str) -> bool:
+    return text.startswith(("http://", "https://"))
+
+
+_SOURCE_CODE_CACHE: TTLCache[str, str] = TTLCache(maxsize=1000, ttl=15.0 * 60.0)
+
+
+async def _fetch_script_source(url: str) -> Optional[str]:
+    """
+    Tries to fetch the script source code from the given URL. Returns `None`
+    if fetching fails. Employs a simple in-memory cache to avoid repeated network requests.
+    """
+    if url in _SOURCE_CODE_CACHE:
+        return _SOURCE_CODE_CACHE[url]
+    try:
+        async with httpx.AsyncClient(timeout=10.0) as client:
+            response: Final = await client.get(url)
+            response.raise_for_status()
+            _SOURCE_CODE_CACHE[url] = response.text
+            return response.text
+    except Exception as e:
+        logger.error(f"Failed to fetch script source from URL '{url}': {e}")
+        return None
+
+
+@final
+class _ScriptCommandData(NamedTuple):
+    command: str
+    source_code: Optional[str]
+    source_code_url: Optional[str]
 
 
 @router.get("/")
@@ -74,7 +94,7 @@ async def show_main_page(
         key=lambda x: x["command"],
     )
     # Fetch script commands and their source code (from URL if needed).
-    script_commands_data: Final[list[dict[str, str]]] = []
+    script_commands_data: Final[list[_ScriptCommandData]] = []
     for handler in app_state.command_handlers.values():
         if not isinstance(handler, ScriptCommandHandler):
             continue
@@ -83,17 +103,18 @@ async def show_main_page(
             logger.error(f"Script command handler '{handler.name}' has no associated script in the database.")
             continue
         script_commands_data.append(
-            {
-                "command": handler.usage,
-                "source_code": script.source_code,
-            }
+            _ScriptCommandData(
+                command=handler.usage,
+                source_code=(
+                    await _fetch_script_source(script.source_code)
+                    if _looks_like_url(script.source_code)
+                    else script.source_code
+                ),
+                source_code_url=script.source_code if _looks_like_url(script.source_code) else None,
+            )
         )
 
-    # Fetch actual source code for URLs.
-    for script in script_commands_data:
-        script["source_code"] = await _fetch_script_source(script["source_code"])
-
-    script_commands: Final = sorted(script_commands_data, key=lambda x: x["command"])
+    script_commands: Final = sorted(script_commands_data, key=lambda x: x.command)
     constants: Final = sorted(
         {constant.name: constant.text for constant in app_state.database.get_constants()}.items(),
         key=lambda x: x[0],

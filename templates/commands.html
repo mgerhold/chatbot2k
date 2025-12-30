@@ -151,7 +151,12 @@
                         <td class="mono"><code>{{ script.command | e }}</code></td>
                         <td class="source-code-cell">
                             <div class="script-editor-container" data-script-command="{{ script.command | e }}"></div>
+                            {% if script.source_code %}
                             <script class="script-data" type="application/json" data-command="{{ script.command | e }}">{{ script.source_code | tojson }}</script>
+                            {% endif %}
+                            {% if script.source_code_url %}
+                            Pulled from: <a href="{{ script.source_code_url }}" target="_blank" rel="noopener noreferrer">{{ script.source_code_url }}</a>
+                            {% endif %}
                         </td>
                     </tr>
                     {% else %}
