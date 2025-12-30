@@ -48,8 +48,9 @@ async def _fetch_script_source(source_code: str) -> str:
                 response = await client.get(source_code)
                 response.raise_for_status()
                 return response.text
-        except Exception:
-            # If fetching fails, return the URL itself
+        except Exception as e:
+            # If fetching fails, log the error and return the URL itself
+            logger.error(f"Failed to fetch script source from URL '{source_code}': {e}")
             return source_code
     return source_code
 
