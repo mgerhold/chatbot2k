@@ -25,6 +25,30 @@ class StreamLiveEvent(NamedTuple):
     broadcaster_id: str
 
 
+async def _setup_subscriptions(
+    app_state: AppState,
+    twitch: Twitch,
+    eventsub: EventSubWebhook,
+    callback: Callable[[StreamOnlineEvent], Awaitable[None]],
+) -> None:
+    """Set up EventSub subscriptions for all channels in the database."""
+    channels: Final = app_state.database.get_live_notification_channels()
+
+    for channel in channels:
+        login = channel.broadcaster
+        user = await first(twitch.get_users(logins=[login]))
+        if user is None:
+            logger.error(f"User '{login}' not found on Twitch.")
+            continue
+        logger.info(f"Setting up stream online listener for user '{login}' (ID: {user.id})")
+        try:
+            subscription_id = await eventsub.listen_stream_online(user.id, callback)
+        except Exception as e:
+            logger.exception(f"Failed to set up listener for user '{login}': {e}")
+            continue
+        logger.info(f"Successfully set up listener for user '{login}', subscription ID: {subscription_id}")
+
+
 @asynccontextmanager
 async def monitor_streams(
     app_state: AppState,
@@ -64,19 +88,7 @@ async def monitor_streams(
 
     eventsub.start()
 
-    for channel in channels:
-        login = channel.broadcaster
-        user = await first(twitch.get_users(logins=[login]))
-        if user is None:
-            logger.error(f"User '{login}' not found on Twitch.")
-            continue
-        logger.info(f"Setting up stream online listener for user '{login}' (ID: {user.id})")
-        try:
-            subscription_id = await eventsub.listen_stream_online(user.id, _on_stream_live)
-        except Exception as e:
-            logger.exception(f"Failed to set up listener for user '{login}': {e}")
-            continue
-        logger.info(f"Successfully set up listener for user '{login}', subscription ID: {subscription_id}")
+    await _setup_subscriptions(app_state, twitch, eventsub, _on_stream_live)
 
     try:
         yield
