@@ -18,6 +18,7 @@ from sqlmodel import select
 from chatbot2k.database.tables import Broadcast
 from chatbot2k.database.tables import Constant
 from chatbot2k.database.tables import DictionaryEntry
+from chatbot2k.database.tables import LiveNotificationChannel
 from chatbot2k.database.tables import Parameter
 from chatbot2k.database.tables import ParameterizedCommand
 from chatbot2k.database.tables import Script
@@ -416,4 +417,40 @@ class Database:
             if token_set is None:
                 return
             s.delete(token_set)
+            s.commit()
+
+    def add_live_notification_channel(self, *, broadcaster: str, text_template: str, target_channel: str) -> None:
+        """Add a live notification channel for a broadcaster."""
+        with self._session() as s:
+            existing: Final = s.exec(
+                select(LiveNotificationChannel).where(
+                    LiveNotificationChannel.broadcaster == broadcaster,
+                )
+            ).one_or_none()
+            if existing is not None:
+                raise ValueError(f"Live notification channel for broadcaster '{broadcaster}' already exists")
+            live_notification_channel: Final = LiveNotificationChannel(
+                broadcaster=broadcaster,
+                text_template=text_template,
+                target_channel=target_channel,
+            )
+            s.add(live_notification_channel)
+            s.commit()
+
+    def get_live_notification_channels(self) -> list[LiveNotificationChannel]:
+        """Get all live notification channels."""
+        with self._session() as s:
+            return list(s.exec(select(LiveNotificationChannel)).all())
+
+    def remove_live_notification_channel(self, *, broadcaster: str) -> None:
+        """Remove a live notification channel for a broadcaster."""
+        with self._session() as s:
+            live_notification_channel: Final = s.exec(
+                select(LiveNotificationChannel).where(
+                    LiveNotificationChannel.broadcaster == broadcaster,
+                )
+            ).one_or_none()
+            if live_notification_channel is None:
+                raise KeyError(f"Live notification channel for broadcaster '{broadcaster}' not found")
+            s.delete(live_notification_channel)
             s.commit()

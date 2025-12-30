@@ -125,3 +125,13 @@ class TwitchTokenSet(SQLModel, table=True):
     access_token: str
     refresh_token: str
     expires_at: int  # Unix timestamp of expiration time.
+
+
+@final
+class LiveNotificationChannel(SQLModel, table=True):
+    """Represents a Twitch channel to be monitored for notifications when going live."""
+
+    id: Optional[int] = Field(default=None, primary_key=True)
+    broadcaster: str
+    text_template: str
+    target_channel: str  # Name of the channel (usually on Discord) to send the notification to.
