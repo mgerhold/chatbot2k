@@ -62,9 +62,11 @@ async def monitor_streams(
             continue
         logger.info(f"Setting up stream online listener for user '{login}' (ID: {user.id})")
         try:
-            await eventsub.listen_stream_online(user.id, _on_stream_live)
+            subscription_id = await eventsub.listen_stream_online(user.id, _on_stream_live)
         except Exception as e:
             logger.exception(f"Failed to set up listener for user '{login}': {e}")
+            continue
+        logger.info(f"Successfully set up listener for user '{login}', subscription ID: {subscription_id}")
 
     try:
         yield
