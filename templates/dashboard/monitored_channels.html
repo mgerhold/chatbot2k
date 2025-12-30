@@ -1,0 +1,36 @@
+{% extends "dashboard/base.html" %}
+
+{% block title %}{{ bot_name }} — Monitored Channels{% endblock %}
+
+{% block dashboard_content %}
+<div class="dashboard-header">
+    <h1>Monitored Channels</h1>
+    <p>Manage the list of Twitch channels to monitor for live notifications.</p>
+</div>
+
+<section>
+    <h2>Channel Management</h2>
+    <p>
+        <em>This page is under construction.</em>
+    </p>
+    <p>
+        Soon you will be able to add, edit, and remove Twitch channels from the monitoring list.
+        When a monitored channel goes live, you'll receive notifications according to your configured settings.
+    </p>
+</section>
+
+<section style="margin-top: 2rem;">
+    <h3>Placeholder Content</h3>
+    <div style="background: rgba(96, 165, 250, 0.1); padding: 1.5rem; border-radius: 8px; border: 1px solid var(--border);">
+        <p style="margin: 0;">
+            <strong>Coming soon:</strong>
+        </p>
+        <ul style="margin-top: 0.5rem;">
+            <li>View all monitored channels</li>
+            <li>Add new channels to monitor</li>
+            <li>Remove channels from monitoring</li>
+            <li>Configure notification settings per channel</li>
+        </ul>
+    </div>
+</section>
+{% endblock %}

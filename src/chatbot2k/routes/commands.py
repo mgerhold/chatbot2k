@@ -23,6 +23,7 @@ from chatbot2k.dependencies import get_current_user
 from chatbot2k.dependencies import get_templates
 from chatbot2k.types.permission_level import PermissionLevel
 from chatbot2k.utils.auth import get_user_profile_image_url
+from chatbot2k.utils.auth import is_user_broadcaster
 from chatbot2k.utils.markdown import markdown_to_sanitized_html
 
 router: Final = APIRouter()
@@ -145,6 +146,7 @@ async def show_main_page(
     )
 
     profile_image_url: Final = await get_user_profile_image_url(app_state, current_user.id) if current_user else None
+    is_broadcaster: Final = await is_user_broadcaster(app_state, current_user.id) if current_user else False
 
     return templates.TemplateResponse(
         request=request,
@@ -160,5 +162,6 @@ async def show_main_page(
             "copyright_year": datetime.now().year,
             "current_user": current_user,
             "profile_image_url": profile_image_url,
+            "is_broadcaster": is_broadcaster,
         },
     )

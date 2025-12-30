@@ -10,12 +10,14 @@ import uvicorn
 from fastapi import FastAPI
 from starlette.staticfiles import StaticFiles
 
+from chatbot2k.config import Environment
 from chatbot2k.core import run_main_loop
 from chatbot2k.dependencies import get_app_state
 from chatbot2k.live_notifications import StreamLiveEvent
 from chatbot2k.live_notifications import monitor_streams
 from chatbot2k.routes import auth
 from chatbot2k.routes import commands
+from chatbot2k.routes import dashboard
 from chatbot2k.routes import imprint
 from chatbot2k.routes import login
 from chatbot2k.routes import overlay
@@ -47,7 +49,11 @@ async def lifespan(_: FastAPI) -> AsyncGenerator[None]:
     main_task: Final = asyncio.create_task(run_main_loop(app_state))
 
     try:
-        async with monitor_streams(app_state, _on_stream_live):
+        if app_state.config.environment == Environment.PRODUCTION:
+            # We cannot monitor Twitch channels when running locally.
+            async with monitor_streams(app_state, _on_stream_live):
+                yield
+        else:
             yield
     finally:
         main_task.cancel()
@@ -65,6 +71,7 @@ app.include_router(imprint.router)
 app.include_router(login.router)
 app.include_router(overlay.router)
 app.include_router(auth.router)
+app.include_router(dashboard.router)
 app.mount(
     "/static",
     StaticFiles(directory="static"),

@@ -1,0 +1,119 @@
+{% extends "base.html" %}
+
+{% block head_extra %}
+<style>
+    .dashboard-container {
+        display: flex;
+        gap: 2rem;
+        margin-top: 2rem;
+    }
+
+    .dashboard-sidebar {
+        flex: 0 0 250px;
+        background: linear-gradient(180deg, rgba(255,255,255,0.02), rgba(255,255,255,0.01));
+        border: 1px solid var(--border);
+        border-radius: var(--radius);
+        padding: 1.5rem;
+        height: fit-content;
+        position: sticky;
+        top: 80px;
+    }
+
+    .dashboard-sidebar h2 {
+        margin: 0 0 1rem 0;
+        font-size: 1.2rem;
+        font-weight: 600;
+        color: var(--text);
+    }
+
+    .dashboard-nav {
+        list-style: none;
+        padding: 0;
+        margin: 0;
+    }
+
+    .dashboard-nav li {
+        margin-bottom: 0.5rem;
+    }
+
+    .dashboard-nav a {
+        display: block;
+        padding: 0.75rem 1rem;
+        color: var(--link);
+        text-decoration: none;
+        border-radius: 6px;
+        transition: background 0.2s ease, color 0.15s ease;
+        font-weight: 500;
+    }
+
+    .dashboard-nav a:hover,
+    .dashboard-nav a:focus-visible {
+        background: rgba(96, 165, 250, 0.12);
+        color: var(--link-hover);
+    }
+
+    .dashboard-nav a.active {
+        background: rgba(96, 165, 250, 0.2);
+        color: var(--accent);
+        font-weight: 600;
+    }
+
+    .dashboard-content {
+        flex: 1;
+        min-width: 0;
+    }
+
+    .dashboard-header {
+        margin-bottom: 2rem;
+    }
+
+    .dashboard-header h1 {
+        margin: 0 0 0.5rem 0;
+        font-size: 2rem;
+        font-weight: 700;
+    }
+
+    .dashboard-header p {
+        margin: 0;
+        color: var(--muted);
+        font-size: 1.1rem;
+    }
+
+    @media (max-width: 768px) {
+        .dashboard-container {
+            flex-direction: column;
+        }
+
+        .dashboard-sidebar {
+            position: static;
+            flex: none;
+        }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="dashboard-container">
+    <aside class="dashboard-sidebar">
+        <h2>Dashboard</h2>
+        <nav>
+            <ul class="dashboard-nav">
+                <li>
+                    <a href="/dashboard" class="{% if active_page == 'welcome' %}active{% endif %}">
+                        Overview
+                    </a>
+                </li>
+                <li>
+                    <a href="/dashboard/monitored-channels" class="{% if active_page == 'monitored_channels' %}active{% endif %}">
+                        Monitored Channels
+                    </a>
+                </li>
+            </ul>
+        </nav>
+    </aside>
+
+    <main class="dashboard-content">
+        {% block dashboard_content %}{% endblock %}
+    </main>
+</div>
+{% endblock %}

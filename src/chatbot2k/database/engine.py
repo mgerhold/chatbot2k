@@ -408,6 +408,7 @@ class Database:
     def get_twitch_token_set(self, *, user_id: str) -> Optional[TwitchTokenSet]:
         """Get a Twitch token set for a user."""
         with self._session() as s:
+            # TODO: Fetch the entry with the highest expires_at if multiple exist for the same user_id.
             return s.exec(select(TwitchTokenSet).where(TwitchTokenSet.user_id == user_id)).one_or_none()
 
     def delete_twitch_token_set(self, *, user_id: str) -> None:
