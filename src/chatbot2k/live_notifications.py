@@ -14,6 +14,7 @@ from twitchAPI.object.eventsub import StreamOnlineEvent
 from twitchAPI.twitch import Twitch
 
 from chatbot2k.app_state import AppState
+from chatbot2k.config import Environment
 
 logger: Final = logging.getLogger(__name__)
 
@@ -29,6 +30,14 @@ async def monitor_streams(
     app_state: AppState,
     callback: Callable[[StreamLiveEvent], Awaitable[None]],
 ) -> AsyncIterator[None]:
+    channels: Final = app_state.database.get_live_notification_channels()
+    if app_state.config.environment != Environment.PRODUCTION:
+        logger.warning(f"Live notifications are disabled in {app_state.config.environment} environment.")
+        channels_string: Final = ", ".join(channel.broadcaster for channel in channels)
+        logger.info(f"Would subscribe to the following channels: {channels_string}")
+        yield
+        return
+
     twitch: Final = await Twitch(
         app_state.config.twitch_client_id,
         app_state.config.twitch_client_secret,

@@ -49,11 +49,7 @@ async def lifespan(_: FastAPI) -> AsyncGenerator[None]:
     main_task: Final = asyncio.create_task(run_main_loop(app_state))
 
     try:
-        if app_state.config.environment == Environment.PRODUCTION:
-            # We cannot monitor Twitch channels when running locally.
-            async with monitor_streams(app_state, _on_stream_live):
-                yield
-        else:
+        async with monitor_streams(app_state, _on_stream_live):
             yield
     finally:
         main_task.cancel()
