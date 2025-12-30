@@ -64,7 +64,8 @@ async def monitor_streams(
 
     eventsub.start()
 
-    for login in ["coder2k", "codingPurpurTentakel"]:
+    for channel in channels:
+        login = channel.broadcaster
         user = await first(twitch.get_users(logins=[login]))
         if user is None:
             logger.error(f"User '{login}' not found on Twitch.")
