@@ -17,6 +17,7 @@ from chatbot2k.types.broadcast_message import BroadcastMessage
 from chatbot2k.types.chat_command import ChatCommand
 from chatbot2k.types.chat_message import ChatMessage
 from chatbot2k.types.chat_response import ChatResponse
+from chatbot2k.types.commands import RetrieveDiscordChatCommand
 from chatbot2k.types.feature_flags import FormattingSupport
 from chatbot2k.types.live_notification import LiveNotification
 from chatbot2k.types.live_notification import LiveNotificationTextTemplate
@@ -74,9 +75,22 @@ async def run_main_loop(app_state: AppState) -> None:
                 continue
             await chat.post_live_notification(notification)
 
+    async def _handle_commands() -> None:
+        while True:
+            command = await app_state.command_queue.get()
+            match command:
+                case RetrieveDiscordChatCommand():
+                    discord_chat = next((chat for chat in chats if isinstance(chat, DiscordChat)), None)
+                    if discord_chat is None:
+                        logger.error("No Discord chat available to retrieve.")
+                        continue
+                    await command.execute(discord_chat)
+
     monitored_streams: Final = await MonitoredStreamsManager.try_create(app_state, _on_channel_live)
 
     async with asyncio.TaskGroup() as task_group:
+        task_group.create_task(_handle_commands())
+
         for i, chat in enumerate(chats):
             task_group.create_task(_producer(i, chat))
 

@@ -9,6 +9,7 @@ from chatbot2k.config import Config
 from chatbot2k.database.engine import Database
 from chatbot2k.dictionary import Dictionary
 from chatbot2k.translations_manager import TranslationsManager
+from chatbot2k.types.commands import Command
 
 if TYPE_CHECKING:
     # We have to avoid circular imports, so we use a string annotation below.
@@ -55,3 +56,8 @@ class AppState(ABC):
     @is_soundboard_enabled.setter
     @abstractmethod
     def is_soundboard_enabled(self, value: bool) -> None: ...
+
+    @property
+    @abstractmethod
+    def command_queue(self) -> asyncio.Queue[Command]:
+        """Queue of commands to allow communication between otherwise unrelated components."""

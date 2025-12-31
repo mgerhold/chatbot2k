@@ -1,3 +1,4 @@
+import asyncio
 from datetime import datetime
 from typing import Annotated
 from typing import Final
@@ -14,10 +15,12 @@ from starlette.templating import Jinja2Templates
 from twitchAPI.twitch import Twitch
 
 from chatbot2k.app_state import AppState
+from chatbot2k.chats.discord_chat import DiscordChat
 from chatbot2k.dependencies import UserInfo
 from chatbot2k.dependencies import get_app_state
 from chatbot2k.dependencies import get_broadcaster_user
 from chatbot2k.dependencies import get_templates
+from chatbot2k.types.commands import RetrieveDiscordChatCommand
 from chatbot2k.utils.auth import get_user_profile_image_url
 
 router: Final = APIRouter(prefix="/dashboard")
@@ -48,6 +51,27 @@ async def dashboard_welcome(
     )
 
 
+async def _get_available_discord_text_channels(app_state: AppState) -> Optional[list[str]]:
+    on_callback_called: Final = asyncio.Event()
+    available_channels: Final[list[str]] = []
+
+    async def _callback(discord_chat: DiscordChat) -> None:
+        nonlocal on_callback_called
+        nonlocal available_channels
+
+        text_channels: Final = discord_chat.get_writable_text_channels(force_refresh=True)
+        available_channels.extend(text_channels)
+        on_callback_called.set()
+
+    await app_state.command_queue.put(RetrieveDiscordChatCommand(_callback))
+    try:
+        await asyncio.wait_for(on_callback_called.wait(), timeout=1.0)
+    except TimeoutError:
+        return None
+
+    return available_channels
+
+
 @router.get("/live-notifications")
 async def dashboard_live_notifications(
     request: Request,
@@ -58,6 +82,7 @@ async def dashboard_live_notifications(
     """Dashboard page for managing live notifications."""
     profile_image_url: Final = await get_user_profile_image_url(app_state, current_user.id)
     channels: Final = app_state.database.get_live_notification_channels()
+    discord_text_channels: Final = await _get_available_discord_text_channels(app_state)
 
     return templates.TemplateResponse(
         request=request,
@@ -71,6 +96,7 @@ async def dashboard_live_notifications(
             "is_broadcaster": True,
             "active_page": "live_notifications",
             "channels": channels,
+            "discord_text_channels": discord_text_channels,
         },
     )
 

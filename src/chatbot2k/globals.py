@@ -18,6 +18,7 @@ from chatbot2k.config import Config
 from chatbot2k.database.engine import Database
 from chatbot2k.dictionary import Dictionary
 from chatbot2k.translations_manager import TranslationsManager
+from chatbot2k.types.commands import Command
 
 
 @final
@@ -29,9 +30,10 @@ class Globals(AppState):
         self._monitored_channels_changed: Final = asyncio.Event()
         self._soundboard_clips_url_queues: Final[dict[UUID, asyncio.Queue[str]]] = {}
         self._command_handlers = self._reload_command_handlers()
-        self._broadcasters = Globals._load_broadcasters(self)
-        self._dictionary = Globals._load_dictionary(self.database)
-        self._translations_manager = TranslationsManager(self.database)
+        self._broadcasters: Final = Globals._load_broadcasters(self)
+        self._dictionary: Final = Globals._load_dictionary(self.database)
+        self._translations_manager: Final = TranslationsManager(self.database)
+        self._command_queue: Final = asyncio.Queue[Command]()
 
     @property
     @override
@@ -82,6 +84,11 @@ class Globals(AppState):
     @override
     def is_soundboard_enabled(self, value: bool) -> None:
         self._is_soundboard_enabled = value
+
+    @property
+    @override
+    def command_queue(self) -> asyncio.Queue[Command]:
+        return self._command_queue
 
     def _on_commands_changed(self) -> None:
         self._command_handlers = self._reload_command_handlers()

@@ -167,7 +167,7 @@ class DiscordChat(Chat):
         if channel is None:
             # Maybe the channels have changed since we last checked or have not been collected yet;
             # refresh the list.
-            self._text_channels_by_name = DiscordChat._get_writable_text_channels(self._client)
+            self._refresh_writable_text_channels()
             channel = self._text_channels_by_name.get(notification.target_channel)
 
         if channel is None:
@@ -187,14 +187,19 @@ class DiscordChat(Chat):
     def platform(self) -> ChatPlatform:
         return ChatPlatform.DISCORD
 
+    def get_writable_text_channels(self, *, force_refresh: bool) -> dict[str, discord.TextChannel]:
+        if not self._text_channels_by_name or force_refresh:
+            self._refresh_writable_text_channels()
+        # Return a copy to prevent external mutation.
+        return self._text_channels_by_name.copy()
+
     async def _ensure_started(self) -> None:
         if self._client_task is None or self._client_task.done():
             self._client_task = asyncio.create_task(self._client.start(self._discord_token))
 
-    @staticmethod
-    def _get_writable_text_channels(client: _DiscordClient) -> dict[str, discord.TextChannel]:
+    def _refresh_writable_text_channels(self) -> None:
         text_channels_by_name: Final[dict[str, discord.TextChannel]] = {}
-        for channel in client.get_all_channels():
+        for channel in self._client.get_all_channels():
             if not isinstance(channel, discord.TextChannel):
                 continue
             me = channel.guild.me
@@ -206,4 +211,4 @@ class DiscordChat(Chat):
                     f"Multiple writable text channels with the name '{channel.name}' found. Using one arbitrarily."
                 )
             text_channels_by_name[channel.name] = channel
-        return text_channels_by_name
+        self._text_channels_by_name = text_channels_by_name
