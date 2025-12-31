@@ -30,9 +30,7 @@ class Globals(AppState):
         self._soundboard_clips_url_queues: Final[dict[UUID, asyncio.Queue[str]]] = {}
         self._command_handlers = self._reload_command_handlers()
         self._broadcasters = Globals._load_broadcasters(self)
-        self._dictionary = Globals._load_dictionary(
-            self.database,
-        )
+        self._dictionary = Globals._load_dictionary(self.database)
         self._translations_manager = TranslationsManager(self.database)
 
     @property
