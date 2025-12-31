@@ -5,33 +5,39 @@
 {% block head_extra %}
 {{ super() }}
 <style>
-    .channels-table {
-        width: 100%;
-        border-collapse: collapse;
+    .channel-card {
         margin-top: 1rem;
-    }
-
-    .channels-table th,
-    .channels-table td {
-        padding: 0.75rem;
-        text-align: left;
-        border-bottom: 1px solid var(--border);
-    }
-
-    .channels-table th {
-        background: rgba(96, 165, 250, 0.1);
-        font-weight: 600;
-        color: var(--text);
-    }
-
-    .channels-table tbody tr:hover {
+        padding: 1.5rem;
         background: rgba(96, 165, 250, 0.05);
+        border: 1px solid var(--border);
+        border-radius: var(--radius);
     }
 
-    .channels-table input[type="text"],
-    .channels-table select {
+    .channel-card:first-child {
+        margin-top: 0;
+    }
+
+    .channel-card .form-row {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 1rem;
+        margin-bottom: 1rem;
+    }
+
+    .channel-card .form-row-full {
+        margin-bottom: 1rem;
+    }
+
+    @media (max-width: 768px) {
+        .channel-card .form-row {
+            grid-template-columns: 1fr;
+        }
+    }
+
+    .channel-card input[type="text"],
+    .channel-card select {
         width: 100%;
-        padding: 0.5rem;
+        padding: 0.75rem;
         background: rgba(255, 255, 255, 0.05);
         border: 1px solid var(--border);
         border-radius: 4px;
@@ -39,11 +45,19 @@
         font-family: inherit;
     }
 
-    .channels-table input[type="text"]:focus,
-    .channels-table select:focus {
+    .channel-card input[type="text"]:focus,
+    .channel-card select:focus {
         outline: 2px solid var(--accent);
         outline-offset: 1px;
         background: rgba(255, 255, 255, 0.08);
+    }
+
+    .channel-card .actions {
+        display: flex;
+        gap: 0.5rem;
+        justify-content: flex-end;
+        padding-top: 0.5rem;
+        border-top: 1px solid var(--border);
     }
 
     .btn {
@@ -78,14 +92,6 @@
     .btn-small {
         padding: 0.4rem 0.8rem;
         font-size: 0.9rem;
-    }
-
-    .actions-cell {
-        white-space: nowrap;
-    }
-
-    .actions-cell form {
-        display: inline;
     }
 
     .add-section {
@@ -147,47 +153,42 @@
     <h2>Configured Channels</h2>
     
     {% if channels %}
-    <table class="channels-table">
-        <thead>
-            <tr>
-                <th>Broadcaster Name</th>
-                <th>Text Template</th>
-                <th>Target Channel</th>
-                <th>Actions</th>
-            </tr>
-        </thead>
-        <tbody>
-            {% for channel in channels %}
-            <tr>
-                <form method="post" action="/dashboard/live-notifications/update/{{ channel.id }}">
-                    <td>
-                        <input type="text" name="broadcaster_name" value="{{ channel.broadcaster_name | e }}" required>
-                    </td>
-                    <td>
-                        <input type="text" name="text_template" value="{{ channel.text_template | e }}" required>
-                    </td>
-                    <td>
-                        {% if discord_text_channels %}
-                        <select name="target_channel" required>
-                            {% for discord_channel in discord_text_channels %}
-                            <option value="{{ discord_channel | e }}" {% if discord_channel == channel.target_channel %}selected{% endif %}>{{ discord_channel | e }}</option>
-                            {% endfor %}
-                        </select>
-                        {% else %}
-                        <input type="text" name="target_channel" value="{{ channel.target_channel | e }}" required>
-                        {% endif %}
-                    </td>
-                    <td class="actions-cell">
-                        <button type="submit" class="btn btn-primary btn-small">Save</button>
-                </form>
-                <form method="post" action="/dashboard/live-notifications/delete/{{ channel.id }}" style="display: inline;">
-                    <button type="submit" class="btn btn-danger btn-small" onclick="return confirm('Are you sure you want to delete this notification channel?')">Delete</button>
-                </form>
-                    </td>
-            </tr>
-            {% endfor %}
-        </tbody>
-    </table>
+    {% for channel in channels %}
+    <div class="channel-card">
+        <form method="post" action="/dashboard/live-notifications/update/{{ channel.id }}">
+            <div class="form-row">
+                <div class="form-group">
+                    <label for="broadcaster_name_{{ channel.id }}">Broadcaster Name</label>
+                    <input type="text" id="broadcaster_name_{{ channel.id }}" name="broadcaster_name" value="{{ channel.broadcaster_name | e }}" required>
+                </div>
+                <div class="form-group">
+                    <label for="target_channel_{{ channel.id }}">Target Channel</label>
+                    {% if discord_text_channels %}
+                    <select id="target_channel_{{ channel.id }}" name="target_channel" required>
+                        {% for discord_channel in discord_text_channels %}
+                        <option value="{{ discord_channel | e }}" {% if discord_channel == channel.target_channel %}selected{% endif %}>{{ discord_channel | e }}</option>
+                        {% endfor %}
+                    </select>
+                    {% else %}
+                    <input type="text" id="target_channel_{{ channel.id }}" name="target_channel" value="{{ channel.target_channel | e }}" required>
+                    {% endif %}
+                </div>
+            </div>
+            <div class="form-row-full">
+                <div class="form-group">
+                    <label for="text_template_{{ channel.id }}">Text Template</label>
+                    <input type="text" id="text_template_{{ channel.id }}" name="text_template" value="{{ channel.text_template | e }}" required>
+                </div>
+            </div>
+            <div class="actions">
+                <button type="submit" class="btn btn-primary btn-small">Save Changes</button>
+        </form>
+        <form method="post" action="/dashboard/live-notifications/delete/{{ channel.id }}">
+                <button type="submit" class="btn btn-danger btn-small" onclick="return confirm('Are you sure you want to delete this notification channel?')">Delete</button>
+        </form>
+            </div>
+    </div>
+    {% endfor %}
     {% else %}
     <div class="empty-state">
         <p>No live notification channels configured yet.</p>
