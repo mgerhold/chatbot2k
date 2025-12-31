@@ -28,7 +28,8 @@
         background: rgba(96, 165, 250, 0.05);
     }
 
-    .channels-table input[type="text"] {
+    .channels-table input[type="text"],
+    .channels-table select {
         width: 100%;
         padding: 0.5rem;
         background: rgba(255, 255, 255, 0.05);
@@ -38,7 +39,8 @@
         font-family: inherit;
     }
 
-    .channels-table input[type="text"]:focus {
+    .channels-table input[type="text"]:focus,
+    .channels-table select:focus {
         outline: 2px solid var(--accent);
         outline-offset: 1px;
         background: rgba(255, 255, 255, 0.08);
@@ -109,7 +111,8 @@
         color: var(--text);
     }
 
-    .form-group input[type="text"] {
+    .form-group input[type="text"],
+    .form-group select {
         width: 100%;
         padding: 0.75rem;
         background: rgba(255, 255, 255, 0.05);
@@ -119,7 +122,8 @@
         font-family: inherit;
     }
 
-    .form-group input[type="text"]:focus {
+    .form-group input[type="text"]:focus,
+    .form-group select:focus {
         outline: 2px solid var(--accent);
         outline-offset: 1px;
         background: rgba(255, 255, 255, 0.08);
@@ -163,7 +167,15 @@
                         <input type="text" name="text_template" value="{{ channel.text_template | e }}" required>
                     </td>
                     <td>
+                        {% if discord_text_channels %}
+                        <select name="target_channel" required>
+                            {% for discord_channel in discord_text_channels %}
+                            <option value="{{ discord_channel | e }}" {% if discord_channel == channel.target_channel %}selected{% endif %}>{{ discord_channel | e }}</option>
+                            {% endfor %}
+                        </select>
+                        {% else %}
                         <input type="text" name="target_channel" value="{{ channel.target_channel | e }}" required>
+                        {% endif %}
                     </td>
                     <td class="actions-cell">
                         <button type="submit" class="btn btn-primary btn-small">Save</button>
@@ -197,7 +209,16 @@
         </div>
         <div class="form-group">
             <label for="target_channel">Target Channel</label>
+            {% if discord_text_channels %}
+            <select id="target_channel" name="target_channel" required>
+                <option value="">Select a channel...</option>
+                {% for discord_channel in discord_text_channels %}
+                <option value="{{ discord_channel | e }}">{{ discord_channel | e }}</option>
+                {% endfor %}
+            </select>
+            {% else %}
             <input type="text" id="target_channel" name="target_channel" placeholder="e.g., bot-test" required>
+            {% endif %}
         </div>
         <button type="submit" class="btn btn-primary">Add Channel</button>
     </form>
