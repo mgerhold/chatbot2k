@@ -2,6 +2,7 @@ import asyncio
 import logging
 from collections.abc import AsyncGenerator
 from collections.abc import Sequence
+from typing import TYPE_CHECKING
 from typing import Any
 from typing import Final
 from typing import NamedTuple
@@ -14,7 +15,6 @@ import discord
 from discord import Client
 from discord import Message
 
-from chatbot2k.app_state import AppState
 from chatbot2k.chats.chat import Chat
 from chatbot2k.models.discord_chat_message_metadata import DiscordChatMessageMetadata
 from chatbot2k.types.broadcast_message import BroadcastMessage
@@ -23,7 +23,13 @@ from chatbot2k.types.chat_platform import ChatPlatform
 from chatbot2k.types.chat_response import ChatResponse
 from chatbot2k.types.feature_flags import FeatureFlags
 from chatbot2k.types.feature_flags import FormattingSupport
+from chatbot2k.types.live_notification import LiveNotification
 from chatbot2k.types.permission_level import PermissionLevel
+
+if TYPE_CHECKING:
+    from chatbot2k.app_state import AppState
+
+logger: Final = logging.getLogger(__name__)
 
 
 # This is just a helper type because of how this module is structured. It is
@@ -86,17 +92,22 @@ class _DiscordClient(Client):
 
 @final
 class DiscordChat(Chat):
+    @final
+    class _Passkey: ...
+
     def __init__(
         self,
         client: _DiscordClient,
         chat_message_queue: asyncio.Queue[DiscordChatMessage],
         discord_token: str,
+        _: _Passkey,
     ) -> None:
         super().__init__(
             FeatureFlags(
                 regular_chat=True,
                 broadcasting=False,
                 formatting_support=FormattingSupport.MARKDOWN,
+                can_post_live_notifications=True,
                 can_trigger_soundboard=False,
                 supports_giveaways=False,
             )
@@ -105,10 +116,27 @@ class DiscordChat(Chat):
         self._chat_message_queue: Final = chat_message_queue
         self._client_task: Optional[asyncio.Task[None]] = None
         self._discord_token: Final = discord_token
+        self._text_channels_by_name: dict[str, discord.TextChannel] = {}
 
-    async def _ensure_started(self) -> None:
-        if self._client_task is None or self._client_task.done():
-            self._client_task = asyncio.create_task(self._client.start(self._discord_token))
+    @classmethod
+    async def create(cls, app_state: "AppState") -> Self:
+        intents: Final = discord.Intents.default()
+        intents.message_content = True
+        chat_message_queue: Final[asyncio.Queue[DiscordChatMessage]] = asyncio.Queue()
+
+        client: Final = _DiscordClient(
+            intents=intents,
+            chat_message_queue=chat_message_queue,
+            moderator_role_id=app_state.config.discord_moderator_role_id,
+        )
+        instance: Final = cls(
+            client,
+            chat_message_queue,
+            app_state.config.discord_token,
+            DiscordChat._Passkey(),
+        )
+        await instance._ensure_started()
+        return instance
 
     @override
     async def get_message_stream(self) -> AsyncGenerator[ChatMessage]:
@@ -133,24 +161,57 @@ class DiscordChat(Chat):
 
     @override
     async def send_broadcast(self, message: BroadcastMessage) -> None:
-        raise NotImplementedError()
+        raise NotImplementedError
+
+    @override
+    async def post_live_notification(self, notification: LiveNotification) -> None:
+        await self._ensure_started()
+        channel = self._text_channels_by_name.get(notification.target_channel)
+        if channel is None:
+            # Maybe the channels have changed since we last checked or have not been collected yet;
+            # refresh the list.
+            self._refresh_writable_text_channels()
+            channel = self._text_channels_by_name.get(notification.target_channel)
+
+        if channel is None:
+            logger.error(
+                f"Unable to post live notification: No writable channel named '{notification.target_channel}' found."
+            )
+            return
+
+        text_to_send: Final = notification.render_text()
+        try:
+            await channel.send(text_to_send)
+        except Exception as e:
+            logger.exception(f"Unable to post live notification to channel '{notification.target_channel}': {e}")
 
     @property
     @override
     def platform(self) -> ChatPlatform:
         return ChatPlatform.DISCORD
 
-    @classmethod
-    async def create(cls, app_state: AppState) -> Self:
-        intents: Final = discord.Intents.default()
-        intents.message_content = True
-        chat_message_queue: Final[asyncio.Queue[DiscordChatMessage]] = asyncio.Queue()
+    def get_writable_text_channels(self, *, force_refresh: bool) -> dict[str, discord.TextChannel]:
+        if not self._text_channels_by_name or force_refresh:
+            self._refresh_writable_text_channels()
+        # Return a copy to prevent external mutation.
+        return self._text_channels_by_name.copy()
 
-        client: Final = _DiscordClient(
-            intents=intents,
-            chat_message_queue=chat_message_queue,
-            moderator_role_id=app_state.config.discord_moderator_role_id,
-        )
-        instance: Final = cls(client, chat_message_queue, app_state.config.discord_token)
-        await instance._ensure_started()
-        return instance
+    async def _ensure_started(self) -> None:
+        if self._client_task is None or self._client_task.done():
+            self._client_task = asyncio.create_task(self._client.start(self._discord_token))
+
+    def _refresh_writable_text_channels(self) -> None:
+        text_channels_by_name: Final[dict[str, discord.TextChannel]] = {}
+        for channel in self._client.get_all_channels():
+            if not isinstance(channel, discord.TextChannel):
+                continue
+            me = channel.guild.me
+            permissions = channel.permissions_for(me)
+            if not permissions.view_channel or not permissions.send_messages:
+                continue
+            if channel.name in text_channels_by_name:
+                logging.warning(
+                    f"Multiple writable text channels with the name '{channel.name}' found. Using one arbitrarily."
+                )
+            text_channels_by_name[channel.name] = channel
+        self._text_channels_by_name = text_channels_by_name

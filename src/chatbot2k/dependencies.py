@@ -19,6 +19,7 @@ from chatbot2k.routes.auth_constants import JWT_ALG
 from chatbot2k.routes.auth_constants import SESSION_COOKIE
 from chatbot2k.utils.auth import get_authenticated_twitch_client
 from chatbot2k.utils.auth import get_broadcaster_id
+from chatbot2k.utils.auth import is_user_broadcaster
 from chatbot2k.utils.auth import is_user_moderator
 
 
@@ -85,18 +86,12 @@ async def get_broadcaster_user(
     app_state: Annotated[AppState, Depends(get_app_state)],
 ) -> UserInfo:
     """Dependency that ensures the logged-in user is the broadcaster."""
-    twitch: Final = await get_authenticated_twitch_client(app_state, current_user.id)
-    try:
-        broadcaster_id: Final = await get_broadcaster_id(twitch, app_state.config.twitch_channel)
-
-        if current_user.id != broadcaster_id:
-            raise HTTPException(
-                status_code=HTTPStatus.FORBIDDEN,
-                detail="Broadcaster access required",
-            )
-        return current_user
-    finally:
-        await twitch.close()
+    if not await is_user_broadcaster(app_state, current_user.id):
+        raise HTTPException(
+            status_code=HTTPStatus.FORBIDDEN,
+            detail="Broadcaster access required",
+        )
+    return current_user
 
 
 async def get_moderator_user(

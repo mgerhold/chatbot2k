@@ -11,13 +11,20 @@ from chatbot2k.broadcasters.broadcaster import Broadcaster
 from chatbot2k.chats.chat import Chat
 from chatbot2k.chats.discord_chat import DiscordChat
 from chatbot2k.chats.twitch_chat import TwitchChat
+from chatbot2k.live_notifications import MonitoredStreamsManager
+from chatbot2k.live_notifications import StreamLiveEvent
 from chatbot2k.types.broadcast_message import BroadcastMessage
 from chatbot2k.types.chat_command import ChatCommand
 from chatbot2k.types.chat_message import ChatMessage
 from chatbot2k.types.chat_response import ChatResponse
+from chatbot2k.types.commands import RetrieveDiscordChatCommand
 from chatbot2k.types.feature_flags import FormattingSupport
+from chatbot2k.types.live_notification import LiveNotification
+from chatbot2k.types.live_notification import LiveNotificationTextTemplate
 from chatbot2k.utils.markdown import markdown_to_sanitized_html
 from chatbot2k.utils.markdown import markdown_to_text
+
+logger: Final = logging.getLogger(__name__)
 
 
 @final
@@ -26,7 +33,7 @@ class Sentinel:
 
 
 async def run_main_loop(app_state: AppState) -> None:
-    chats: Final = [
+    chats: Final[list[Chat]] = [
         await TwitchChat.create(app_state),
         await DiscordChat.create(app_state),
     ]
@@ -48,12 +55,50 @@ async def run_main_loop(app_state: AppState) -> None:
             # we signal that it is done.
             await queue.put((i, Sentinel()))
 
+    async def _on_channel_live(event: StreamLiveEvent) -> None:
+        logger.info(f"Stream has gone live: {event.broadcaster_name} (ID = {event.broadcaster_id})")
+        channels: Final = app_state.database.get_live_notification_channels()
+        notification_channel: Final = next(
+            (channel for channel in channels if channel.broadcaster_id == event.broadcaster_id),
+            None,
+        )
+        if notification_channel is None:
+            logger.error(f"No target channel found for broadcaster {event.broadcaster_name}")
+            return
+        notification: Final = LiveNotification(
+            broadcaster=event.broadcaster_name,
+            target_channel=notification_channel.target_channel,
+            text_template=LiveNotificationTextTemplate(notification_channel.text_template),
+        )
+        for chat in chats:
+            if not chat.feature_flags.can_post_live_notifications:
+                continue
+            await chat.post_live_notification(notification)
+
+    async def _handle_commands() -> None:
+        while True:
+            command = await app_state.command_queue.get()
+            match command:
+                case RetrieveDiscordChatCommand():
+                    discord_chat = next((chat for chat in chats if isinstance(chat, DiscordChat)), None)
+                    if discord_chat is None:
+                        logger.error("No Discord chat available to retrieve.")
+                        continue
+                    await command.execute(discord_chat)
+
+    monitored_streams: Final = await MonitoredStreamsManager.try_create(app_state, _on_channel_live)
+
     async with asyncio.TaskGroup() as task_group:
+        task_group.create_task(_handle_commands())
+
         for i, chat in enumerate(chats):
             task_group.create_task(_producer(i, chat))
 
         for i, broadcaster in enumerate(app_state.broadcasters):
             task_group.create_task(_producer(i + len(chats), broadcaster))
+
+        if monitored_streams is not None:
+            task_group.create_task(monitored_streams.run())
 
         while active_participant_indices:
             i, chat_message = await queue.get()

@@ -43,6 +43,7 @@ from chatbot2k.scripting_engine.types.value import NumberValue
 from chatbot2k.scripting_engine.types.value import StringValue
 from chatbot2k.scripting_engine.types.value import Value
 from chatbot2k.translations_manager import TranslationsManager
+from chatbot2k.types.commands import Command
 from test.mock_store import MockStore
 
 
@@ -112,6 +113,11 @@ class _MockAppState(AppState):
 
     @property
     @override
+    def monitored_channels_changed(self) -> asyncio.Event:
+        raise NotImplementedError
+
+    @property
+    @override
     def soundboard_clips_url_queues(self) -> dict[UUID, asyncio.Queue[str]]:
         raise NotImplementedError
 
@@ -123,6 +129,11 @@ class _MockAppState(AppState):
     @is_soundboard_enabled.setter
     @override
     def is_soundboard_enabled(self, value: bool) -> None:
+        raise NotImplementedError
+
+    @property
+    @override
+    def command_queue(self) -> asyncio.Queue[Command]:
         raise NotImplementedError
 
     def _on_commands_changed(self) -> None:

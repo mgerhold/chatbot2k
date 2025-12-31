@@ -14,6 +14,7 @@ from chatbot2k.routes.auth_constants import SCOPES
 logger: Final = logging.getLogger(__name__)
 
 _PROFILE_IMAGE_CACHE: TTLCache[str, str] = TTLCache(maxsize=1000, ttl=5.0 * 60.0)
+_BROADCASTER_CHECK_CACHE: TTLCache[str, bool] = TTLCache(maxsize=100, ttl=5.0 * 60.0)
 
 
 async def get_authenticated_twitch_client(app_state: AppState, user_id: str) -> Twitch:
@@ -65,6 +66,28 @@ async def is_user_moderator(twitch: Twitch, broadcaster_id: str, user_id: str) -
 
     moderated_channels: Final = [channel async for channel in twitch.get_moderated_channels(user_id=user_id)]
     return any(channel.broadcaster_id == broadcaster_id for channel in moderated_channels)
+
+
+async def is_user_broadcaster(app_state: AppState, user_id: str) -> bool:
+    """Check if the user is the broadcaster of the configured channel.
+
+    Results are cached for 5 minutes to improve performance.
+    """
+    if user_id in _BROADCASTER_CHECK_CACHE:
+        return _BROADCASTER_CHECK_CACHE[user_id]
+
+    try:
+        twitch: Final = await get_authenticated_twitch_client(app_state, user_id)
+        try:
+            broadcaster_id: Final = await get_broadcaster_id(twitch, app_state.config.twitch_channel)
+            is_broadcaster: Final = user_id == broadcaster_id
+            _BROADCASTER_CHECK_CACHE[user_id] = is_broadcaster
+            return is_broadcaster
+        finally:
+            await twitch.close()
+    except Exception:
+        _BROADCASTER_CHECK_CACHE[user_id] = False
+        return False
 
 
 async def get_user_profile_image_url(app_state: AppState, user_id: str) -> Optional[str]:

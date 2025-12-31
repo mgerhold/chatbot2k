@@ -2,6 +2,7 @@ import asyncio
 import logging
 from collections.abc import AsyncGenerator
 from contextlib import asynccontextmanager
+from contextlib import suppress
 from pathlib import Path
 from typing import Final
 
@@ -13,6 +14,7 @@ from chatbot2k.core import run_main_loop
 from chatbot2k.dependencies import get_app_state
 from chatbot2k.routes import auth
 from chatbot2k.routes import commands
+from chatbot2k.routes import dashboard
 from chatbot2k.routes import imprint
 from chatbot2k.routes import login
 from chatbot2k.routes import overlay
@@ -20,10 +22,19 @@ from chatbot2k.routes import overlay
 logging.basicConfig(level=logging.INFO)
 
 
+logger: Final = logging.getLogger(__name__)
+
+
 @asynccontextmanager
 async def lifespan(_: FastAPI) -> AsyncGenerator[None]:
-    asyncio.create_task(run_main_loop(get_app_state()))
-    yield
+    app_state: Final = get_app_state()
+    main_task: Final = asyncio.create_task(run_main_loop(app_state))
+    try:
+        yield
+    finally:
+        main_task.cancel()
+        with suppress(asyncio.CancelledError):
+            await main_task
 
 
 STATIC_FILES_DIRECTORY = Path(__file__).parent.parent.parent / "static"
@@ -36,6 +47,7 @@ app.include_router(imprint.router)
 app.include_router(login.router)
 app.include_router(overlay.router)
 app.include_router(auth.router)
+app.include_router(dashboard.router)
 app.mount(
     "/static",
     StaticFiles(directory="static"),

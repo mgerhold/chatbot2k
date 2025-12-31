@@ -1,0 +1,227 @@
+{% extends "dashboard/base.html" %}
+
+{% block title %}{{ bot_name }} — Live Notifications{% endblock %}
+
+{% block head_extra %}
+{{ super() }}
+<style>
+    .channel-card {
+        margin-top: 1rem;
+        padding: 1.5rem;
+        background: rgba(96, 165, 250, 0.05);
+        border: 1px solid var(--border);
+        border-radius: var(--radius);
+    }
+
+    .channel-card:first-child {
+        margin-top: 0;
+    }
+
+    .channel-card .form-row {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 1rem;
+        margin-bottom: 1rem;
+    }
+
+    .channel-card .form-row-full {
+        margin-bottom: 1rem;
+    }
+
+    @media (max-width: 768px) {
+        .channel-card .form-row {
+            grid-template-columns: 1fr;
+        }
+    }
+
+    .channel-card input[type="text"],
+    .channel-card select {
+        width: 100%;
+        padding: 0.75rem;
+        background: rgba(255, 255, 255, 0.05);
+        border: 1px solid var(--border);
+        border-radius: 4px;
+        color: var(--text);
+        font-family: inherit;
+    }
+
+    .channel-card input[type="text"]:focus,
+    .channel-card select:focus {
+        outline: 2px solid var(--accent);
+        outline-offset: 1px;
+        background: rgba(255, 255, 255, 0.08);
+    }
+
+    .channel-card .actions {
+        display: flex;
+        gap: 0.5rem;
+        justify-content: flex-end;
+        padding-top: 0.5rem;
+        border-top: 1px solid var(--border);
+    }
+
+    .btn {
+        padding: 0.5rem 1rem;
+        border: none;
+        border-radius: 4px;
+        cursor: pointer;
+        font-weight: 500;
+        transition: all 0.2s ease;
+        text-decoration: none;
+        display: inline-block;
+    }
+
+    .btn-primary {
+        background: var(--accent);
+        color: white;
+    }
+
+    .btn-primary:hover {
+        background: var(--link-hover);
+    }
+
+    .btn-danger {
+        background: #dc2626;
+        color: white;
+    }
+
+    .btn-danger:hover {
+        background: #b91c1c;
+    }
+
+    .btn-small {
+        padding: 0.4rem 0.8rem;
+        font-size: 0.9rem;
+    }
+
+    .add-section {
+        margin-top: 2rem;
+        padding: 1.5rem;
+        background: rgba(96, 165, 250, 0.05);
+        border: 1px solid var(--border);
+        border-radius: var(--radius);
+    }
+
+    .add-section h3 {
+        margin: 0 0 1rem 0;
+    }
+
+    .form-group {
+        margin-bottom: 1rem;
+    }
+
+    .form-group label {
+        display: block;
+        margin-bottom: 0.5rem;
+        font-weight: 500;
+        color: var(--text);
+    }
+
+    .form-group input[type="text"],
+    .form-group select {
+        width: 100%;
+        padding: 0.75rem;
+        background: rgba(255, 255, 255, 0.05);
+        border: 1px solid var(--border);
+        border-radius: 4px;
+        color: var(--text);
+        font-family: inherit;
+    }
+
+    .form-group input[type="text"]:focus,
+    .form-group select:focus {
+        outline: 2px solid var(--accent);
+        outline-offset: 1px;
+        background: rgba(255, 255, 255, 0.08);
+    }
+
+    .empty-state {
+        text-align: center;
+        padding: 3rem 1rem;
+        color: var(--muted);
+    }
+</style>
+{% endblock %}
+
+{% block dashboard_content %}
+<div class="dashboard-header">
+    <h1>Live Notifications</h1>
+    <p>Manage live notifications for Twitch channels.</p>
+</div>
+
+<section>
+    <h2>Configured Channels</h2>
+    
+    {% if channels %}
+    {% for channel in channels %}
+    <div class="channel-card">
+        <form method="post" action="/dashboard/live-notifications/update/{{ channel.id }}">
+            <div class="form-row">
+                <div class="form-group">
+                    <label for="broadcaster_name_{{ channel.id }}">Broadcaster Name</label>
+                    <input type="text" id="broadcaster_name_{{ channel.id }}" name="broadcaster_name" value="{{ channel.broadcaster_name | e }}" required>
+                </div>
+                <div class="form-group">
+                    <label for="target_channel_{{ channel.id }}">Target Channel</label>
+                    {% if discord_text_channels %}
+                    <select id="target_channel_{{ channel.id }}" name="target_channel" required>
+                        {% for discord_channel in discord_text_channels %}
+                        <option value="{{ discord_channel | e }}" {% if discord_channel == channel.target_channel %}selected{% endif %}>{{ discord_channel | e }}</option>
+                        {% endfor %}
+                    </select>
+                    {% else %}
+                    <input type="text" id="target_channel_{{ channel.id }}" name="target_channel" value="{{ channel.target_channel | e }}" required>
+                    {% endif %}
+                </div>
+            </div>
+            <div class="form-row-full">
+                <div class="form-group">
+                    <label for="text_template_{{ channel.id }}">Text Template</label>
+                    <input type="text" id="text_template_{{ channel.id }}" name="text_template" value="{{ channel.text_template | e }}" required>
+                </div>
+            </div>
+            <div class="actions">
+                <button type="submit" class="btn btn-primary btn-small">Save Changes</button>
+        </form>
+        <form method="post" action="/dashboard/live-notifications/delete/{{ channel.id }}">
+                <button type="submit" class="btn btn-danger btn-small" onclick="return confirm('Are you sure you want to delete this notification channel?')">Delete</button>
+        </form>
+            </div>
+    </div>
+    {% endfor %}
+    {% else %}
+    <div class="empty-state">
+        <p>No live notification channels configured yet.</p>
+        <p>Add your first channel below to get started.</p>
+    </div>
+    {% endif %}
+</section>
+
+<section class="add-section">
+    <h3>Add New Channel</h3>
+    <form method="post" action="/dashboard/live-notifications/add">
+        <div class="form-group">
+            <label for="broadcaster_name">Broadcaster Name</label>
+            <input type="text" id="broadcaster_name" name="broadcaster_name" placeholder="e.g., twitchusername" required>
+        </div>
+        <div class="form-group">
+            <label for="text_template">Text Template</label>
+            <input type="text" id="text_template" name="text_template" placeholder="e.g., {broadcaster} is now live! https://twitch.tv/{broadcaster}" required>
+        </div>
+        <div class="form-group">
+            <label for="target_channel">Target Channel</label>
+            {% if discord_text_channels %}
+            <select id="target_channel" name="target_channel" required>
+                <option value="">Select a channel...</option>
+                {% for discord_channel in discord_text_channels %}
+                <option value="{{ discord_channel | e }}">{{ discord_channel | e }}</option>
+                {% endfor %}
+            </select>
+            {% else %}
+            <input type="text" id="target_channel" name="target_channel" placeholder="e.g., bot-test" required>
+            {% endif %}
+        </div>
+        <button type="submit" class="btn btn-primary">Add Channel</button>
+    </form>
+</section>
+{% endblock %}
