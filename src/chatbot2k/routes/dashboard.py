@@ -87,6 +87,7 @@ async def add_live_notification_channel(
             text_template=text_template,
             target_channel=target_channel,
         )
+        app_state.monitored_channels_changed.set()
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e)) from e
     return RedirectResponse("/dashboard/live-notifications", status_code=303)
@@ -108,6 +109,7 @@ async def update_live_notification_channel(
             text_template=text_template,
             target_channel=target_channel,
         )
+        app_state.monitored_channels_changed.set()
     except KeyError as e:
         raise HTTPException(status_code=404, detail=str(e)) from e
     return RedirectResponse("/dashboard/live-notifications", status_code=303)
@@ -126,6 +128,7 @@ async def delete_live_notification_channel(
 
     try:
         app_state.database.remove_live_notification_channel(broadcaster=channel.broadcaster)
+        app_state.monitored_channels_changed.set()
     except KeyError as e:
         raise HTTPException(status_code=404, detail=str(e)) from e
     return RedirectResponse("/dashboard/live-notifications", status_code=303)

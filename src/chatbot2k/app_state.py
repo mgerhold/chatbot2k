@@ -9,7 +9,6 @@ from chatbot2k.config import Config
 from chatbot2k.database.engine import Database
 from chatbot2k.dictionary import Dictionary
 from chatbot2k.translations_manager import TranslationsManager
-from chatbot2k.types.live_notification import LiveNotification
 
 if TYPE_CHECKING:
     # We have to avoid circular imports, so we use a string annotation below.
@@ -19,50 +18,40 @@ if TYPE_CHECKING:
 class AppState(ABC):
     @property
     @abstractmethod
-    def config(self) -> Config:
-        pass
+    def config(self) -> Config: ...
 
     @property
     @abstractmethod
-    def database(self) -> Database:
-        pass
+    def database(self) -> Database: ...
 
     @property
     @abstractmethod
-    def command_handlers(self) -> dict[str, "CommandHandler"]:
-        pass
+    def command_handlers(self) -> dict[str, "CommandHandler"]: ...
 
     @property
     @abstractmethod
-    def broadcasters(self) -> list[Broadcaster]:
-        pass
+    def broadcasters(self) -> list[Broadcaster]: ...
 
     @property
     @abstractmethod
-    def dictionary(self) -> Dictionary:
-        pass
+    def dictionary(self) -> Dictionary: ...
 
     @property
     @abstractmethod
-    def translations_manager(self) -> TranslationsManager:
-        pass
+    def translations_manager(self) -> TranslationsManager: ...
 
     @property
     @abstractmethod
-    def soundboard_clips_url_queues(self) -> dict[UUID, asyncio.Queue[str]]:
-        pass
+    def monitored_channels_changed(self) -> asyncio.Event: ...
 
     @property
     @abstractmethod
-    def live_notifications_queue(self) -> asyncio.Queue[LiveNotification]:
-        pass
+    def soundboard_clips_url_queues(self) -> dict[UUID, asyncio.Queue[str]]: ...
 
     @property
     @abstractmethod
-    def is_soundboard_enabled(self) -> bool:
-        pass
+    def is_soundboard_enabled(self) -> bool: ...
 
     @is_soundboard_enabled.setter
     @abstractmethod
-    def is_soundboard_enabled(self, value: bool) -> None:
-        pass
+    def is_soundboard_enabled(self, value: bool) -> None: ...

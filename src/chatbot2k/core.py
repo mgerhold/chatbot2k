@@ -11,13 +11,19 @@ from chatbot2k.broadcasters.broadcaster import Broadcaster
 from chatbot2k.chats.chat import Chat
 from chatbot2k.chats.discord_chat import DiscordChat
 from chatbot2k.chats.twitch_chat import TwitchChat
+from chatbot2k.live_notifications import MonitoredStreamsManager
+from chatbot2k.live_notifications import StreamLiveEvent
 from chatbot2k.types.broadcast_message import BroadcastMessage
 from chatbot2k.types.chat_command import ChatCommand
 from chatbot2k.types.chat_message import ChatMessage
 from chatbot2k.types.chat_response import ChatResponse
 from chatbot2k.types.feature_flags import FormattingSupport
+from chatbot2k.types.live_notification import LiveNotification
+from chatbot2k.types.live_notification import LiveNotificationTextTemplate
 from chatbot2k.utils.markdown import markdown_to_sanitized_html
 from chatbot2k.utils.markdown import markdown_to_text
+
+logger: Final = logging.getLogger(__name__)
 
 
 @final
@@ -48,13 +54,26 @@ async def run_main_loop(app_state: AppState) -> None:
             # we signal that it is done.
             await queue.put((i, Sentinel()))
 
-    async def _process_live_notifications(chats: list[Chat]) -> None:
-        while True:
-            notification = await app_state.live_notifications_queue.get()
-            for chat in chats:
-                if not chat.feature_flags.can_post_live_notifications:
-                    continue
-                await chat.post_live_notification(notification)
+    async def _on_channel_live(event: StreamLiveEvent) -> None:
+        logger.info(f"Stream has gone live: {event.broadcaster_name} (ID = {event.broadcaster_id})")
+        channels: Final = app_state.database.get_live_notification_channels()
+        notification_channel: Final = next(
+            (channel for channel in channels if channel.broadcaster.lower() == event.broadcaster_name.lower()), None
+        )
+        if notification_channel is None:
+            logger.error(f"No target channel found for broadcaster {event.broadcaster_name}")
+            return
+        notification: Final = LiveNotification(
+            broadcaster=event.broadcaster_name,
+            target_channel=notification_channel.target_channel,
+            text_template=LiveNotificationTextTemplate(notification_channel.text_template),
+        )
+        for chat in chats:
+            if not chat.feature_flags.can_post_live_notifications:
+                continue
+            await chat.post_live_notification(notification)
+
+    monitored_streams: Final = await MonitoredStreamsManager.try_create(app_state, _on_channel_live)
 
     async with asyncio.TaskGroup() as task_group:
         for i, chat in enumerate(chats):
@@ -63,7 +82,8 @@ async def run_main_loop(app_state: AppState) -> None:
         for i, broadcaster in enumerate(app_state.broadcasters):
             task_group.create_task(_producer(i + len(chats), broadcaster))
 
-        task_group.create_task(_process_live_notifications(chats))
+        if monitored_streams is not None:
+            task_group.create_task(monitored_streams.run())
 
         while active_participant_indices:
             i, chat_message = await queue.get()
