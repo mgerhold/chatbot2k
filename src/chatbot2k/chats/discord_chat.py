@@ -2,6 +2,7 @@ import asyncio
 import logging
 from collections.abc import AsyncGenerator
 from collections.abc import Sequence
+from typing import TYPE_CHECKING
 from typing import Any
 from typing import Final
 from typing import NamedTuple
@@ -14,7 +15,6 @@ import discord
 from discord import Client
 from discord import Message
 
-from chatbot2k.app_state import AppState
 from chatbot2k.chats.chat import Chat
 from chatbot2k.models.discord_chat_message_metadata import DiscordChatMessageMetadata
 from chatbot2k.types.broadcast_message import BroadcastMessage
@@ -25,6 +25,9 @@ from chatbot2k.types.feature_flags import FeatureFlags
 from chatbot2k.types.feature_flags import FormattingSupport
 from chatbot2k.types.live_notification import LiveNotification
 from chatbot2k.types.permission_level import PermissionLevel
+
+if TYPE_CHECKING:
+    from chatbot2k.app_state import AppState
 
 logger: Final = logging.getLogger(__name__)
 
@@ -116,7 +119,7 @@ class DiscordChat(Chat):
         self._text_channels_by_name: dict[str, discord.TextChannel] = {}
 
     @classmethod
-    async def create(cls, app_state: AppState) -> Self:
+    async def create(cls, app_state: "AppState") -> Self:
         intents: Final = discord.Intents.default()
         intents.message_content = True
         chat_message_queue: Final[asyncio.Queue[DiscordChatMessage]] = asyncio.Queue()
