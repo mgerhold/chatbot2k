@@ -1,6 +1,7 @@
 from datetime import datetime
 from typing import Annotated
 from typing import Final
+from typing import Optional
 
 from fastapi import APIRouter
 from fastapi import Depends
@@ -10,6 +11,7 @@ from starlette.requests import Request
 from starlette.responses import RedirectResponse
 from starlette.responses import Response
 from starlette.templating import Jinja2Templates
+from twitchAPI.twitch import Twitch
 
 from chatbot2k.app_state import AppState
 from chatbot2k.dependencies import UserInfo
@@ -73,17 +75,31 @@ async def dashboard_live_notifications(
     )
 
 
+async def _find_broadcaster_id_by_name(name: str, app_state: AppState) -> Optional[str]:
+    client: Final = await Twitch(
+        app_state.config.twitch_client_id,
+        app_state.config.twitch_client_secret,
+    )
+    async for user in client.get_users(logins=[name]):
+        return user.id
+    return None
+
+
 @router.post("/live-notifications/add")
 async def add_live_notification_channel(
     app_state: Annotated[AppState, Depends(get_app_state)],
-    broadcaster: Annotated[str, Form()],
+    broadcaster_name: Annotated[str, Form()],
     text_template: Annotated[str, Form()],
     target_channel: Annotated[str, Form()],
 ) -> Response:
     """Add a new live notification channel."""
+    broadcaster_id: Final = await _find_broadcaster_id_by_name(broadcaster_name, app_state)
+    if broadcaster_id is None:
+        raise HTTPException(status_code=400, detail="Broadcaster not found")
     try:
         app_state.database.add_live_notification_channel(
-            broadcaster=broadcaster,
+            broadcaster_name=broadcaster_name,
+            broadcaster_id=broadcaster_id,
             text_template=text_template,
             target_channel=target_channel,
         )
@@ -97,15 +113,19 @@ async def add_live_notification_channel(
 async def update_live_notification_channel(
     channel_id: int,
     app_state: Annotated[AppState, Depends(get_app_state)],
-    broadcaster: Annotated[str, Form()],
+    broadcaster_name: Annotated[str, Form()],
     text_template: Annotated[str, Form()],
     target_channel: Annotated[str, Form()],
 ) -> Response:
     """Update an existing live notification channel."""
+    broadcaster_id: Final = await _find_broadcaster_id_by_name(broadcaster_name, app_state)
+    if broadcaster_id is None:
+        raise HTTPException(status_code=400, detail="Broadcaster not found")
     try:
         app_state.database.update_live_notification_channel(
             id_=channel_id,
-            broadcaster=broadcaster,
+            broadcaster_name=broadcaster_name,
+            broadcaster_id=broadcaster_id,
             text_template=text_template,
             target_channel=target_channel,
         )
@@ -127,7 +147,7 @@ async def delete_live_notification_channel(
         raise HTTPException(status_code=404, detail="Channel not found")
 
     try:
-        app_state.database.remove_live_notification_channel(broadcaster=channel.broadcaster)
+        app_state.database.remove_live_notification_channel(broadcaster_id=channel.broadcaster_id)
         app_state.monitored_channels_changed.set()
     except KeyError as e:
         raise HTTPException(status_code=404, detail=str(e)) from e

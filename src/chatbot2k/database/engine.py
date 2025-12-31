@@ -424,18 +424,30 @@ class Database:
             s.delete(token_set)
             s.commit()
 
-    def add_live_notification_channel(self, *, broadcaster: str, text_template: str, target_channel: str) -> None:
+    def add_live_notification_channel(
+        self,
+        *,
+        broadcaster_name: str,
+        broadcaster_id: str,
+        text_template: str,
+        target_channel: str,
+    ) -> None:
         """Add a live notification channel for a broadcaster."""
         with self._session() as s:
             existing: Final = s.exec(
                 select(LiveNotificationChannel).where(
-                    LiveNotificationChannel.broadcaster == broadcaster,
+                    LiveNotificationChannel.broadcaster_id == broadcaster_id,
                 )
             ).one_or_none()
             if existing is not None:
-                raise ValueError(f"Live notification channel for broadcaster '{broadcaster}' already exists")
+                msg: Final = (
+                    f"Live notification channel for broadcaster '{broadcaster_name}' "
+                    + f"(ID = {broadcaster_id}) already exists"
+                )
+                raise ValueError(msg)
             live_notification_channel: Final = LiveNotificationChannel(
-                broadcaster=broadcaster,
+                broadcaster_name=broadcaster_name,
+                broadcaster_id=broadcaster_id,
                 text_template=text_template,
                 target_channel=target_channel,
             )
@@ -451,7 +463,8 @@ class Database:
         self,
         *,
         id_: int,
-        broadcaster: str,
+        broadcaster_name: str,
+        broadcaster_id: str,
         text_template: str,
         target_channel: str,
     ) -> None:
@@ -462,21 +475,23 @@ class Database:
             ).one_or_none()
             if channel is None:
                 raise KeyError(f"Live notification channel with id '{id_}' not found")
-            channel.broadcaster = broadcaster
+            channel.broadcaster_name = broadcaster_name
+            channel.broadcaster_id = broadcaster_id
             channel.text_template = text_template
             channel.target_channel = target_channel
             s.add(channel)
             s.commit()
 
-    def remove_live_notification_channel(self, *, broadcaster: str) -> None:
+    def remove_live_notification_channel(self, *, broadcaster_id: str) -> None:
         """Remove a live notification channel for a broadcaster."""
         with self._session() as s:
             live_notification_channel: Final = s.exec(
                 select(LiveNotificationChannel).where(
-                    LiveNotificationChannel.broadcaster == broadcaster,
+                    LiveNotificationChannel.broadcaster_id == broadcaster_id,
                 )
             ).one_or_none()
             if live_notification_channel is None:
-                raise KeyError(f"Live notification channel for broadcaster '{broadcaster}' not found")
+                msg: Final = f"Live notification channel for broadcaster ID {broadcaster_id} not found"
+                raise KeyError(msg)
             s.delete(live_notification_channel)
             s.commit()

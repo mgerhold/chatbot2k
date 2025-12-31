@@ -58,7 +58,8 @@ async def run_main_loop(app_state: AppState) -> None:
         logger.info(f"Stream has gone live: {event.broadcaster_name} (ID = {event.broadcaster_id})")
         channels: Final = app_state.database.get_live_notification_channels()
         notification_channel: Final = next(
-            (channel for channel in channels if channel.broadcaster.lower() == event.broadcaster_name.lower()), None
+            (channel for channel in channels if channel.broadcaster_id == event.broadcaster_id),
+            None,
         )
         if notification_channel is None:
             logger.error(f"No target channel found for broadcaster {event.broadcaster_name}")

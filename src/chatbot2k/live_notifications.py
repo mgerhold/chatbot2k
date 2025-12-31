@@ -111,9 +111,12 @@ class MonitoredStreamsManager:
         """Set up EventSub subscriptions for all channels in the database."""
         logger.info("Removing all active EventSub subscriptions...")
         await self._eventsub.unsubscribe_all()
+        if not channels:
+            logger.info("No channels to monitor for live notifications.")
+            return
         logger.info("Setting up EventSub subscriptions for monitored channels...")
         for channel in channels:
-            login = channel.broadcaster
+            login = channel.broadcaster_name
             user = await first(self._twitch.get_users(logins=[login]))
             if user is None:
                 logger.error(f"User '{login}' not found on Twitch.")

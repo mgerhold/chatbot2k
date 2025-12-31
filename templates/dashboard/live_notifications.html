@@ -146,7 +146,7 @@
     <table class="channels-table">
         <thead>
             <tr>
-                <th>Broadcaster</th>
+                <th>Broadcaster Name</th>
                 <th>Text Template</th>
                 <th>Target Channel</th>
                 <th>Actions</th>
@@ -157,7 +157,7 @@
             <tr>
                 <form method="post" action="/dashboard/live-notifications/update/{{ channel.id }}">
                     <td>
-                        <input type="text" name="broadcaster" value="{{ channel.broadcaster | e }}" required>
+                        <input type="text" name="broadcaster_name" value="{{ channel.broadcaster_name | e }}" required>
                     </td>
                     <td>
                         <input type="text" name="text_template" value="{{ channel.text_template | e }}" required>
@@ -188,8 +188,8 @@
     <h3>Add New Channel</h3>
     <form method="post" action="/dashboard/live-notifications/add">
         <div class="form-group">
-            <label for="broadcaster">Broadcaster Name</label>
-            <input type="text" id="broadcaster" name="broadcaster" placeholder="e.g., twitchusername" required>
+            <label for="broadcaster_name">Broadcaster Name</label>
+            <input type="text" id="broadcaster_name" name="broadcaster_name" placeholder="e.g., twitchusername" required>
         </div>
         <div class="form-group">
             <label for="text_template">Text Template</label>
