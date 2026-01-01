@@ -100,6 +100,7 @@ class DashboardGeneralSettingsContext(DashboardContext):
 class LiveNotificationChannel(BaseModel):
     model_config = ConfigDict(frozen=True)
 
+    notification_channel_id: int
     broadcaster_name: str
     broadcaster_id: str
     text_template: str

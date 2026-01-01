@@ -42,6 +42,8 @@ if not STATIC_FILES_DIRECTORY.exists():
     raise FileNotFoundError(f"Static files directory {STATIC_FILES_DIRECTORY} does not exist.")
 
 app: Final = FastAPI(lifespan=lifespan)
+
+
 app.include_router(commands.router)
 app.include_router(imprint.router)
 app.include_router(login.router)

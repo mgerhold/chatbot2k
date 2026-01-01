@@ -2,6 +2,7 @@ import asyncio
 from typing import Annotated
 from typing import Final
 from typing import Optional
+from typing import cast
 from zoneinfo import available_timezones
 
 from fastapi import APIRouter
@@ -93,7 +94,7 @@ def _get_common_locales() -> list[tuple[str, str]]:
     ]
 
 
-@router.get("/")
+@router.get("/", name="dashboard_general_settings")
 async def dashboard_general_settings(
     request: Request,
     app_state: Annotated[AppState, Depends(get_app_state)],
@@ -124,8 +125,9 @@ async def dashboard_general_settings(
     )
 
 
-@router.post("/")
+@router.post("/", name="update_general_settings")
 async def update_general_settings(
+    request: Request,
     app_state: Annotated[AppState, Depends(get_app_state)],
     bot_name: Annotated[str, Form()],
     author_name: Annotated[str, Form()],
@@ -159,7 +161,7 @@ async def update_general_settings(
         locale.strip(),
     )
 
-    return RedirectResponse("/dashboard", status_code=303)
+    return RedirectResponse(request.url_for("dashboard_general_settings"), status_code=303)
 
 
 async def _get_available_discord_text_channels(app_state: AppState) -> Optional[list[str]]:
@@ -183,7 +185,7 @@ async def _get_available_discord_text_channels(app_state: AppState) -> Optional[
     return available_channels
 
 
-@router.get("/live-notifications")
+@router.get("/live-notifications", name="dashboard_live_notifications")
 async def dashboard_live_notifications(
     request: Request,
     app_state: Annotated[AppState, Depends(get_app_state)],
@@ -193,6 +195,7 @@ async def dashboard_live_notifications(
     """Dashboard page for managing live notifications."""
     channels: Final = [
         LiveNotificationChannel(
+            notification_channel_id=cast(int, channel.id),  # This can never be `None` here.
             broadcaster_name=channel.broadcaster_name,
             broadcaster_id=channel.broadcaster_id,
             text_template=channel.text_template,
@@ -226,8 +229,9 @@ async def _find_broadcaster_id_by_name(name: str, app_state: AppState) -> Option
     return None
 
 
-@router.post("/live-notifications/add")
+@router.post("/live-notifications/add", name="add_live_notification_channel")
 async def add_live_notification_channel(
+    request: Request,
     app_state: Annotated[AppState, Depends(get_app_state)],
     broadcaster_name: Annotated[str, Form()],
     text_template: Annotated[str, Form()],
@@ -247,11 +251,12 @@ async def add_live_notification_channel(
         app_state.monitored_channels_changed.set()
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e)) from e
-    return RedirectResponse("/dashboard/live-notifications", status_code=303)
+    return RedirectResponse(request.url_for("dashboard_live_notifications"), status_code=303)
 
 
-@router.post("/live-notifications/update/{channel_id}")
+@router.post("/live-notifications/update/{channel_id}", name="update_live_notification_channel")
 async def update_live_notification_channel(
+    request: Request,
     channel_id: int,
     app_state: Annotated[AppState, Depends(get_app_state)],
     broadcaster_name: Annotated[str, Form()],
@@ -273,11 +278,12 @@ async def update_live_notification_channel(
         app_state.monitored_channels_changed.set()
     except KeyError as e:
         raise HTTPException(status_code=404, detail=str(e)) from e
-    return RedirectResponse("/dashboard/live-notifications", status_code=303)
+    return RedirectResponse(request.url_for("dashboard_live_notifications"), status_code=303)
 
 
-@router.post("/live-notifications/delete/{channel_id}")
+@router.post("/live-notifications/delete/{channel_id}", name="delete_live_notification_channel")
 async def delete_live_notification_channel(
+    request: Request,
     channel_id: int,
     app_state: Annotated[AppState, Depends(get_app_state)],
 ) -> Response:
@@ -292,4 +298,4 @@ async def delete_live_notification_channel(
         app_state.monitored_channels_changed.set()
     except KeyError as e:
         raise HTTPException(status_code=404, detail=str(e)) from e
-    return RedirectResponse("/dashboard/live-notifications", status_code=303)
+    return RedirectResponse(request.url_for("dashboard_live_notifications"), status_code=303)
