@@ -155,16 +155,16 @@
     {% if channels %}
     {% for channel in channels %}
     <div class="channel-card">
-        <form method="post" action="/dashboard/live-notifications/update/{{ channel.id }}">
+        <form method="post" action="{{ request.app.url_path_for('update_live_notification_channel', channel_id=channel.notification_channel_id) }}">
             <div class="form-row">
                 <div class="form-group">
-                    <label for="broadcaster_name_{{ channel.id }}">Broadcaster Name</label>
-                    <input type="text" id="broadcaster_name_{{ channel.id }}" name="broadcaster_name" value="{{ channel.broadcaster_name | e }}" required>
+                    <label for="broadcaster_name_{{ channel.notification_channel_id }}">Broadcaster Name</label>
+                    <input type="text" id="broadcaster_name_{{ channel.notification_channel_id }}" name="broadcaster_name" value="{{ channel.broadcaster_name | e }}" required>
                 </div>
                 <div class="form-group">
-                    <label for="target_channel_{{ channel.id }}">Target Channel</label>
+                    <label for="target_channel_{{ channel.notification_channel_id }}">Target Channel</label>
                     {% if discord_text_channels %}
-                    <select id="target_channel_{{ channel.id }}" name="target_channel" required>
+                    <select id="target_channel_{{ channel.notification_channel_id }}" name="target_channel" required>
                         {% for discord_channel in discord_text_channels %}
                         <option value="{{ discord_channel | e }}" {% if discord_channel == channel.target_channel %}selected{% endif %}>{{ discord_channel | e }}</option>
                         {% endfor %}
@@ -176,14 +176,14 @@
             </div>
             <div class="form-row-full">
                 <div class="form-group">
-                    <label for="text_template_{{ channel.id }}">Text Template</label>
-                    <input type="text" id="text_template_{{ channel.id }}" name="text_template" value="{{ channel.text_template | e }}" required>
+                    <label for="text_template_{{ channel.notification_channel_id }}">Text Template</label>
+                    <input type="text" id="text_template_{{ channel.notification_channel_id }}" name="text_template" value="{{ channel.text_template | e }}" required>
                 </div>
             </div>
             <div class="actions">
                 <button type="submit" class="btn btn-primary btn-small">Save Changes</button>
         </form>
-        <form method="post" action="/dashboard/live-notifications/delete/{{ channel.notification_channel_id }}">
+        <form method="post" action="{{ request.app.url_path_for('delete_live_notification_channel', channel_id=channel.notification_channel_id) }}">
                 <button type="submit" class="btn btn-danger btn-small" onclick="return confirm('Are you sure you want to delete this notification channel?')">Delete</button>
         </form>
             </div>
@@ -199,7 +199,7 @@
 
 <section class="add-section">
     <h3>Add New Channel</h3>
-    <form method="post" action="/dashboard/live-notifications/add">
+    <form method="post" action="{{ request.app.url_path_for('add_live_notification_channel') }}">
         <div class="form-group">
             <label for="broadcaster_name">Broadcaster Name</label>
             <input type="text" id="broadcaster_name" name="broadcaster_name" placeholder="e.g., twitchusername" required>
