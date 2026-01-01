@@ -1,8 +1,8 @@
 import asyncio
-from datetime import datetime
 from typing import Annotated
 from typing import Final
 from typing import Optional
+from zoneinfo import available_timezones
 
 from fastapi import APIRouter
 from fastapi import Depends
@@ -16,39 +16,150 @@ from twitchAPI.twitch import Twitch
 
 from chatbot2k.app_state import AppState
 from chatbot2k.chats.discord_chat import DiscordChat
-from chatbot2k.dependencies import UserInfo
 from chatbot2k.dependencies import get_app_state
 from chatbot2k.dependencies import get_broadcaster_user
+from chatbot2k.dependencies import get_common_context
 from chatbot2k.dependencies import get_templates
 from chatbot2k.types.commands import RetrieveDiscordChatCommand
-from chatbot2k.utils.auth import get_user_profile_image_url
+from chatbot2k.types.configuration_setting_kind import ConfigurationSettingKind
+from chatbot2k.types.template_contexts import ActivePage
+from chatbot2k.types.template_contexts import CommonContext
+from chatbot2k.types.template_contexts import DashboardGeneralSettingsContext
+from chatbot2k.types.template_contexts import DashboardLiveNotificationsContext
+from chatbot2k.types.template_contexts import LiveNotificationChannel
 
-router: Final = APIRouter(prefix="/dashboard")
+router: Final = APIRouter(prefix="/dashboard", dependencies=[Depends(get_broadcaster_user)])
+
+
+def _get_common_timezones() -> list[str]:
+    """Return a curated list of commonly used timezones."""
+    all_timezones: Final = available_timezones()
+    # Filter to common zones (exclude deprecated and uncommon ones)
+    common_prefixes: Final = {
+        "America/",
+        "Europe/",
+        "Asia/",
+        "Australia/",
+        "Pacific/",
+        "Africa/",
+    }
+    timezones: Final = sorted(
+        tz for tz in all_timezones if any(tz.startswith(prefix) for prefix in common_prefixes) or tz == "UTC"
+    )
+    # Put UTC first.
+    if "UTC" in timezones:
+        timezones.remove("UTC")
+        timezones.insert(0, "UTC")
+    return timezones
+
+
+def _get_common_locales() -> list[tuple[str, str]]:
+    """Return a list of common locales as (code, display_name) tuples."""
+    return [
+        ("de_DE.UTF-8", "German (Germany)"),
+        ("de_AT.UTF-8", "German (Austria)"),
+        ("de_CH.UTF-8", "German (Switzerland)"),
+        ("en_US.UTF-8", "English (United States)"),
+        ("en_GB.UTF-8", "English (United Kingdom)"),
+        ("en_CA.UTF-8", "English (Canada)"),
+        ("en_AU.UTF-8", "English (Australia)"),
+        ("fr_FR.UTF-8", "French (France)"),
+        ("fr_CA.UTF-8", "French (Canada)"),
+        ("fr_BE.UTF-8", "French (Belgium)"),
+        ("fr_CH.UTF-8", "French (Switzerland)"),
+        ("es_ES.UTF-8", "Spanish (Spain)"),
+        ("es_MX.UTF-8", "Spanish (Mexico)"),
+        ("es_AR.UTF-8", "Spanish (Argentina)"),
+        ("it_IT.UTF-8", "Italian (Italy)"),
+        ("pt_PT.UTF-8", "Portuguese (Portugal)"),
+        ("pt_BR.UTF-8", "Portuguese (Brazil)"),
+        ("nl_NL.UTF-8", "Dutch (Netherlands)"),
+        ("nl_BE.UTF-8", "Dutch (Belgium)"),
+        ("pl_PL.UTF-8", "Polish (Poland)"),
+        ("ru_RU.UTF-8", "Russian (Russia)"),
+        ("ja_JP.UTF-8", "Japanese (Japan)"),
+        ("ko_KR.UTF-8", "Korean (South Korea)"),
+        ("zh_CN.UTF-8", "Chinese (Simplified, China)"),
+        ("zh_TW.UTF-8", "Chinese (Traditional, Taiwan)"),
+        ("sv_SE.UTF-8", "Swedish (Sweden)"),
+        ("da_DK.UTF-8", "Danish (Denmark)"),
+        ("no_NO.UTF-8", "Norwegian (Norway)"),
+        ("fi_FI.UTF-8", "Finnish (Finland)"),
+        ("tr_TR.UTF-8", "Turkish (Turkey)"),
+        ("ar_SA.UTF-8", "Arabic (Saudi Arabia)"),
+        ("he_IL.UTF-8", "Hebrew (Israel)"),
+        ("hi_IN.UTF-8", "Hindi (India)"),
+        ("th_TH.UTF-8", "Thai (Thailand)"),
+    ]
 
 
 @router.get("/")
-async def dashboard_welcome(
+async def dashboard_general_settings(
     request: Request,
     app_state: Annotated[AppState, Depends(get_app_state)],
     templates: Annotated[Jinja2Templates, Depends(get_templates)],
-    current_user: Annotated[UserInfo, Depends(get_broadcaster_user)],
+    common_context: Annotated[CommonContext, Depends(get_common_context)],
 ) -> Response:
-    """Dashboard welcome/overview page - only accessible to the broadcaster."""
-    profile_image_url: Final = await get_user_profile_image_url(app_state, current_user.id)
+    """Dashboard general settings page - only accessible to the broadcaster."""
+    bot_name: Final = app_state.database.retrieve_configuration_setting(ConfigurationSettingKind.BOT_NAME)
+    author_name: Final = app_state.database.retrieve_configuration_setting(ConfigurationSettingKind.AUTHOR_NAME)
+    timezone: Final = app_state.database.retrieve_configuration_setting(ConfigurationSettingKind.TIMEZONE)
+    locale: Final = app_state.database.retrieve_configuration_setting(ConfigurationSettingKind.LOCALE)
+
+    context: Final = DashboardGeneralSettingsContext(
+        **common_context.model_dump(),
+        active_page=ActivePage.GENERAL_SETTINGS,
+        current_bot_name=bot_name,
+        current_author_name=author_name,
+        current_timezone=timezone,
+        current_locale=locale,
+        available_timezones=_get_common_timezones(),
+        available_locales=_get_common_locales(),
+    )
 
     return templates.TemplateResponse(
         request=request,
-        name="dashboard/welcome.html",
-        context={
-            "bot_name": app_state.config.bot_name,
-            "author_name": app_state.config.author_name,
-            "copyright_year": datetime.now().year,
-            "current_user": current_user,
-            "profile_image_url": profile_image_url,
-            "is_broadcaster": True,
-            "active_page": "welcome",
-        },
+        name="dashboard/general_settings.html",
+        context=context.model_dump(),
     )
+
+
+@router.post("/")
+async def update_general_settings(
+    app_state: Annotated[AppState, Depends(get_app_state)],
+    bot_name: Annotated[str, Form()],
+    author_name: Annotated[str, Form()],
+    timezone: Annotated[str, Form()],
+    locale: Annotated[str, Form()],
+) -> Response:
+    """Update general settings."""
+    if not bot_name.strip():
+        raise HTTPException(status_code=400, detail="Bot name cannot be empty")
+    if not author_name.strip():
+        raise HTTPException(status_code=400, detail="Author name cannot be empty")
+    if not timezone.strip():
+        raise HTTPException(status_code=400, detail="Timezone cannot be empty")
+    if not locale.strip():
+        raise HTTPException(status_code=400, detail="Locale cannot be empty")
+
+    app_state.database.store_configuration_setting(
+        ConfigurationSettingKind.BOT_NAME,
+        bot_name.strip(),
+    )
+    app_state.database.store_configuration_setting(
+        ConfigurationSettingKind.AUTHOR_NAME,
+        author_name.strip(),
+    )
+    app_state.database.store_configuration_setting(
+        ConfigurationSettingKind.TIMEZONE,
+        timezone.strip(),
+    )
+    app_state.database.store_configuration_setting(
+        ConfigurationSettingKind.LOCALE,
+        locale.strip(),
+    )
+
+    return RedirectResponse("/dashboard", status_code=303)
 
 
 async def _get_available_discord_text_channels(app_state: AppState) -> Optional[list[str]]:
@@ -77,27 +188,31 @@ async def dashboard_live_notifications(
     request: Request,
     app_state: Annotated[AppState, Depends(get_app_state)],
     templates: Annotated[Jinja2Templates, Depends(get_templates)],
-    current_user: Annotated[UserInfo, Depends(get_broadcaster_user)],
+    common_context: Annotated[CommonContext, Depends(get_common_context)],
 ) -> Response:
     """Dashboard page for managing live notifications."""
-    profile_image_url: Final = await get_user_profile_image_url(app_state, current_user.id)
-    channels: Final = app_state.database.get_live_notification_channels()
+    channels: Final = [
+        LiveNotificationChannel(
+            broadcaster_name=channel.broadcaster_name,
+            broadcaster_id=channel.broadcaster_id,
+            text_template=channel.text_template,
+            target_channel=channel.target_channel,
+        )
+        for channel in app_state.database.get_live_notification_channels()
+    ]
     discord_text_channels: Final = await _get_available_discord_text_channels(app_state)
+
+    context: Final = DashboardLiveNotificationsContext(
+        **common_context.model_dump(),
+        active_page=ActivePage.LIVE_NOTIFICATIONS,
+        channels=channels,
+        discord_text_channels=discord_text_channels,
+    )
 
     return templates.TemplateResponse(
         request=request,
         name="dashboard/live_notifications.html",
-        context={
-            "bot_name": app_state.config.bot_name,
-            "author_name": app_state.config.author_name,
-            "copyright_year": datetime.now().year,
-            "current_user": current_user,
-            "profile_image_url": profile_image_url,
-            "is_broadcaster": True,
-            "active_page": "live_notifications",
-            "channels": channels,
-            "discord_text_channels": discord_text_channels,
-        },
+        context=context.model_dump(),
     )
 
 

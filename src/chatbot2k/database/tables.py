@@ -12,6 +12,12 @@ from chatbot2k.translation_key import TranslationKey
 
 
 @final
+class ConfigurationSetting(SQLModel, table=True):
+    key: str = Field(primary_key=True)
+    value: str
+
+
+@final
 class StaticCommand(SQLModel, table=True):
     name: str = Field(primary_key=True)
     response: str

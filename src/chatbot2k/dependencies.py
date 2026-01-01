@@ -1,11 +1,10 @@
+from datetime import datetime
 from functools import lru_cache
 from http import HTTPStatus
 from pathlib import Path
 from typing import Annotated
 from typing import Final
-from typing import NamedTuple
 from typing import Optional
-from typing import final
 
 import jwt
 from fastapi import Depends
@@ -17,17 +16,14 @@ from chatbot2k.app_state import AppState
 from chatbot2k.globals import Globals
 from chatbot2k.routes.auth_constants import JWT_ALG
 from chatbot2k.routes.auth_constants import SESSION_COOKIE
+from chatbot2k.types.configuration_setting_kind import ConfigurationSettingKind
+from chatbot2k.types.template_contexts import CommonContext
+from chatbot2k.types.user_info import UserInfo
 from chatbot2k.utils.auth import get_authenticated_twitch_client
 from chatbot2k.utils.auth import get_broadcaster_id
+from chatbot2k.utils.auth import get_user_profile_image_url
 from chatbot2k.utils.auth import is_user_broadcaster
 from chatbot2k.utils.auth import is_user_moderator
-
-
-@final
-class UserInfo(NamedTuple):
-    id: str
-    login: str
-    display_name: str
 
 
 @lru_cache
@@ -111,3 +107,32 @@ async def get_moderator_user(
         return current_user
     finally:
         await twitch.close()
+
+
+async def get_common_context(
+    current_user: Annotated[Optional[UserInfo], Depends(get_current_user)],
+    app_state: Annotated[AppState, Depends(get_app_state)],
+) -> CommonContext:
+    profile_image_url: Final = (
+        None
+        if current_user is None
+        else await get_user_profile_image_url(
+            app_state,
+            current_user.id,
+        )
+    )
+    is_broadcaster: Final = False if current_user is None else await is_user_broadcaster(app_state, current_user.id)
+    return CommonContext(
+        bot_name=app_state.database.retrieve_configuration_setting_or_default(
+            ConfigurationSettingKind.BOT_NAME,
+            default="<bot name not set>",
+        ),
+        author_name=app_state.database.retrieve_configuration_setting_or_default(
+            ConfigurationSettingKind.AUTHOR_NAME,
+            default="<author name not set>",
+        ),
+        copyright_year=datetime.now().year,
+        current_user=current_user,
+        profile_image_url=profile_image_url,
+        is_broadcaster=is_broadcaster,
+    )

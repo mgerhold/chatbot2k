@@ -28,7 +28,6 @@ from twitchAPI.twitch import Twitch
 
 from chatbot2k.app_state import AppState
 from chatbot2k.config import Environment
-from chatbot2k.dependencies import UserInfo
 from chatbot2k.dependencies import get_app_state
 from chatbot2k.dependencies import get_current_user
 from chatbot2k.routes.auth_constants import JWT_ALG
@@ -36,6 +35,7 @@ from chatbot2k.routes.auth_constants import JWT_EXPIRY_DAYS
 from chatbot2k.routes.auth_constants import OAUTH_STATE_COOKIE
 from chatbot2k.routes.auth_constants import SCOPES
 from chatbot2k.routes.auth_constants import SESSION_COOKIE
+from chatbot2k.types.user_info import UserInfo
 
 logger: Final = logging.getLogger(__name__)
 

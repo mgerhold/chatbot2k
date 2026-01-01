@@ -40,7 +40,7 @@ class ParameterizedResponseCommand(CommandHandler):
                     text=result,
                     source_message=chat_command.source_message,
                     constants=self._app_state.database.get_constants(),
-                    config=self._app_state.config,
+                    app_state=self._app_state,
                 ),
                 chat_message=chat_command.source_message,
             )

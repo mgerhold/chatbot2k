@@ -17,6 +17,7 @@ from sqlmodel import desc
 from sqlmodel import select
 
 from chatbot2k.database.tables import Broadcast
+from chatbot2k.database.tables import ConfigurationSetting
 from chatbot2k.database.tables import Constant
 from chatbot2k.database.tables import DictionaryEntry
 from chatbot2k.database.tables import LiveNotificationChannel
@@ -30,6 +31,7 @@ from chatbot2k.database.tables import Translation
 from chatbot2k.database.tables import TwitchTokenSet
 from chatbot2k.models.parameterized_command import ParameterizedCommand as ParameterizedCommandModel
 from chatbot2k.translation_key import TranslationKey
+from chatbot2k.types.configuration_setting_kind import ConfigurationSettingKind
 
 
 @final
@@ -69,6 +71,35 @@ class Database:
     def _session(self) -> Generator[Session]:
         with Session(self._engine) as session:
             yield session
+
+    def store_configuration_setting(self, kind: ConfigurationSettingKind, value: str) -> None:
+        key: Final = kind.value
+        with self._session() as s:
+            object_ = s.get(ConfigurationSetting, key)
+            if object_ is None:
+                object_ = ConfigurationSetting(key=key, value=value)
+            else:
+                object_.value = value
+            s.add(object_)
+            s.commit()
+
+    def retrieve_configuration_setting(self, kind: ConfigurationSettingKind) -> Optional[str]:
+        key: Final = kind.value
+        with self._session() as s:
+            object_ = s.get(ConfigurationSetting, key)
+            if object_ is None:
+                return None
+            return object_.value
+
+    def retrieve_configuration_setting_or_default[T](self, kind: ConfigurationSettingKind, default: T) -> str | T:
+        result: Final = self.retrieve_configuration_setting(kind)
+        return default if result is None else result
+
+    def retrieve_configuration_setting_or_raise(self, kind: ConfigurationSettingKind) -> str:
+        result: Final = self.retrieve_configuration_setting(kind)
+        if result is None:
+            raise KeyError(f"Configuration setting '{kind.value}' not found")
+        return result
 
     def add_static_command(self, *, name: str, response: str) -> StaticCommand:
         with self._session() as s:
@@ -416,12 +447,11 @@ class Database:
             ).first()
 
     def delete_twitch_token_set(self, *, user_id: str) -> None:
-        """Delete a Twitch token set for a user."""
+        """Delete all token sets for a user."""
         with self._session() as s:
-            token_set: Final = s.exec(select(TwitchTokenSet).where(TwitchTokenSet.user_id == user_id)).one_or_none()
-            if token_set is None:
-                return
-            s.delete(token_set)
+            token_sets: Final = s.exec(select(TwitchTokenSet).where(TwitchTokenSet.user_id == user_id)).all()
+            for token_set in token_sets:
+                s.delete(token_set)
             s.commit()
 
     def add_live_notification_channel(
