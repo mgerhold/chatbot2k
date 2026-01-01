@@ -108,6 +108,10 @@ class MonitoredStreamsManager:
         for _ in range(MonitoredStreamsManager._FETCH_STREAM_INFO_MAX_NUM_RETRIES):
             stream = await first(self._twitch.get_streams(user_id=[broadcaster_id]))
             if stream is not None:
+                logger.info(
+                    f"Fetched stream info for broadcaster '{broadcaster_name}' ({stream.title=}, "
+                    + f"{stream.game_name=}, {stream.thumbnail_url=})"
+                )
                 return StreamLiveEvent(
                     broadcaster_name=broadcaster_name,
                     broadcaster_login=broadcaster_login,
