@@ -154,8 +154,6 @@ async def show_main_page(
         soundboard_commands=soundboard_commands,
     )
 
-    print(context.model_dump_json(indent=2))
-
     return templates.TemplateResponse(
         request=request,
         name="commands.html",
