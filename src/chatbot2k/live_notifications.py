@@ -125,9 +125,9 @@ class MonitoredStreamsManager:
 
         # If all retries fail, return with `None` values.
         return StreamLiveEvent(
-            broadcaster_name=event.event.broadcaster_user_name,
-            broadcaster_login=event.event.broadcaster_user_login,
-            broadcaster_id=event.event.broadcaster_user_id,
+            broadcaster_name=broadcaster_name,
+            broadcaster_login=broadcaster_login,
+            broadcaster_id=broadcaster_id,
             stream_title=None,
             game_name=None,
             thumbnail_url=None,
