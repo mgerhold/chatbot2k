@@ -3,7 +3,6 @@ import logging
 from collections.abc import Awaitable
 from collections.abc import Callable
 from typing import Final
-from typing import NamedTuple
 from typing import Optional
 from typing import Self
 from typing import final
@@ -16,18 +15,15 @@ from twitchAPI.twitch import Twitch
 from chatbot2k.app_state import AppState
 from chatbot2k.config import Environment
 from chatbot2k.database.tables import LiveNotificationChannel
+from chatbot2k.types.live_notification import StreamLiveEvent
 
 logger: Final = logging.getLogger(__name__)
 
 
 @final
-class StreamLiveEvent(NamedTuple):
-    broadcaster_name: str
-    broadcaster_id: str
-
-
-@final
 class MonitoredStreamsManager:
+    _FETCH_STREAM_INFO_MAX_NUM_RETRIES = 3
+
     @final
     class _Passkey: ...
 
@@ -86,9 +82,9 @@ class MonitoredStreamsManager:
         try:
             while True:
                 await self._app_state.monitored_channels_changed.wait()
+                self._app_state.monitored_channels_changed.clear()
                 logger.info("Monitored channels changed, updating EventSub subscriptions...")
                 await self._setup_subscriptions(channels=self._app_state.database.get_live_notification_channels())
-                self._app_state.monitored_channels_changed.clear()
         finally:
             await self.close()
 
@@ -97,11 +93,32 @@ class MonitoredStreamsManager:
         await self._twitch.close()
 
     async def _on_stream_live(self, event: StreamOnlineEvent) -> None:
-        await self._callback(
-            StreamLiveEvent(
-                broadcaster_name=event.event.broadcaster_user_name,
-                broadcaster_id=event.event.broadcaster_user_id,
-            )
+        await self._callback(await self._fetch_stream_info_with_retries(event))
+
+    async def _fetch_stream_info_with_retries(self, event: StreamOnlineEvent) -> StreamLiveEvent:
+        backoff_delay = 1.0
+        for _ in range(MonitoredStreamsManager._FETCH_STREAM_INFO_MAX_NUM_RETRIES):
+            stream = await first(self._twitch.get_streams(user_id=[event.event.broadcaster_user_id]))
+            if stream is not None:
+                return StreamLiveEvent(
+                    broadcaster_name=event.event.broadcaster_user_name,
+                    broadcaster_login=event.event.broadcaster_user_login,
+                    broadcaster_id=event.event.broadcaster_user_id,
+                    stream_title=stream.title,
+                    game_name=stream.game_name,
+                    thumbnail_url=stream.thumbnail_url,
+                )
+            await asyncio.sleep(backoff_delay)
+            backoff_delay *= 2.0
+
+        # If all retries fail, return with `None` values.
+        return StreamLiveEvent(
+            broadcaster_name=event.event.broadcaster_user_name,
+            broadcaster_login=event.event.broadcaster_user_login,
+            broadcaster_id=event.event.broadcaster_user_id,
+            stream_title=None,
+            game_name=None,
+            thumbnail_url=None,
         )
 
     async def _setup_subscriptions(
@@ -116,15 +133,18 @@ class MonitoredStreamsManager:
             return
         logger.info("Setting up EventSub subscriptions for monitored channels...")
         for channel in channels:
-            login = channel.broadcaster_name
-            user = await first(self._twitch.get_users(logins=[login]))
+            id_ = channel.broadcaster_id
+            user = await first(self._twitch.get_users(user_ids=[id_]))
             if user is None:
-                logger.error(f"User '{login}' not found on Twitch.")
+                logger.error(f"User '{channel.broadcaster_name}' not found on Twitch.")
                 continue
-            logger.info(f"Setting up stream online listener for user '{login}' (ID: {user.id})")
+            logger.info(f"Setting up stream online listener for user '{channel.broadcaster_name}' (ID: {user.id})")
             try:
                 subscription_id = await self._eventsub.listen_stream_online(user.id, self._on_stream_live)
             except Exception as e:
-                logger.exception(f"Failed to set up listener for user '{login}': {e}")
+                logger.exception(f"Failed to set up listener for user '{channel.broadcaster_name}': {e}")
                 continue
-            logger.info(f"Successfully set up listener for user '{login}', subscription ID: {subscription_id}")
+            logger.info(
+                f"Successfully set up listener for user '{channel.broadcaster_name}', "
+                + f"subscription ID: {subscription_id}"
+            )

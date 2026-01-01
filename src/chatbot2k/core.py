@@ -12,7 +12,6 @@ from chatbot2k.chats.chat import Chat
 from chatbot2k.chats.discord_chat import DiscordChat
 from chatbot2k.chats.twitch_chat import TwitchChat
 from chatbot2k.live_notifications import MonitoredStreamsManager
-from chatbot2k.live_notifications import StreamLiveEvent
 from chatbot2k.types.broadcast_message import BroadcastMessage
 from chatbot2k.types.chat_command import ChatCommand
 from chatbot2k.types.chat_message import ChatMessage
@@ -21,6 +20,7 @@ from chatbot2k.types.commands import RetrieveDiscordChatCommand
 from chatbot2k.types.feature_flags import FormattingSupport
 from chatbot2k.types.live_notification import LiveNotification
 from chatbot2k.types.live_notification import LiveNotificationTextTemplate
+from chatbot2k.types.live_notification import StreamLiveEvent
 from chatbot2k.utils.markdown import markdown_to_sanitized_html
 from chatbot2k.utils.markdown import markdown_to_text
 
@@ -66,7 +66,7 @@ async def run_main_loop(app_state: AppState) -> None:
             logger.error(f"No target channel found for broadcaster {event.broadcaster_name}")
             return
         notification: Final = LiveNotification(
-            broadcaster=event.broadcaster_name,
+            event=event,
             target_channel=notification_channel.target_channel,
             text_template=LiveNotificationTextTemplate(notification_channel.text_template),
         )

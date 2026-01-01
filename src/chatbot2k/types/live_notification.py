@@ -1,5 +1,6 @@
 from typing import Final
 from typing import NamedTuple
+from typing import Optional
 from typing import final
 
 
@@ -19,10 +20,20 @@ class LiveNotificationTextTemplate:
 
 
 @final
+class StreamLiveEvent(NamedTuple):
+    broadcaster_name: str
+    broadcaster_login: str
+    broadcaster_id: str
+    stream_title: Optional[str]
+    game_name: Optional[str]
+    thumbnail_url: Optional[str]
+
+
+@final
 class LiveNotification(NamedTuple):
-    broadcaster: str
+    event: StreamLiveEvent
     target_channel: str
     text_template: LiveNotificationTextTemplate
 
     def render_text(self) -> str:
-        return self.text_template.render(broadcaster=self.broadcaster)
+        return self.text_template.render(broadcaster=self.event.broadcaster_name)

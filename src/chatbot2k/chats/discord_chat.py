@@ -1,5 +1,6 @@
 import asyncio
 import logging
+import time
 from collections.abc import AsyncGenerator
 from collections.abc import Sequence
 from typing import TYPE_CHECKING
@@ -179,9 +180,38 @@ class DiscordChat(Chat):
             )
             return
 
-        text_to_send: Final = notification.render_text()
+        content: Final = notification.render_text()
+        stream_url: Final = f"https://twitch.tv/{notification.event.broadcaster_login}"
+        embed: Final = discord.Embed(
+            title=f"{notification.event.broadcaster_name} is now live on Twitch!",
+            url=stream_url,
+            description=notification.event.stream_title,  # Maybe `None`.
+        )
+
+        if notification.event.game_name is not None:
+            embed.add_field(name="Game", value=notification.event.game_name, inline=True)
+
+        if notification.event.thumbnail_url is not None:
+            thumbnail = notification.event.thumbnail_url.format(width=1280, height=720)
+            # Cache-bust so Discord updates the image across posts.
+            thumbnail = f"{thumbnail}?t={int(time.time())}"
+            embed.set_image(url=thumbnail)
+
+        view: Final = discord.ui.View()
+        view.add_item(
+            discord.ui.Button(
+                label="Watch Stream",
+                style=discord.ButtonStyle.link,
+                url=stream_url,
+            )
+        )
+
         try:
-            await channel.send(text_to_send)
+            await channel.send(
+                content=content,
+                embed=embed,
+                view=view,
+            )
         except Exception as e:
             logger.exception(f"Unable to post live notification to channel '{notification.target_channel}': {e}")
 
