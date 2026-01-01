@@ -112,7 +112,7 @@
     <p>Configure basic bot information and settings.</p>
 </div>
 
-<form method="post" action={{ url_for('update_general_settings') }} class="settings-form">
+<form method="post" action="{{ request.app.url_path_for('update_general_settings') }}" class="settings-form">
     <div class="form-group">
         <label for="bot_name">Bot Name</label>
         <input 
