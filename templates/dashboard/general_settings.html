@@ -52,6 +52,24 @@
         background: rgba(255, 255, 255, 0.08);
     }
 
+    .form-group select {
+        width: 100%;
+        padding: 0.75rem;
+        background: rgba(255, 255, 255, 0.05);
+        border: 1px solid var(--border);
+        border-radius: 4px;
+        color: var(--text);
+        font-family: inherit;
+        font-size: 1rem;
+        cursor: pointer;
+    }
+
+    .form-group select:focus {
+        outline: 2px solid var(--accent);
+        outline-offset: 1px;
+        background: rgba(255, 255, 255, 0.08);
+    }
+
     .form-actions {
         display: flex;
         gap: 0.5rem;
@@ -119,6 +137,28 @@
             placeholder="Enter author name"
         >
         <span class="help-text">Your name or the name of the bot's creator.</span>
+    </div>
+
+    <div class="form-group">
+        <label for="timezone">Timezone</label>
+        <select id="timezone" name="timezone" required>
+            <option value="">Select a timezone...</option>
+            {% for tz in available_timezones %}
+            <option value="{{ tz | e }}" {% if current_timezone == tz %}selected{% endif %}>{{ tz | e }}</option>
+            {% endfor %}
+        </select>
+        <span class="help-text">The timezone for displaying dates and times.</span>
+    </div>
+
+    <div class="form-group">
+        <label for="locale">Locale</label>
+        <select id="locale" name="locale" required>
+            <option value="">Select a locale...</option>
+            {% for locale_code, locale_name in available_locales %}
+            <option value="{{ locale_code | e }}" {% if current_locale == locale_code %}selected{% endif %}>{{ locale_name | e }}</option>
+            {% endfor %}
+        </select>
+        <span class="help-text">The locale for formatting dates, numbers, and messages.</span>
     </div>
 
     <div class="form-actions">

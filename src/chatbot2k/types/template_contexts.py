@@ -85,6 +85,18 @@ class DashboardContext(CommonContext):
 
 
 @final
+class DashboardGeneralSettingsContext(DashboardContext):
+    model_config = ConfigDict(frozen=True)
+
+    current_bot_name: Optional[str]
+    current_author_name: Optional[str]
+    current_timezone: Optional[str]
+    current_locale: Optional[str]
+    available_timezones: list[str]
+    available_locales: list[tuple[str, str]]
+
+
+@final
 class LiveNotificationChannel(BaseModel):
     model_config = ConfigDict(frozen=True)
 

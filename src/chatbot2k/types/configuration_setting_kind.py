@@ -6,3 +6,5 @@ from typing import final
 class ConfigurationSettingKind(Enum):
     BOT_NAME = "bot_name"
     AUTHOR_NAME = "author_name"
+    TIMEZONE = "timezone"
+    LOCALE = "locale"
