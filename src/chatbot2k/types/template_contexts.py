@@ -68,7 +68,7 @@ class MainPageContext(CommonContext):
     commands: list[Command]
     dictionary_entries: list[DictionaryEntry]
     constants: list[Constant]
-    script_commands_data: list[ScriptCommandData]
+    script_commands: list[ScriptCommandData]
     soundboard_commands: list[SoundboardCommand]
 
 

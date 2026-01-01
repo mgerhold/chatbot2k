@@ -70,10 +70,10 @@
       </tr>
     </thead>
     <tbody>
-      {% for name, value in constants %}
+      {% for constant in constants %}
       <tr>
-        <td class="mono"><code>{{ name | e }}</code></td>
-        <td>{{ value | e }}</td>
+        <td class="mono"><code>{{ constant.name | e }}</code></td>
+        <td>{{ constant.text | e }}</td>
       </tr>
       {% else %}
       <tr><td colspan="2" class="empty">No constants available.</td></tr>
