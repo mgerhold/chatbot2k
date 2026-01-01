@@ -1,0 +1,128 @@
+{% extends "dashboard/base.html" %}
+
+{% block title %}{{ bot_name }} — General Settings{% endblock %}
+
+{% block head_extra %}
+{{ super() }}
+<style>
+    .settings-form {
+        max-width: 600px;
+        padding: 1.5rem;
+        background: rgba(96, 165, 250, 0.05);
+        border: 1px solid var(--border);
+        border-radius: var(--radius);
+    }
+
+    .form-group {
+        margin-bottom: 1.5rem;
+    }
+
+    .form-group:last-of-type {
+        margin-bottom: 2rem;
+    }
+
+    .form-group label {
+        display: block;
+        margin-bottom: 0.5rem;
+        font-weight: 500;
+        color: var(--text);
+    }
+
+    .form-group .help-text {
+        display: block;
+        margin-top: 0.25rem;
+        font-size: 0.9rem;
+        color: var(--muted);
+    }
+
+    .form-group input[type="text"] {
+        width: 100%;
+        padding: 0.75rem;
+        background: rgba(255, 255, 255, 0.05);
+        border: 1px solid var(--border);
+        border-radius: 4px;
+        color: var(--text);
+        font-family: inherit;
+        font-size: 1rem;
+    }
+
+    .form-group input[type="text"]:focus {
+        outline: 2px solid var(--accent);
+        outline-offset: 1px;
+        background: rgba(255, 255, 255, 0.08);
+    }
+
+    .form-actions {
+        display: flex;
+        gap: 0.5rem;
+        justify-content: flex-end;
+        padding-top: 1rem;
+        border-top: 1px solid var(--border);
+    }
+
+    .btn {
+        padding: 0.75rem 1.5rem;
+        border: none;
+        border-radius: 4px;
+        cursor: pointer;
+        font-weight: 500;
+        transition: all 0.2s ease;
+        text-decoration: none;
+        display: inline-block;
+        font-size: 1rem;
+    }
+
+    .btn-primary {
+        background: var(--accent);
+        color: white;
+    }
+
+    .btn-primary:hover {
+        background: var(--link-hover);
+    }
+
+    .btn-primary:disabled {
+        opacity: 0.5;
+        cursor: not-allowed;
+    }
+</style>
+{% endblock %}
+
+{% block dashboard_content %}
+<div class="dashboard-header">
+    <h1>General Settings</h1>
+    <p>Configure basic bot information and settings.</p>
+</div>
+
+<form method="post" action="/dashboard" class="settings-form">
+    <div class="form-group">
+        <label for="bot_name">Bot Name</label>
+        <input 
+            type="text" 
+            id="bot_name" 
+            name="bot_name" 
+            value="{{ current_bot_name | e if current_bot_name else '' }}" 
+            required
+            placeholder="Enter bot name"
+        >
+        <span class="help-text">The name of your bot as displayed across the site.</span>
+    </div>
+
+    <div class="form-group">
+        <label for="author_name">Author Name</label>
+        <input 
+            type="text" 
+            id="author_name" 
+            name="author_name" 
+            value="{{ current_author_name | e if current_author_name else '' }}" 
+            required
+            placeholder="Enter author name"
+        >
+        <span class="help-text">Your name or the name of the bot's creator.</span>
+    </div>
+
+    <div class="form-actions">
+        <button type="submit" class="btn btn-primary">Save Settings</button>
+    </div>
+</form>
+{% endblock %}

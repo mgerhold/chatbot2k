@@ -16,35 +16,68 @@ from twitchAPI.twitch import Twitch
 from chatbot2k.app_state import AppState
 from chatbot2k.chats.discord_chat import DiscordChat
 from chatbot2k.dependencies import get_app_state
+from chatbot2k.dependencies import get_broadcaster_user
 from chatbot2k.dependencies import get_common_context
 from chatbot2k.dependencies import get_templates
 from chatbot2k.types.commands import RetrieveDiscordChatCommand
+from chatbot2k.types.configuration_setting_kind import ConfigurationSettingKind
 from chatbot2k.types.template_contexts import ActivePage
 from chatbot2k.types.template_contexts import CommonContext
 from chatbot2k.types.template_contexts import DashboardContext
 from chatbot2k.types.template_contexts import DashboardLiveNotificationsContext
 from chatbot2k.types.template_contexts import LiveNotificationChannel
+from chatbot2k.types.user_info import UserInfo
 
 router: Final = APIRouter(prefix="/dashboard")
 
 
 @router.get("/")
-async def dashboard_welcome(
+async def dashboard_general_settings(
     request: Request,
+    app_state: Annotated[AppState, Depends(get_app_state)],
     templates: Annotated[Jinja2Templates, Depends(get_templates)],
     common_context: Annotated[CommonContext, Depends(get_common_context)],
+    _broadcaster_user: Annotated[UserInfo, Depends(get_broadcaster_user)],
 ) -> Response:
-    """Dashboard welcome/overview page - only accessible to the broadcaster."""
+    """Dashboard general settings page - only accessible to the broadcaster."""
+    bot_name: Final = app_state.database.retrieve_configuration_setting(ConfigurationSettingKind.BOT_NAME)
+    author_name: Final = app_state.database.retrieve_configuration_setting(ConfigurationSettingKind.AUTHOR_NAME)
+
     context: Final = DashboardContext(
         **common_context.model_dump(),
-        active_page=ActivePage.WELCOME,
+        active_page=ActivePage.GENERAL_SETTINGS,
     )
 
     return templates.TemplateResponse(
         request=request,
-        name="dashboard/welcome.html",
-        context=context.model_dump(),
+        name="dashboard/general_settings.html",
+        context=context.model_dump() | {"current_bot_name": bot_name, "current_author_name": author_name},
     )
+
+
+@router.post("/")
+async def update_general_settings(
+    app_state: Annotated[AppState, Depends(get_app_state)],
+    bot_name: Annotated[str, Form()],
+    author_name: Annotated[str, Form()],
+    _broadcaster_user: Annotated[UserInfo, Depends(get_broadcaster_user)],
+) -> Response:
+    """Update general settings."""
+    if not bot_name.strip():
+        raise HTTPException(status_code=400, detail="Bot name cannot be empty")
+    if not author_name.strip():
+        raise HTTPException(status_code=400, detail="Author name cannot be empty")
+
+    app_state.database.store_configuration_setting(
+        ConfigurationSettingKind.BOT_NAME,
+        bot_name.strip(),
+    )
+    app_state.database.store_configuration_setting(
+        ConfigurationSettingKind.AUTHOR_NAME,
+        author_name.strip(),
+    )
+
+    return RedirectResponse("/dashboard", status_code=303)
 
 
 async def _get_available_discord_text_channels(app_state: AppState) -> Optional[list[str]]:
@@ -74,6 +107,7 @@ async def dashboard_live_notifications(
     app_state: Annotated[AppState, Depends(get_app_state)],
     templates: Annotated[Jinja2Templates, Depends(get_templates)],
     common_context: Annotated[CommonContext, Depends(get_common_context)],
+    _broadcaster_user: Annotated[UserInfo, Depends(get_broadcaster_user)],
 ) -> Response:
     """Dashboard page for managing live notifications."""
     channels: Final = [
@@ -117,6 +151,7 @@ async def add_live_notification_channel(
     broadcaster_name: Annotated[str, Form()],
     text_template: Annotated[str, Form()],
     target_channel: Annotated[str, Form()],
+    _broadcaster_user: Annotated[UserInfo, Depends(get_broadcaster_user)],
 ) -> Response:
     """Add a new live notification channel."""
     broadcaster_id: Final = await _find_broadcaster_id_by_name(broadcaster_name, app_state)
@@ -142,6 +177,7 @@ async def update_live_notification_channel(
     broadcaster_name: Annotated[str, Form()],
     text_template: Annotated[str, Form()],
     target_channel: Annotated[str, Form()],
+    _broadcaster_user: Annotated[UserInfo, Depends(get_broadcaster_user)],
 ) -> Response:
     """Update an existing live notification channel."""
     broadcaster_id: Final = await _find_broadcaster_id_by_name(broadcaster_name, app_state)
@@ -165,6 +201,7 @@ async def update_live_notification_channel(
 async def delete_live_notification_channel(
     channel_id: int,
     app_state: Annotated[AppState, Depends(get_app_state)],
+    _broadcaster_user: Annotated[UserInfo, Depends(get_broadcaster_user)],
 ) -> Response:
     """Delete a live notification channel."""
     channels: Final = app_state.database.get_live_notification_channels()

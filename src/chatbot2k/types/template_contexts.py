@@ -74,7 +74,7 @@ class MainPageContext(CommonContext):
 
 @final
 class ActivePage(StrEnum):
-    WELCOME = "welcome"
+    GENERAL_SETTINGS = "general_settings"
     LIVE_NOTIFICATIONS = "live_notifications"
 
 
