@@ -1,5 +1,4 @@
 import asyncio
-from datetime import datetime
 from typing import Annotated
 from typing import Final
 from typing import Optional
@@ -16,12 +15,15 @@ from twitchAPI.twitch import Twitch
 
 from chatbot2k.app_state import AppState
 from chatbot2k.chats.discord_chat import DiscordChat
-from chatbot2k.dependencies import UserInfo
 from chatbot2k.dependencies import get_app_state
-from chatbot2k.dependencies import get_broadcaster_user
+from chatbot2k.dependencies import get_common_context
 from chatbot2k.dependencies import get_templates
 from chatbot2k.types.commands import RetrieveDiscordChatCommand
-from chatbot2k.utils.auth import get_user_profile_image_url
+from chatbot2k.types.template_contexts import ActivePage
+from chatbot2k.types.template_contexts import CommonContext
+from chatbot2k.types.template_contexts import DashboardContext
+from chatbot2k.types.template_contexts import DashboardLiveNotificationsContext
+from chatbot2k.types.template_contexts import LiveNotificationChannel
 
 router: Final = APIRouter(prefix="/dashboard")
 
@@ -29,25 +31,19 @@ router: Final = APIRouter(prefix="/dashboard")
 @router.get("/")
 async def dashboard_welcome(
     request: Request,
-    app_state: Annotated[AppState, Depends(get_app_state)],
     templates: Annotated[Jinja2Templates, Depends(get_templates)],
-    current_user: Annotated[UserInfo, Depends(get_broadcaster_user)],
+    common_context: Annotated[CommonContext, Depends(get_common_context)],
 ) -> Response:
     """Dashboard welcome/overview page - only accessible to the broadcaster."""
-    profile_image_url: Final = await get_user_profile_image_url(app_state, current_user.id)
+    context: Final = DashboardContext(
+        **common_context.model_dump(),
+        active_page=ActivePage.WELCOME,
+    )
 
     return templates.TemplateResponse(
         request=request,
         name="dashboard/welcome.html",
-        context={
-            "bot_name": app_state.config.bot_name,
-            "author_name": app_state.config.author_name,
-            "copyright_year": datetime.now().year,
-            "current_user": current_user,
-            "profile_image_url": profile_image_url,
-            "is_broadcaster": True,
-            "active_page": "welcome",
-        },
+        context=context.model_dump(),
     )
 
 
@@ -77,27 +73,31 @@ async def dashboard_live_notifications(
     request: Request,
     app_state: Annotated[AppState, Depends(get_app_state)],
     templates: Annotated[Jinja2Templates, Depends(get_templates)],
-    current_user: Annotated[UserInfo, Depends(get_broadcaster_user)],
+    common_context: Annotated[CommonContext, Depends(get_common_context)],
 ) -> Response:
     """Dashboard page for managing live notifications."""
-    profile_image_url: Final = await get_user_profile_image_url(app_state, current_user.id)
-    channels: Final = app_state.database.get_live_notification_channels()
+    channels: Final = [
+        LiveNotificationChannel(
+            broadcaster_name=channel.broadcaster_name,
+            broadcaster_id=channel.broadcaster_id,
+            text_template=channel.text_template,
+            target_channel=channel.target_channel,
+        )
+        for channel in app_state.database.get_live_notification_channels()
+    ]
     discord_text_channels: Final = await _get_available_discord_text_channels(app_state)
+
+    context: Final = DashboardLiveNotificationsContext(
+        **common_context.model_dump(),
+        active_page=ActivePage.LIVE_NOTIFICATIONS,
+        channels=channels,
+        discord_text_channels=discord_text_channels,
+    )
 
     return templates.TemplateResponse(
         request=request,
         name="dashboard/live_notifications.html",
-        context={
-            "bot_name": app_state.config.bot_name,
-            "author_name": app_state.config.author_name,
-            "copyright_year": datetime.now().year,
-            "current_user": current_user,
-            "profile_image_url": profile_image_url,
-            "is_broadcaster": True,
-            "active_page": "live_notifications",
-            "channels": channels,
-            "discord_text_channels": discord_text_channels,
-        },
+        context=context.model_dump(),
     )
 
 

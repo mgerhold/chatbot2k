@@ -24,7 +24,7 @@
       {% for c in commands %}
       <tr>
         <td class="mono"><code>{{ c.command | e }}</code></td>
-        <td>{{ c.description }}</td> {# already sanitized Markup #}
+        <td>{{ c.description|safe }}</td> {# already sanitized Markup #}
         <td><span class="badge">{{ c.required_permission_level | e }}</span></td>
       </tr>
       {% else %}
@@ -49,7 +49,7 @@
       {% for entry in entries %}
       <tr>
         <td class="mono"><code>{{ entry.word | e }}</code></td>
-        <td>{{ entry.explanation }}</td> {# already sanitized Markup #}
+        <td>{{ entry.explanation|safe }}</td> {# already sanitized Markup #}
       </tr>
       {% else %}
       <tr><td colspan="2" class="empty">No dictionary entries available.</td></tr>
