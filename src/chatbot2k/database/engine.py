@@ -447,12 +447,11 @@ class Database:
             ).first()
 
     def delete_twitch_token_set(self, *, user_id: str) -> None:
-        """Delete a Twitch token set for a user."""
+        """Delete all token sets for a user."""
         with self._session() as s:
-            token_set: Final = s.exec(select(TwitchTokenSet).where(TwitchTokenSet.user_id == user_id)).one_or_none()
-            if token_set is None:
-                return
-            s.delete(token_set)
+            token_sets: Final = s.exec(select(TwitchTokenSet).where(TwitchTokenSet.user_id == user_id)).all()
+            for token_set in token_sets:
+                s.delete(token_set)
             s.commit()
 
     def add_live_notification_channel(
