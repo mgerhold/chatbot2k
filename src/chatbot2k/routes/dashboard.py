@@ -26,9 +26,8 @@ from chatbot2k.types.template_contexts import CommonContext
 from chatbot2k.types.template_contexts import DashboardContext
 from chatbot2k.types.template_contexts import DashboardLiveNotificationsContext
 from chatbot2k.types.template_contexts import LiveNotificationChannel
-from chatbot2k.types.user_info import UserInfo
 
-router: Final = APIRouter(prefix="/dashboard")
+router: Final = APIRouter(prefix="/dashboard", dependencies=[Depends(get_broadcaster_user)])
 
 
 @router.get("/")
@@ -37,7 +36,6 @@ async def dashboard_general_settings(
     app_state: Annotated[AppState, Depends(get_app_state)],
     templates: Annotated[Jinja2Templates, Depends(get_templates)],
     common_context: Annotated[CommonContext, Depends(get_common_context)],
-    _broadcaster_user: Annotated[UserInfo, Depends(get_broadcaster_user)],
 ) -> Response:
     """Dashboard general settings page - only accessible to the broadcaster."""
     bot_name: Final = app_state.database.retrieve_configuration_setting(ConfigurationSettingKind.BOT_NAME)
@@ -60,7 +58,6 @@ async def update_general_settings(
     app_state: Annotated[AppState, Depends(get_app_state)],
     bot_name: Annotated[str, Form()],
     author_name: Annotated[str, Form()],
-    _broadcaster_user: Annotated[UserInfo, Depends(get_broadcaster_user)],
 ) -> Response:
     """Update general settings."""
     if not bot_name.strip():
@@ -107,7 +104,6 @@ async def dashboard_live_notifications(
     app_state: Annotated[AppState, Depends(get_app_state)],
     templates: Annotated[Jinja2Templates, Depends(get_templates)],
     common_context: Annotated[CommonContext, Depends(get_common_context)],
-    _broadcaster_user: Annotated[UserInfo, Depends(get_broadcaster_user)],
 ) -> Response:
     """Dashboard page for managing live notifications."""
     channels: Final = [
@@ -151,7 +147,6 @@ async def add_live_notification_channel(
     broadcaster_name: Annotated[str, Form()],
     text_template: Annotated[str, Form()],
     target_channel: Annotated[str, Form()],
-    _broadcaster_user: Annotated[UserInfo, Depends(get_broadcaster_user)],
 ) -> Response:
     """Add a new live notification channel."""
     broadcaster_id: Final = await _find_broadcaster_id_by_name(broadcaster_name, app_state)
@@ -177,7 +172,6 @@ async def update_live_notification_channel(
     broadcaster_name: Annotated[str, Form()],
     text_template: Annotated[str, Form()],
     target_channel: Annotated[str, Form()],
-    _broadcaster_user: Annotated[UserInfo, Depends(get_broadcaster_user)],
 ) -> Response:
     """Update an existing live notification channel."""
     broadcaster_id: Final = await _find_broadcaster_id_by_name(broadcaster_name, app_state)
@@ -201,7 +195,6 @@ async def update_live_notification_channel(
 async def delete_live_notification_channel(
     channel_id: int,
     app_state: Annotated[AppState, Depends(get_app_state)],
-    _broadcaster_user: Annotated[UserInfo, Depends(get_broadcaster_user)],
 ) -> Response:
     """Delete a live notification channel."""
     channels: Final = app_state.database.get_live_notification_channels()
