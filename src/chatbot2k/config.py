@@ -56,8 +56,6 @@ class Config:
         self._database_file: Optional[Path] = None
         self._timezone: Optional[ZoneInfo] = None
         self._locale: Optional[str] = None
-        self._bot_name: Optional[str] = None
-        self._author_name: Optional[str] = None
         self._data_root_path: Optional[Path] = None
         self._twitch_client_id: Optional[str] = None
         self._twitch_client_secret: Optional[TwitchClientSecret] = None
@@ -80,8 +78,6 @@ class Config:
         self._database_file = Path(get_environment_variable_or_raise(DATABASE_FILE_ENV_VARIABLE))
         self._timezone = ZoneInfo(get_environment_variable_or_raise("TIMEZONE"))
         self._locale = get_environment_variable_or_raise("LOCALE")
-        self._bot_name = get_environment_variable_or_raise("BOT_NAME")
-        self._author_name = get_environment_variable_or_raise("AUTHOR_NAME")
         self._data_root_path = Path(get_environment_variable_or_raise("DATA_ROOT_PATH"))
         self._twitch_client_id = get_environment_variable_or_raise("TWITCH_CLIENT_ID")
         self._twitch_client_secret = get_environment_variable_or_raise("TWITCH_CLIENT_SECRET")
@@ -135,18 +131,6 @@ class Config:
         if self._locale is None:
             raise AssertionError("Locale is not set. This should not happen.")
         return self._locale
-
-    @property
-    def bot_name(self) -> str:
-        if self._bot_name is None:
-            raise AssertionError("Bot name is not set. This should not happen.")
-        return self._bot_name
-
-    @property
-    def author_name(self) -> str:
-        if self._author_name is None:
-            raise AssertionError("Author name is not set. This should not happen.")
-        return self._author_name
 
     @property
     def data_root_path(self) -> Path:
