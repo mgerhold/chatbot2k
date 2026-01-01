@@ -43,7 +43,7 @@ class SimpleBroadcaster(Broadcaster):
             self._time_of_next_broadcast += self._interval_seconds
             yield BroadcastMessage(
                 text=replace_constants(
-                    apply_builtins(self._message, self._app_state.config),
+                    apply_builtins(self._message, self._app_state),
                     self._app_state.database.get_constants(),
                 )
             )

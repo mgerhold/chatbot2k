@@ -2,8 +2,6 @@ import os
 
 os.environ.setdefault("ENVIRONMENT", "production")
 os.environ.setdefault("DATABASE_FILE", "dummy")
-os.environ.setdefault("TIMEZONE", "Europe/Berlin")
-os.environ.setdefault("LOCALE", "de_DE.UTF-8")
 os.environ.setdefault("DATA_ROOT_PATH", "./data")
 os.environ.setdefault("TWITCH_CLIENT_ID", "dummy")
 os.environ.setdefault("TWITCH_CLIENT_SECRET", "dummy")
