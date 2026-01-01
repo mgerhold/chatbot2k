@@ -150,7 +150,7 @@ async def show_main_page(
         commands=commands,
         dictionary_entries=dictionary_entries,
         constants=constants,
-        script_commands_data=script_commands,
+        script_commands=script_commands,
         soundboard_commands=soundboard_commands,
     )
 
