@@ -2,6 +2,7 @@ import asyncio
 from typing import Annotated
 from typing import Final
 from typing import Optional
+from typing import cast
 from zoneinfo import available_timezones
 
 from fastapi import APIRouter
@@ -193,6 +194,7 @@ async def dashboard_live_notifications(
     """Dashboard page for managing live notifications."""
     channels: Final = [
         LiveNotificationChannel(
+            notification_channel_id=cast(int, channel.id),  # This can never be `None` here.
             broadcaster_name=channel.broadcaster_name,
             broadcaster_id=channel.broadcaster_id,
             text_template=channel.text_template,

@@ -183,7 +183,7 @@
             <div class="actions">
                 <button type="submit" class="btn btn-primary btn-small">Save Changes</button>
         </form>
-        <form method="post" action="/dashboard/live-notifications/delete/{{ channel.id }}">
+        <form method="post" action="/dashboard/live-notifications/delete/{{ channel.notification_channel_id }}">
                 <button type="submit" class="btn btn-danger btn-small" onclick="return confirm('Are you sure you want to delete this notification channel?')">Delete</button>
         </form>
             </div>
