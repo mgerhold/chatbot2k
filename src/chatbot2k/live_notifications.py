@@ -96,14 +96,22 @@ class MonitoredStreamsManager:
         await self._callback(await self._fetch_stream_info_with_retries(event))
 
     async def _fetch_stream_info_with_retries(self, event: StreamOnlineEvent) -> StreamLiveEvent:
+        broadcaster_id: Final = event.event.broadcaster_user_id
+        broadcaster_user: Final = await first(self._twitch.get_users(user_ids=[broadcaster_id]))
+        broadcaster_name: Final = (
+            event.event.broadcaster_user_name if broadcaster_user is None else broadcaster_user.display_name
+        )
+        broadcaster_login: Final = (
+            event.event.broadcaster_user_login if broadcaster_user is None else broadcaster_user.login
+        )
         backoff_delay = 1.0
         for _ in range(MonitoredStreamsManager._FETCH_STREAM_INFO_MAX_NUM_RETRIES):
-            stream = await first(self._twitch.get_streams(user_id=[event.event.broadcaster_user_id]))
+            stream = await first(self._twitch.get_streams(user_id=[broadcaster_id]))
             if stream is not None:
                 return StreamLiveEvent(
-                    broadcaster_name=event.event.broadcaster_user_name,
-                    broadcaster_login=event.event.broadcaster_user_login,
-                    broadcaster_id=event.event.broadcaster_user_id,
+                    broadcaster_name=broadcaster_name,
+                    broadcaster_login=broadcaster_login,
+                    broadcaster_id=broadcaster_id,
                     stream_title=stream.title,
                     game_name=stream.game_name,
                     thumbnail_url=stream.thumbnail_url,
