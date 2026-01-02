@@ -228,6 +228,18 @@
     </div>
 
     <div class="form-group">
+        <label for="broadcaster_email_address">Broadcaster Email Address</label>
+        <input
+            type="email"
+            id="broadcaster_email_address"
+            name="broadcaster_email_address"
+            value="{{ current_broadcaster_email_address | e if current_broadcaster_email_address else '' }}"
+            placeholder="noreply@example.com"
+        >
+        <span class="help-text">Email address of the broadcaster used for notifications.</span>
+    </div>
+
+    <div class="form-group">
         <label for="smtp_host">SMTP Host</label>
         <input 
             type="text" 

@@ -99,6 +99,7 @@ class AdminGeneralSettingsContext(AdminContext):
     current_locale: Optional[str]
     current_max_pending_soundboard_clips: Optional[str]
     current_max_pending_soundboard_clips_per_user: Optional[str]
+    current_broadcaster_email_address: Optional[str]
     current_smtp_host: Optional[str]
     current_smtp_port: Optional[str]
     current_smtp_username: Optional[str]
@@ -172,3 +173,15 @@ class ViewerSoundboardContext(ViewerContext):
     user_pending_clips_count: int
     user_can_upload: bool
     pending_clips: list[PendingClip]
+
+
+@final
+class NewPendingClipEmailContext(BaseModel):
+    model_config = ConfigDict(frozen=True)
+
+    broadcaster_name: str
+    uploader_display_name: str
+    uploader_id: str
+    command_name: str
+    dashboard_url: str
+    bot_name: str

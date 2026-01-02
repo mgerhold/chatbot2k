@@ -27,9 +27,11 @@ from chatbot2k.dependencies import get_common_context
 from chatbot2k.dependencies import get_templates
 from chatbot2k.types.configuration_setting_kind import ConfigurationSettingKind
 from chatbot2k.types.template_contexts import CommonContext
+from chatbot2k.types.template_contexts import NewPendingClipEmailContext
 from chatbot2k.types.template_contexts import PendingClip
 from chatbot2k.types.template_contexts import ViewerSoundboardContext
 from chatbot2k.types.user_info import UserInfo
+from chatbot2k.utils.email import send_email
 
 router: Final = APIRouter(prefix="/viewer", dependencies=[Depends(get_authenticated_user)])
 
@@ -137,13 +139,14 @@ async def upload_pending_soundboard_clip(
     request: Request,
     app_state: Annotated[AppState, Depends(get_app_state)],
     current_user: Annotated[UserInfo, Depends(get_authenticated_user)],
+    templates: Annotated[Jinja2Templates, Depends(get_templates)],
     command_name: Annotated[str, Form()],
     file: Annotated[UploadFile, File()],
     agree_terms: Annotated[str, Form()],
     may_persist_uploader_info: Annotated[str, Form()] = "off",
 ) -> Response:
     """Upload a pending soundboard clip."""
-    # Validate terms agreement
+    # Validate terms agreement.
     if agree_terms != "on":
         raise HTTPException(
             status_code=400,
@@ -205,6 +208,37 @@ async def upload_pending_soundboard_clip(
         # If database insertion fails, clean up the file.
         file_path.unlink(missing_ok=True)
         raise HTTPException(status_code=400, detail=str(e)) from e
+
+    smtp_settings: Final = app_state.smtp_settings
+    to_address: Final = app_state.database.retrieve_configuration_setting(
+        ConfigurationSettingKind.BROADCASTER_EMAIL_ADDRESS
+    )
+    if smtp_settings is None:
+        logger.error(
+            "SMTP settings are not configured; cannot send notification email for new pending soundboard clip."
+        )
+    elif to_address is None or not to_address:
+        logger.error(
+            "Broadcaster email address is not configured; cannot send notification "
+            + "email for new pending soundboard clip."
+        )
+    else:
+        await send_email(
+            to_address=to_address,
+            subject="New Soundboard Clip Upload",
+            template=templates.get_template("emails/new_pending_clip.txt.j2"),  # type: ignore[reportUnknownMemberType]
+            context=NewPendingClipEmailContext(
+                broadcaster_name=app_state.config.twitch_channel,
+                uploader_display_name=current_user.display_name,
+                uploader_id=current_user.id,
+                command_name=command_name,
+                dashboard_url=str(request.url_for("admin_pending_clips")),
+                bot_name=app_state.database.retrieve_configuration_setting_or_default(
+                    ConfigurationSettingKind.BOT_NAME, f"Chatbot of {app_state.config.twitch_channel}"
+                ),
+            ),
+            settings=smtp_settings,
+        )
 
     return RedirectResponse(request.url_for("viewer_soundboard"), status_code=303)
 
