@@ -6,8 +6,25 @@
     <p>Manage and preview soundboard clips</p>
 </div>
 
+<!-- Upload Form -->
+<div class="form-container">
+    <h2>Upload New Clip</h2>
+    <form action="{{ request.app.url_path_for('upload_soundboard_clip') }}" method="post" enctype="multipart/form-data">
+        <div class="form-group">
+            <label for="command_name">Command Name:</label>
+            <input type="text" id="command_name" name="command_name" placeholder="mycommand" required>
+            <small>Don't include the "!" prefix</small>
+        </div>
+        <div class="form-group">
+            <label for="file">Audio/Video File:</label>
+            <input type="file" id="file" name="file" accept="audio/*,video/*" required>
+        </div>
+        <button type="submit" class="btn-primary">Upload Clip</button>
+    </form>
+</div>
+
 <div class="table-container" role="region" aria-labelledby="soundboard-heading" tabindex="0">
-    <h2 id="soundboard-heading" class="sr-only">Soundboard Commands</h2>
+    <h2 id="soundboard-heading">Existing Clips</h2>
     <table class="soundboard data-table">
         <caption class="sr-only">Soundboard commands</caption>
         <thead>

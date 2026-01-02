@@ -1,14 +1,18 @@
 import asyncio
+from pathlib import Path
 from typing import Annotated
 from typing import Final
 from typing import Optional
 from typing import cast
+from uuid import uuid4
 from zoneinfo import available_timezones
 
 from fastapi import APIRouter
 from fastapi import Depends
+from fastapi import File
 from fastapi import Form
 from fastapi import HTTPException
+from fastapi import UploadFile
 from starlette.requests import Request
 from starlette.responses import RedirectResponse
 from starlette.responses import Response
@@ -18,6 +22,7 @@ from twitchAPI.twitch import Twitch
 from chatbot2k.app_state import AppState
 from chatbot2k.chats.discord_chat import DiscordChat
 from chatbot2k.constants import RELATIVE_SOUNDBOARD_FILES_DIRECTORY
+from chatbot2k.constants import SOUNDBOARD_FILES_DIRECTORY
 from chatbot2k.dependencies import get_app_state
 from chatbot2k.dependencies import get_broadcaster_user
 from chatbot2k.dependencies import get_common_context
@@ -315,7 +320,7 @@ async def dashboard_soundboard(
     soundboard_commands: Final = [
         SoundboardCommand(
             command=cmd.name,
-            clip_url=f"{RELATIVE_SOUNDBOARD_FILES_DIRECTORY.as_posix()}/{cmd.filename}",
+            clip_url=f"/{RELATIVE_SOUNDBOARD_FILES_DIRECTORY.as_posix()}/{cmd.filename}",
         )
         for cmd in app_state.database.get_soundboard_commands()
     ]
@@ -331,3 +336,52 @@ async def dashboard_soundboard(
         name="dashboard/soundboard.html",
         context=context.model_dump(),
     )
+
+
+@router.post("/soundboard/upload", name="upload_soundboard_clip")
+async def upload_soundboard_clip(
+    request: Request,
+    app_state: Annotated[AppState, Depends(get_app_state)],
+    command_name: Annotated[str, Form()],
+    file: Annotated[UploadFile, File()],
+) -> Response:
+    """Upload a new soundboard clip."""
+    command_name = command_name.strip().lstrip("!")
+    if not command_name:
+        raise HTTPException(status_code=400, detail="Command name cannot be empty")
+
+    if command_name.lower() in (name.lower() for name in app_state.command_handlers):
+        raise HTTPException(status_code=400, detail=f"Command '!{command_name}' already exists")
+
+    if not file.filename:
+        raise HTTPException(status_code=400, detail="No file uploaded")
+
+    file_extension: Final = Path(file.filename).suffix
+    if not file_extension:
+        raise HTTPException(status_code=400, detail="File must have an extension")
+
+    unique_filename: Final = f"{uuid4()}{file_extension}"
+    file_path: Final = SOUNDBOARD_FILES_DIRECTORY / unique_filename
+
+    SOUNDBOARD_FILES_DIRECTORY.mkdir(parents=True, exist_ok=True)
+
+    try:
+        contents: Final = await file.read()
+        with open(file_path, "wb") as f:
+            f.write(contents)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to save file: {e}") from e
+
+    try:
+        app_state.database.add_soundboard_command(
+            name=command_name,
+            filename=unique_filename,
+        )
+    except ValueError as e:
+        # If database insertion fails, clean up the file.
+        file_path.unlink(missing_ok=True)
+        raise HTTPException(status_code=400, detail=str(e)) from e
+
+    app_state.reload_command_handlers()
+
+    return RedirectResponse(request.url_for("dashboard_soundboard"), status_code=303)

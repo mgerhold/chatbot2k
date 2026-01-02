@@ -1,5 +1,4 @@
 import asyncio
-from collections.abc import Callable
 from typing import Final
 from typing import NamedTuple
 from typing import Optional
@@ -39,9 +38,8 @@ class CommandManagementCommand(CommandHandler):
     _UPDATE_SUBCOMMAND = "update"
     _REMOVE_SUBCOMMAND = "remove"
 
-    def __init__(self, app_state: AppState, on_commands_changed: Callable[[], None]) -> None:
+    def __init__(self, app_state: AppState) -> None:
         super().__init__(app_state, name=CommandManagementCommand.COMMAND_NAME)
-        self._on_commands_changed: Final = on_commands_changed
 
     @override
     async def handle_command(self, chat_command: ChatCommand) -> Optional[list[ChatResponse]]:
@@ -79,7 +77,7 @@ class CommandManagementCommand(CommandHandler):
             case _:
                 return None
         if success:
-            self._on_commands_changed()
+            self._app_state.reload_command_handlers()
         return [
             ChatResponse(
                 text=response,
