@@ -79,14 +79,14 @@ class ActivePage(StrEnum):
     SOUNDBOARD = "soundboard"
 
 
-class DashboardContext(CommonContext):
+class AdminContext(CommonContext):
     model_config = ConfigDict(frozen=True)
 
     active_page: ActivePage
 
 
 @final
-class DashboardGeneralSettingsContext(DashboardContext):
+class AdminGeneralSettingsContext(AdminContext):
     model_config = ConfigDict(frozen=True)
 
     current_bot_name: Optional[str]
@@ -109,7 +109,7 @@ class LiveNotificationChannel(BaseModel):
 
 
 @final
-class DashboardLiveNotificationsContext(DashboardContext):
+class AdminLiveNotificationsContext(AdminContext):
     model_config = ConfigDict(frozen=True)
 
     channels: list[LiveNotificationChannel]
@@ -117,7 +117,7 @@ class DashboardLiveNotificationsContext(DashboardContext):
 
 
 @final
-class DashboardSoundboardContext(DashboardContext):
+class AdminSoundboardContext(AdminContext):
     model_config = ConfigDict(frozen=True)
 
     soundboard_commands: list[SoundboardCommand]

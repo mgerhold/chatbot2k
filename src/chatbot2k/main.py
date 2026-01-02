@@ -12,9 +12,9 @@ from starlette.staticfiles import StaticFiles
 from chatbot2k.constants import STATIC_FILES_DIRECTORY
 from chatbot2k.core import run_main_loop
 from chatbot2k.dependencies import get_app_state
+from chatbot2k.routes import admin
 from chatbot2k.routes import auth
 from chatbot2k.routes import commands
-from chatbot2k.routes import dashboard
 from chatbot2k.routes import imprint
 from chatbot2k.routes import login
 from chatbot2k.routes import overlay
@@ -48,7 +48,7 @@ app.include_router(imprint.router)
 app.include_router(login.router)
 app.include_router(overlay.router)
 app.include_router(auth.router)
-app.include_router(dashboard.router)
+app.include_router(admin.router)
 app.mount(
     "/static",
     StaticFiles(directory="static"),

@@ -95,21 +95,21 @@
 {% block content %}
 <div class="dashboard-container">
     <aside class="dashboard-sidebar">
-        <h2>Dashboard</h2>
+        <h2>Admin Dashboard</h2>
         <nav>
             <ul class="dashboard-nav">
                 <li>
-                    <a href="{{ request.app.url_path_for('dashboard_general_settings') }}" class="{% if active_page == 'general_settings' %}active{% endif %}">
+                    <a href="{{ request.app.url_path_for('admin_general_settings') }}" class="{% if active_page == 'general_settings' %}active{% endif %}">
                         General Settings
                     </a>
                 </li>
                 <li>
-                    <a href="{{ request.app.url_path_for('dashboard_live_notifications') }}" class="{% if active_page == 'live_notifications' %}active{% endif %}">
+                    <a href="{{ request.app.url_path_for('admin_live_notifications') }}" class="{% if active_page == 'live_notifications' %}active{% endif %}">
                         Live Notifications
                     </a>
                 </li>
                 <li>
-                    <a href="{{ request.app.url_path_for('dashboard_soundboard') }}" class="{% if active_page == 'soundboard' %}active{% endif %}">
+                    <a href="{{ request.app.url_path_for('admin_soundboard') }}" class="{% if active_page == 'soundboard' %}active{% endif %}">
                         Soundboard
                     </a>
                 </li>

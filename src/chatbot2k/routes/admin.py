@@ -31,14 +31,14 @@ from chatbot2k.dependencies import get_templates
 from chatbot2k.types.commands import RetrieveDiscordChatCommand
 from chatbot2k.types.configuration_setting_kind import ConfigurationSettingKind
 from chatbot2k.types.template_contexts import ActivePage
+from chatbot2k.types.template_contexts import AdminGeneralSettingsContext
+from chatbot2k.types.template_contexts import AdminLiveNotificationsContext
+from chatbot2k.types.template_contexts import AdminSoundboardContext
 from chatbot2k.types.template_contexts import CommonContext
-from chatbot2k.types.template_contexts import DashboardGeneralSettingsContext
-from chatbot2k.types.template_contexts import DashboardLiveNotificationsContext
-from chatbot2k.types.template_contexts import DashboardSoundboardContext
 from chatbot2k.types.template_contexts import LiveNotificationChannel
 from chatbot2k.types.template_contexts import SoundboardCommand
 
-router: Final = APIRouter(prefix="/dashboard", dependencies=[Depends(get_broadcaster_user)])
+router: Final = APIRouter(prefix="/admin", dependencies=[Depends(get_broadcaster_user)])
 
 logger: Final = logging.getLogger(__name__)
 
@@ -105,20 +105,20 @@ def _get_common_locales() -> list[tuple[str, str]]:
     ]
 
 
-@router.get("/", name="dashboard_general_settings")
-async def dashboard_general_settings(
+@router.get("/", name="admin_general_settings")
+async def admin_general_settings(
     request: Request,
     app_state: Annotated[AppState, Depends(get_app_state)],
     templates: Annotated[Jinja2Templates, Depends(get_templates)],
     common_context: Annotated[CommonContext, Depends(get_common_context)],
 ) -> Response:
-    """Dashboard general settings page - only accessible to the broadcaster."""
+    """Admin dashboard general settings page - only accessible to the broadcaster."""
     bot_name: Final = app_state.database.retrieve_configuration_setting(ConfigurationSettingKind.BOT_NAME)
     author_name: Final = app_state.database.retrieve_configuration_setting(ConfigurationSettingKind.AUTHOR_NAME)
     timezone: Final = app_state.database.retrieve_configuration_setting(ConfigurationSettingKind.TIMEZONE)
     locale: Final = app_state.database.retrieve_configuration_setting(ConfigurationSettingKind.LOCALE)
 
-    context: Final = DashboardGeneralSettingsContext(
+    context: Final = AdminGeneralSettingsContext(
         **common_context.model_dump(),
         active_page=ActivePage.GENERAL_SETTINGS,
         current_bot_name=bot_name,
@@ -131,7 +131,7 @@ async def dashboard_general_settings(
 
     return templates.TemplateResponse(
         request=request,
-        name="dashboard/general_settings.html",
+        name="admin/general_settings.html",
         context=context.model_dump(),
     )
 
@@ -172,7 +172,7 @@ async def update_general_settings(
         locale.strip(),
     )
 
-    return RedirectResponse(request.url_for("dashboard_general_settings"), status_code=303)
+    return RedirectResponse(request.url_for("admin_general_settings"), status_code=303)
 
 
 async def _get_available_discord_text_channels(app_state: AppState) -> Optional[list[str]]:
@@ -196,14 +196,14 @@ async def _get_available_discord_text_channels(app_state: AppState) -> Optional[
     return available_channels
 
 
-@router.get("/live-notifications", name="dashboard_live_notifications")
-async def dashboard_live_notifications(
+@router.get("/live-notifications", name="admin_live_notifications")
+async def admin_live_notifications(
     request: Request,
     app_state: Annotated[AppState, Depends(get_app_state)],
     templates: Annotated[Jinja2Templates, Depends(get_templates)],
     common_context: Annotated[CommonContext, Depends(get_common_context)],
 ) -> Response:
-    """Dashboard page for managing live notifications."""
+    """Admin dashboard page for managing live notifications."""
     channels: Final = [
         LiveNotificationChannel(
             notification_channel_id=cast(int, channel.id),  # This can never be `None` here.
@@ -216,7 +216,7 @@ async def dashboard_live_notifications(
     ]
     discord_text_channels: Final = await _get_available_discord_text_channels(app_state)
 
-    context: Final = DashboardLiveNotificationsContext(
+    context: Final = AdminLiveNotificationsContext(
         **common_context.model_dump(),
         active_page=ActivePage.LIVE_NOTIFICATIONS,
         channels=channels,
@@ -225,7 +225,7 @@ async def dashboard_live_notifications(
 
     return templates.TemplateResponse(
         request=request,
-        name="dashboard/live_notifications.html",
+        name="admin/live_notifications.html",
         context=context.model_dump(),
     )
 
@@ -262,7 +262,7 @@ async def add_live_notification_channel(
         app_state.monitored_channels_changed.set()
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e)) from e
-    return RedirectResponse(request.url_for("dashboard_live_notifications"), status_code=303)
+    return RedirectResponse(request.url_for("admin_live_notifications"), status_code=303)
 
 
 @router.post("/live-notifications/update/{channel_id}", name="update_live_notification_channel")
@@ -289,7 +289,7 @@ async def update_live_notification_channel(
         app_state.monitored_channels_changed.set()
     except KeyError as e:
         raise HTTPException(status_code=404, detail=str(e)) from e
-    return RedirectResponse(request.url_for("dashboard_live_notifications"), status_code=303)
+    return RedirectResponse(request.url_for("admin_live_notifications"), status_code=303)
 
 
 @router.post("/live-notifications/delete/{channel_id}", name="delete_live_notification_channel")
@@ -309,17 +309,17 @@ async def delete_live_notification_channel(
         app_state.monitored_channels_changed.set()
     except KeyError as e:
         raise HTTPException(status_code=404, detail=str(e)) from e
-    return RedirectResponse(request.url_for("dashboard_live_notifications"), status_code=303)
+    return RedirectResponse(request.url_for("admin_live_notifications"), status_code=303)
 
 
-@router.get("/soundboard", name="dashboard_soundboard")
-async def dashboard_soundboard(
+@router.get("/soundboard", name="admin_soundboard")
+async def admin_soundboard(
     request: Request,
     app_state: Annotated[AppState, Depends(get_app_state)],
     templates: Annotated[Jinja2Templates, Depends(get_templates)],
     common_context: Annotated[CommonContext, Depends(get_common_context)],
 ) -> Response:
-    """Dashboard page for viewing soundboard clips."""
+    """Admin dashboard page for viewing soundboard clips."""
     soundboard_commands: Final = sorted(
         (
             SoundboardCommand(
@@ -331,7 +331,7 @@ async def dashboard_soundboard(
         key=lambda cmd: cmd.command,
     )
 
-    context: Final = DashboardSoundboardContext(
+    context: Final = AdminSoundboardContext(
         **common_context.model_dump(),
         active_page=ActivePage.SOUNDBOARD,
         soundboard_commands=soundboard_commands,
@@ -339,7 +339,7 @@ async def dashboard_soundboard(
 
     return templates.TemplateResponse(
         request=request,
-        name="dashboard/soundboard.html",
+        name="admin/soundboard.html",
         context=context.model_dump(),
     )
 
@@ -390,7 +390,7 @@ async def upload_soundboard_clip(
 
     app_state.reload_command_handlers()
 
-    return RedirectResponse(request.url_for("dashboard_soundboard"), status_code=303)
+    return RedirectResponse(request.url_for("admin_soundboard"), status_code=303)
 
 
 @router.post("/soundboard/delete/{command_name}", name="delete_soundboard_clip")
@@ -417,4 +417,4 @@ async def delete_soundboard_clip(
 
     app_state.reload_command_handlers()
 
-    return RedirectResponse(request.url_for("dashboard_soundboard"), status_code=303)
+    return RedirectResponse(request.url_for("admin_soundboard"), status_code=303)
