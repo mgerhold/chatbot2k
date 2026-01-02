@@ -99,6 +99,12 @@ class AdminGeneralSettingsContext(AdminContext):
     current_locale: Optional[str]
     current_max_pending_soundboard_clips: Optional[str]
     current_max_pending_soundboard_clips_per_user: Optional[str]
+    current_smtp_host: Optional[str]
+    current_smtp_port: Optional[str]
+    current_smtp_username: Optional[str]
+    current_smtp_password: Optional[str]
+    current_smtp_crypto: Optional[str]
+    current_from_email_address: Optional[str]
     available_timezones: list[str]
     available_locales: list[tuple[str, str]]
 

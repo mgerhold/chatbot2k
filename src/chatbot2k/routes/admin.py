@@ -126,6 +126,14 @@ async def admin_general_settings(
     max_pending_soundboard_clips_per_user: Final = app_state.database.retrieve_configuration_setting(
         ConfigurationSettingKind.MAX_PENDING_SOUNDBOARD_CLIPS_PER_USER
     )
+    smtp_host: Final = app_state.database.retrieve_configuration_setting(ConfigurationSettingKind.SMTP_HOST)
+    smtp_port: Final = app_state.database.retrieve_configuration_setting(ConfigurationSettingKind.SMTP_PORT)
+    smtp_username: Final = app_state.database.retrieve_configuration_setting(ConfigurationSettingKind.SMTP_USERNAME)
+    smtp_password: Final = app_state.database.retrieve_configuration_setting(ConfigurationSettingKind.SMTP_PASSWORD)
+    smtp_crypto: Final = app_state.database.retrieve_configuration_setting(ConfigurationSettingKind.SMTP_CRYPTO)
+    from_email_address: Final = app_state.database.retrieve_configuration_setting(
+        ConfigurationSettingKind.FROM_EMAIL_ADDRESS
+    )
 
     context: Final = AdminGeneralSettingsContext(
         **common_context.model_dump(),
@@ -136,6 +144,12 @@ async def admin_general_settings(
         current_locale=locale,
         current_max_pending_soundboard_clips=max_pending_soundboard_clips,
         current_max_pending_soundboard_clips_per_user=max_pending_soundboard_clips_per_user,
+        current_smtp_host=smtp_host,
+        current_smtp_port=smtp_port,
+        current_smtp_username=smtp_username,
+        current_smtp_password=smtp_password,
+        current_smtp_crypto=smtp_crypto,
+        current_from_email_address=from_email_address,
         available_timezones=_get_common_timezones(),
         available_locales=_get_common_locales(),
     )
@@ -157,6 +171,12 @@ async def update_general_settings(
     locale: Annotated[str, Form()],
     max_pending_soundboard_clips: Annotated[str, Form()],
     max_pending_soundboard_clips_per_user: Annotated[str, Form()],
+    smtp_host: Annotated[str, Form()] = "",
+    smtp_port: Annotated[str, Form()] = "",
+    smtp_username: Annotated[str, Form()] = "",
+    smtp_password: Annotated[str, Form()] = "",
+    smtp_crypto: Annotated[str, Form()] = "",
+    from_email_address: Annotated[str, Form()] = "",
 ) -> Response:
     """Update general settings."""
     if not bot_name.strip():
@@ -220,6 +240,27 @@ async def update_general_settings(
         ConfigurationSettingKind.MAX_PENDING_SOUNDBOARD_CLIPS_PER_USER,
         str(max_clips_per_user),
     )
+
+    if smtp_host.strip():
+        app_state.database.store_configuration_setting(ConfigurationSettingKind.SMTP_HOST, smtp_host.strip())
+    if smtp_port.strip():
+        try:
+            port_num = int(smtp_port.strip())
+            if port_num not in range(1, 65535 + 1):
+                raise HTTPException(status_code=400, detail="SMTP port must be between 1 and 65535")
+            app_state.database.store_configuration_setting(ConfigurationSettingKind.SMTP_PORT, str(port_num))
+        except ValueError as e:
+            raise HTTPException(status_code=400, detail="SMTP port must be a valid number") from e
+    if smtp_username.strip():
+        app_state.database.store_configuration_setting(ConfigurationSettingKind.SMTP_USERNAME, smtp_username.strip())
+    if smtp_password.strip():
+        app_state.database.store_configuration_setting(ConfigurationSettingKind.SMTP_PASSWORD, smtp_password.strip())
+    if smtp_crypto.strip():
+        app_state.database.store_configuration_setting(ConfigurationSettingKind.SMTP_CRYPTO, smtp_crypto.strip())
+    if from_email_address.strip():
+        app_state.database.store_configuration_setting(
+            ConfigurationSettingKind.FROM_EMAIL_ADDRESS, from_email_address.strip()
+        )
 
     return RedirectResponse(request.url_for("admin_general_settings"), status_code=303)
 
