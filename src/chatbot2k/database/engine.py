@@ -168,11 +168,11 @@ class Database:
                 for command in s.exec(select(ParameterizedCommand)).all()
             ]
 
-    def add_soundboard_command(self, *, name: str, clip_url: str) -> SoundboardCommand:
+    def add_soundboard_command(self, *, name: str, filename: str) -> SoundboardCommand:
         with self._session() as s:
             if s.get(SoundboardCommand, name):
                 raise ValueError(f"SoundboardCommand '{name}' already exists")
-            obj = SoundboardCommand(name=name, clip_url=clip_url)
+            obj = SoundboardCommand(name=name, filename=filename)
             s.add(obj)
             s.commit()
             s.refresh(obj)

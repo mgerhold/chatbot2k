@@ -17,6 +17,7 @@ from twitchAPI.twitch import Twitch
 
 from chatbot2k.app_state import AppState
 from chatbot2k.chats.discord_chat import DiscordChat
+from chatbot2k.constants import RELATIVE_SOUNDBOARD_FILES_DIRECTORY
 from chatbot2k.dependencies import get_app_state
 from chatbot2k.dependencies import get_broadcaster_user
 from chatbot2k.dependencies import get_common_context
@@ -312,7 +313,10 @@ async def dashboard_soundboard(
 ) -> Response:
     """Dashboard page for viewing soundboard clips."""
     soundboard_commands: Final = [
-        SoundboardCommand(command=cmd.name, clip_url=cmd.clip_url)
+        SoundboardCommand(
+            command=cmd.name,
+            clip_url=f"{RELATIVE_SOUNDBOARD_FILES_DIRECTORY.as_posix()}/{cmd.filename}",
+        )
         for cmd in app_state.database.get_soundboard_commands()
     ]
 

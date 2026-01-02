@@ -189,9 +189,13 @@ class CommandManagementCommand(CommandHandler):
                 app_state.translations_manager.get_translation(TranslationKey.COMMAND_ALREADY_EXISTS),
             )
 
+        # Extract filename from the provided URL/path
+        clip_url_or_path: Final = chat_command.arguments[2]
+        filename: Final = clip_url_or_path.split("/")[-1].split("?")[0]
+
         app_state.database.add_soundboard_command(
             name=name,
-            clip_url=chat_command.arguments[2],
+            filename=filename,
         )
 
         return (

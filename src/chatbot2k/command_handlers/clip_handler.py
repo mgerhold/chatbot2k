@@ -4,6 +4,7 @@ from typing import override
 
 from chatbot2k.app_state import AppState
 from chatbot2k.command_handlers.command_handler import CommandHandler
+from chatbot2k.constants import RELATIVE_SOUNDBOARD_FILES_DIRECTORY
 from chatbot2k.types.chat_command import ChatCommand
 from chatbot2k.types.chat_response import ChatResponse
 from chatbot2k.types.permission_level import PermissionLevel
@@ -11,9 +12,9 @@ from chatbot2k.types.permission_level import PermissionLevel
 
 @final
 class ClipHandler(CommandHandler):
-    def __init__(self, app_state: AppState, *, name: str, clip_url: str):
+    def __init__(self, app_state: AppState, *, name: str, filename: str):
         super().__init__(app_state, name=name)
-        self._clip_url = clip_url
+        self._clip_url = f"/{RELATIVE_SOUNDBOARD_FILES_DIRECTORY.as_posix()}/{filename}"
 
     @property
     def clip_url(self) -> str:

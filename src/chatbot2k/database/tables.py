@@ -52,7 +52,7 @@ class ParameterizedCommand(SQLModel, table=True):
 @final
 class SoundboardCommand(SQLModel, table=True):
     name: str = Field(primary_key=True)
-    clip_url: str
+    filename: str
 
 
 @final

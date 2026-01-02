@@ -42,7 +42,7 @@ def load_commands(app_state: AppState) -> dict[str, CommandHandler]:
         result[soundboard_command.name] = ClipHandler(
             app_state=app_state,
             name=soundboard_command.name,
-            clip_url=soundboard_command.clip_url,
+            filename=soundboard_command.filename,
         )
 
     database_persistent_store: Final = DatabasePersistentStore(app_state.database)
