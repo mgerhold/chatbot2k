@@ -123,3 +123,20 @@ class AdminSoundboardContext(AdminContext):
     model_config = ConfigDict(frozen=True)
 
     soundboard_commands: list[SoundboardCommand]
+
+
+class ViewerContext(CommonContext):
+    model_config = ConfigDict(frozen=True)
+
+    active_page: str
+
+
+@final
+class ViewerSoundboardContext(ViewerContext):
+    model_config = ConfigDict(frozen=True)
+
+    max_pending_clips: int
+    max_pending_clips_per_user: int
+    total_pending_clips: int
+    user_pending_clips: int
+    user_can_upload: bool

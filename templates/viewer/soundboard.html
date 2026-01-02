@@ -1,0 +1,365 @@
+{% extends "viewer/base.html" %}
+
+{% block title %}{{ bot_name }} — Soundboard{% endblock %}
+
+{% block head_extra %}
+{{ super() }}
+<style>
+    .info-box {
+        margin-bottom: 2rem;
+        padding: 1.5rem;
+        background: rgba(59, 130, 246, 0.1);
+        border: 1px solid rgba(59, 130, 246, 0.3);
+        border-radius: var(--radius);
+    }
+
+    .info-box h2 {
+        margin: 0 0 1rem 0;
+        font-size: 1.25rem;
+        color: var(--accent);
+    }
+
+    .info-box p {
+        margin: 0.5rem 0;
+        color: var(--text);
+        line-height: 1.6;
+    }
+
+    .info-box strong {
+        color: var(--accent);
+    }
+
+    .limits-info {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+        gap: 1rem;
+        margin-top: 1rem;
+        padding: 1rem;
+        background: rgba(255, 255, 255, 0.03);
+        border-radius: 6px;
+    }
+
+    .limit-item {
+        display: flex;
+        flex-direction: column;
+        gap: 0.25rem;
+    }
+
+    .limit-label {
+        font-size: 0.875rem;
+        color: var(--muted);
+    }
+
+    .limit-value {
+        font-size: 1.5rem;
+        font-weight: 600;
+        color: var(--accent);
+    }
+
+    .upload-section {
+        margin-bottom: 2rem;
+        padding: 1.5rem;
+        background: rgba(96, 165, 250, 0.05);
+        border: 1px solid var(--border);
+        border-radius: var(--radius);
+    }
+
+    .upload-section.disabled {
+        opacity: 0.6;
+        pointer-events: none;
+    }
+
+    .upload-section h2 {
+        margin: 0 0 1rem 0;
+        font-size: 1.25rem;
+    }
+
+    .notice {
+        padding: 1rem;
+        background: rgba(234, 179, 8, 0.1);
+        border: 1px solid rgba(234, 179, 8, 0.3);
+        border-radius: 6px;
+        margin-bottom: 1.5rem;
+    }
+
+    .notice p {
+        margin: 0;
+        color: var(--text);
+        line-height: 1.6;
+    }
+
+    .form-group {
+        margin-bottom: 1rem;
+    }
+
+    .form-group label {
+        display: block;
+        margin-bottom: 0.5rem;
+        font-weight: 500;
+        color: var(--text);
+    }
+
+    .form-group input[type="text"],
+    .form-group input[type="file"] {
+        width: 100%;
+        padding: 0.75rem;
+        background: rgba(255, 255, 255, 0.05);
+        border: 1px solid var(--border);
+        border-radius: 4px;
+        color: var(--text);
+        font-family: inherit;
+    }
+
+    .form-group input[type="file"] {
+        padding: 0.6rem 0.75rem;
+    }
+
+    .form-group input[type="text"]:focus,
+    .form-group input[type="file"]:focus {
+        outline: 2px solid var(--accent);
+        outline-offset: 1px;
+        background: rgba(255, 255, 255, 0.08);
+    }
+
+    .form-group small {
+        display: block;
+        margin-top: 0.25rem;
+        color: var(--muted);
+        font-size: 0.875rem;
+    }
+
+    .checkbox-group {
+        margin-bottom: 1.5rem;
+        padding: 1rem;
+        background: rgba(255, 255, 255, 0.02);
+        border: 1px solid var(--border);
+        border-radius: 6px;
+    }
+
+    .checkbox-group h3 {
+        margin: 0 0 1rem 0;
+        font-size: 1rem;
+        font-weight: 600;
+        color: var(--text);
+    }
+
+    .checkbox-item {
+        display: flex;
+        align-items: flex-start;
+        gap: 0.75rem;
+        margin-bottom: 1rem;
+    }
+
+    .checkbox-item:last-child {
+        margin-bottom: 0;
+    }
+
+    .checkbox-item input[type="checkbox"] {
+        margin-top: 0.25rem;
+        width: 1.125rem;
+        height: 1.125rem;
+        cursor: pointer;
+        flex-shrink: 0;
+    }
+
+    .checkbox-item label {
+        flex: 1;
+        cursor: pointer;
+        line-height: 1.6;
+        color: var(--text);
+        font-weight: normal;
+    }
+
+    .checkbox-item.required label {
+        font-weight: 500;
+    }
+
+    .checkbox-item .required-badge {
+        display: inline-block;
+        padding: 0.125rem 0.5rem;
+        background: rgba(239, 68, 68, 0.2);
+        color: #ef4444;
+        border-radius: 4px;
+        font-size: 0.75rem;
+        font-weight: 600;
+        margin-left: 0.5rem;
+    }
+
+    .checkbox-item .optional-badge {
+        display: inline-block;
+        padding: 0.125rem 0.5rem;
+        background: rgba(34, 197, 94, 0.2);
+        color: #22c55e;
+        border-radius: 4px;
+        font-size: 0.75rem;
+        font-weight: 600;
+        margin-left: 0.5rem;
+    }
+
+    .btn {
+        padding: 0.75rem 1.5rem;
+        border: none;
+        border-radius: 4px;
+        cursor: pointer;
+        font-weight: 500;
+        transition: all 0.2s ease;
+        text-decoration: none;
+        display: inline-block;
+        font-size: 1rem;
+    }
+
+    .btn-primary {
+        background: var(--accent);
+        color: white;
+    }
+
+    .btn-primary:hover {
+        background: var(--link-hover);
+    }
+
+    .btn-primary:disabled {
+        opacity: 0.5;
+        cursor: not-allowed;
+    }
+
+    .privacy-note {
+        padding: 1rem;
+        background: rgba(255, 255, 255, 0.02);
+        border-left: 3px solid var(--accent);
+        margin-top: 1rem;
+        margin-bottom: 2rem;
+        font-size: 0.875rem;
+        color: var(--muted);
+        line-height: 1.6;
+    }
+
+    .btn-container {
+        display: flex;
+        justify-content: center;
+    }
+</style>
+{% endblock %}
+
+{% block dashboard_content %}
+<div class="dashboard-header">
+    <h1>Soundboard</h1>
+    <p>Upload clips for broadcaster approval</p>
+</div>
+
+<!-- Information Section -->
+<section class="info-box">
+    <h2>How It Works</h2>
+    <p>
+        You can suggest new soundboard clips for the broadcaster to approve. Once approved, 
+        your clip will be available to everyone in chat using the <strong>!commandname</strong> you specify (unless
+        the broadcaster changes it).
+    </p>
+    <div class="limits-info">
+        <div class="limit-item">
+            <span class="limit-label">Your Pending Clips</span>
+            <span class="limit-value">{{ user_pending_clips }} / {{ max_pending_clips_per_user }}</span>
+        </div>
+        <div class="limit-item">
+            <span class="limit-label">Total Pending Clips</span>
+            <span class="limit-value">{{ total_pending_clips }} / {{ max_pending_clips }}</span>
+        </div>
+    </div>
+</section>
+
+<!-- Upload Form -->
+<section class="upload-section {% if not user_can_upload %}disabled{% endif %}">
+    {% if not user_can_upload %}
+    <div class="notice">
+        <p>
+            <strong>Upload limit reached.</strong>
+            {% if user_pending_clips >= max_pending_clips_per_user %}
+            You have reached your personal limit of {{ max_pending_clips_per_user }} pending clips.
+            {% elif total_pending_clips >= max_pending_clips %}
+            The system has reached its maximum of {{ max_pending_clips }} pending clips.
+            {% endif %}
+            Please wait for the broadcaster to review existing clips before uploading more.
+        </p>
+    </div>
+    {% endif %}
+
+    <h2>Upload New Clip</h2>
+    <form action="{{ request.app.url_path_for('upload_pending_soundboard_clip') }}" method="post" enctype="multipart/form-data">
+        <div class="form-group">
+            <label for="command_name">Command Name</label>
+            <input 
+                type="text" 
+                id="command_name" 
+                name="command_name" 
+                placeholder="e.g., epicmoment" 
+                required
+                {% if not user_can_upload %}disabled{% endif %}
+            >
+            <small>Don't include the "!" prefix. This will be the command name used in chat.</small>
+        </div>
+
+        <div class="form-group">
+            <label for="file">Audio/Video File</label>
+            <input 
+                type="file" 
+                id="file" 
+                name="file" 
+                accept="audio/*,video/*" 
+                required
+                {% if not user_can_upload %}disabled{% endif %}
+            >
+            <small>Upload an audio or video file for the soundboard clip.</small>
+        </div>
+
+        <div class="checkbox-group">
+            <h3>Privacy & Terms</h3>
+            
+            <div class="checkbox-item required">
+                <input 
+                    type="checkbox" 
+                    id="agree_terms" 
+                    name="agree_terms" 
+                    required
+                    {% if not user_can_upload %}disabled{% endif %}
+                >
+                <label for="agree_terms">
+                    <strong>I agree to the following terms:</strong>
+                    <span class="required-badge">REQUIRED</span>
+                    <ul style="margin: 0.5rem 0 0 1.5rem; line-height: 1.8;">
+                        <li>My Twitch ID (<strong>{{ current_user.id }}</strong>), login name (<strong>{{ current_user.login }}</strong>), and display name (<strong>{{ current_user.display_name }}</strong>) will be stored with this clip submission.</li>
+                        <li>I confirm that I own the copyright to this clip or have permission to upload it.</li>
+                    </ul>
+                </label>
+            </div>
+
+            <div class="checkbox-item">
+                <input 
+                    type="checkbox" 
+                    id="may_persist_uploader_info" 
+                    name="may_persist_uploader_info"
+                    {% if not user_can_upload %}disabled{% endif %}
+                >
+                <label for="may_persist_uploader_info">
+                    <strong>Keep my name visible after approval</strong>
+                    <span class="optional-badge">OPTIONAL</span>
+                    <br>
+                    <small style="color: var(--muted);">
+                        If checked, your display name will be shown publicly on the soundboard page as the uploader of this clip. 
+                        If unchecked, your data will be deleted after the broadcaster approves your clip.
+                    </small>
+                </label>
+            </div>
+        </div>
+
+        <div class="privacy-note">
+            <strong>Privacy Notice:</strong> Your Twitch user information is necessary to track your pending clips and enforce upload limits. 
+            If you choose not to keep your name visible, your data will be permanently deleted once the broadcaster approves your clip.
+        </div>
+
+        <div class="btn-container">
+            <button type="submit" class="btn btn-primary" {% if not user_can_upload %}disabled{% endif %}>
+                Upload Clip for Review
+            </button>
+        </div>
+    </form>
+</section>
+{% endblock %}

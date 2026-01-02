@@ -99,8 +99,9 @@
         <nav>
             <ul class="dashboard-nav">
                 <li>
-                    <a href="{{ request.app.url_path_for('viewer_dashboard') }}" class="active">
-                        Welcome
+                    <a href="{{ request.app.url_path_for('viewer_soundboard') }}" 
+                       class="{% if active_page == 'soundboard' %}active{% endif %}">
+                        Soundboard
                     </a>
                 </li>
             </ul>
