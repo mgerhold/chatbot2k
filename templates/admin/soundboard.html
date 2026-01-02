@@ -146,6 +146,12 @@
     .data-table video {
         max-width: 100%;
         height: auto;
+        display: inline-block;
+        min-height: 32px;
+    }
+
+    .data-table audio {
+        min-width: 200px;
     }
 
     .clip-preview {
@@ -312,16 +318,45 @@
                     </div>
                 </td>
                 <td>
-                    {% if base.endswith('.mp3') or base.endswith('.wav') or base.endswith('.ogg') or
-                    base.endswith('.flac') or base.endswith('.aac') or base.endswith('.m4a') or
-                    base.endswith('.opus') %}
-                    <audio controls preload="none" src="{{ sb.clip_url }}"></audio>
-                    {% elif base.endswith('.mp4') or base.endswith('.webm') or base.endswith('.mov') or
-                    base.endswith('.mkv') or base.endswith('.m4v') %}
-                    <video controls preload="none" playsinline class="clip-preview">
-                        <source src="{{ sb.clip_url }}">
-                        Your browser can't play this clip. <a href="{{ sb.clip_url }}" target="_blank"
-                                                              rel="noopener noreferrer">Open</a>.
+                    {% if base.endswith('.mp3') %}
+                    <audio controls preload="metadata" src="{{ sb.clip_url }}" type="audio/mpeg">
+                        Your browser can't play this clip. <a href="{{ sb.clip_url }}" target="_blank" rel="noopener noreferrer">Open</a>.
+                    </audio>
+                    {% elif base.endswith('.wav') %}
+                    <audio controls preload="metadata" src="{{ sb.clip_url }}" type="audio/wav">
+                        Your browser can't play this clip. <a href="{{ sb.clip_url }}" target="_blank" rel="noopener noreferrer">Open</a>.
+                    </audio>
+                    {% elif base.endswith('.ogg') or base.endswith('.opus') %}
+                    <audio controls preload="metadata" src="{{ sb.clip_url }}" type="audio/ogg">
+                        Your browser can't play this clip. <a href="{{ sb.clip_url }}" target="_blank" rel="noopener noreferrer">Open</a>.
+                    </audio>
+                    {% elif base.endswith('.flac') %}
+                    <audio controls preload="metadata" src="{{ sb.clip_url }}" type="audio/flac">
+                        Your browser can't play this clip. <a href="{{ sb.clip_url }}" target="_blank" rel="noopener noreferrer">Open</a>.
+                    </audio>
+                    {% elif base.endswith('.aac') %}
+                    <audio controls preload="metadata" src="{{ sb.clip_url }}" type="audio/aac">
+                        Your browser can't play this clip. <a href="{{ sb.clip_url }}" target="_blank" rel="noopener noreferrer">Open</a>.
+                    </audio>
+                    {% elif base.endswith('.m4a') %}
+                    <audio controls preload="metadata" src="{{ sb.clip_url }}" type="audio/mp4">
+                        Your browser can't play this clip. <a href="{{ sb.clip_url }}" target="_blank" rel="noopener noreferrer">Open</a>.
+                    </audio>
+                    {% elif base.endswith('.mp4') or base.endswith('.m4v') %}
+                    <video controls preload="metadata" playsinline class="clip-preview" src="{{ sb.clip_url }}" type="video/mp4">
+                        Your browser can't play this clip. <a href="{{ sb.clip_url }}" target="_blank" rel="noopener noreferrer">Open</a>.
+                    </video>
+                    {% elif base.endswith('.webm') %}
+                    <video controls preload="metadata" playsinline class="clip-preview" src="{{ sb.clip_url }}" type="video/webm">
+                        Your browser can't play this clip. <a href="{{ sb.clip_url }}" target="_blank" rel="noopener noreferrer">Open</a>.
+                    </video>
+                    {% elif base.endswith('.mov') %}
+                    <video controls preload="metadata" playsinline class="clip-preview" src="{{ sb.clip_url }}" type="video/quicktime">
+                        Your browser can't play this clip. <a href="{{ sb.clip_url }}" target="_blank" rel="noopener noreferrer">Open</a>.
+                    </video>
+                    {% elif base.endswith('.mkv') %}
+                    <video controls preload="metadata" playsinline class="clip-preview" src="{{ sb.clip_url }}" type="video/x-matroska">
+                        Your browser can't play this clip. <a href="{{ sb.clip_url }}" target="_blank" rel="noopener noreferrer">Open</a>.
                     </video>
                     {% else %}
                     <a href="{{ sb.clip_url }}" target="_blank" rel="noopener noreferrer">Open clip</a>

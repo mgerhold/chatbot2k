@@ -1,0 +1,83 @@
+{% extends "base.html" %}
+
+{% block title %}Error - {{ bot_name }}{% endblock %}
+
+{% block content %}
+<section class="content-section">
+    <div class="error-container">
+        <div class="error-icon">⚠️</div>
+        <h2 class="error-title">{{ error_detail }}</h2>
+        <div class="error-actions">
+            <a href="javascript:history.back()" class="button">Go Back</a>
+            <a href="/" class="button button-primary">Go to Home</a>
+        </div>
+    </div>
+</section>
+
+<style>
+    .content-section {
+        padding: 2rem 1rem;
+        max-width: 800px;
+        margin: 0 auto;
+    }
+
+    .error-container {
+        text-align: center;
+        padding: 3rem 2rem;
+        background: rgba(255, 255, 255, 0.05);
+        border-radius: 8px;
+        border: 1px solid rgba(255, 255, 255, 0.1);
+    }
+
+    .error-icon {
+        font-size: 4rem;
+        margin-bottom: 1rem;
+    }
+
+    .error-title {
+        font-size: 1.5rem;
+        margin-bottom: 1rem;
+        color: var(--accent);
+    }
+
+    .error-message {
+        font-size: 1rem;
+        margin-bottom: 2rem;
+        color: rgba(255, 255, 255, 0.8);
+        line-height: 1.6;
+    }
+
+    .error-actions {
+        display: flex;
+        gap: 1rem;
+        justify-content: center;
+        flex-wrap: wrap;
+    }
+
+    .button {
+        padding: 0.75rem 1.5rem;
+        border-radius: 4px;
+        text-decoration: none;
+        font-weight: 500;
+        transition: all 0.2s;
+        border: 1px solid rgba(255, 255, 255, 0.2);
+        background: rgba(255, 255, 255, 0.05);
+        color: white;
+        display: inline-block;
+    }
+
+    .button:hover {
+        background: rgba(255, 255, 255, 0.1);
+        border-color: rgba(255, 255, 255, 0.3);
+    }
+
+    .button-primary {
+        background: var(--accent);
+        border-color: var(--accent);
+    }
+
+    .button-primary:hover {
+        opacity: 0.9;
+    }
+</style>
+{% endblock %}

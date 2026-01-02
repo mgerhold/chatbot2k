@@ -1,6 +1,5 @@
 import asyncio
 import logging
-from pathlib import Path
 from typing import Annotated
 from typing import Final
 from typing import Optional
@@ -40,6 +39,7 @@ from chatbot2k.types.template_contexts import LiveNotificationChannel
 from chatbot2k.types.template_contexts import PendingClip
 from chatbot2k.types.template_contexts import SoundboardCommand
 from chatbot2k.types.user_info import UserInfo
+from chatbot2k.utils.mime_types import get_file_extension_by_mime_type
 
 router: Final = APIRouter(prefix="/admin", dependencies=[Depends(get_broadcaster_user)])
 
@@ -428,17 +428,24 @@ async def upload_soundboard_clip(
     if not file.filename:
         raise HTTPException(status_code=400, detail="No file uploaded")
 
-    file_extension: Final = Path(file.filename).suffix
-    if not file_extension:
-        raise HTTPException(status_code=400, detail="File must have an extension")
+    try:
+        contents: Final = await file.read()
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to read file: {e}") from e
 
-    unique_filename: Final = f"{uuid4()}{file_extension}"
+    detected_extension: Final = await get_file_extension_by_mime_type(contents)
+    if detected_extension is None:
+        raise HTTPException(
+            status_code=400,
+            detail="Unsupported file format.",
+        )
+
+    unique_filename: Final = f"{uuid4()}{detected_extension}"
     file_path: Final = SOUNDBOARD_FILES_DIRECTORY / unique_filename
 
     SOUNDBOARD_FILES_DIRECTORY.mkdir(parents=True, exist_ok=True)
 
     try:
-        contents: Final = await file.read()
         with open(file_path, "wb") as f:
             f.write(contents)
     except Exception as e:
