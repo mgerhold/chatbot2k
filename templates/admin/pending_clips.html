@@ -1,0 +1,313 @@
+{% extends "admin/base.html" %}
+
+{% block title %}{{ bot_name }} — Pending Clips{% endblock %}
+
+{% block head_extra %}
+{{ super() }}
+<style>
+    .table-container {
+        border: 1px solid var(--border);
+        border-radius: var(--radius);
+        background: rgba(255, 255, 255, 0.02);
+        overflow: auto;
+    }
+
+    .data-table {
+        width: 100%;
+        border-collapse: collapse;
+        font-size: 0.95rem;
+    }
+
+    .data-table th,
+    .data-table td {
+        padding: 0.75rem 1rem;
+        text-align: left;
+        border-bottom: 1px solid var(--border);
+    }
+
+    .data-table thead th {
+        background: rgba(255, 255, 255, 0.03);
+        font-weight: 600;
+        color: var(--text);
+        position: sticky;
+        top: 0;
+    }
+
+    .data-table tbody tr:last-child td {
+        border-bottom: none;
+    }
+
+    .data-table tbody tr:hover {
+        background: rgba(96, 165, 250, 0.05);
+    }
+
+    .data-table td.empty {
+        text-align: center;
+        color: var(--muted);
+        padding: 2rem 1rem;
+    }
+
+    .data-table th:last-child,
+    .data-table td:last-child {
+        width: 1px;
+        white-space: nowrap;
+    }
+
+    .data-table audio,
+    .data-table video {
+        max-width: 100%;
+        height: auto;
+    }
+
+    .clip-preview {
+        max-height: 200px;
+    }
+
+    .edit-input {
+        width: 100%;
+        padding: 0.5rem;
+        background: rgba(255, 255, 255, 0.05);
+        border: 1px solid var(--border);
+        border-radius: 4px;
+        color: var(--text);
+        font-family: 'Courier New', monospace;
+        font-size: 0.9rem;
+    }
+
+    .edit-input:focus {
+        outline: 2px solid var(--accent);
+        outline-offset: 1px;
+        background: rgba(255, 255, 255, 0.08);
+    }
+
+    .uploader-info {
+        font-size: 0.875rem;
+        color: var(--muted);
+        margin-top: 0.25rem;
+    }
+
+    .uploader-info strong {
+        color: var(--text);
+    }
+
+    .visibility-badge {
+        display: inline-block;
+        padding: 0.25rem 0.5rem;
+        border-radius: 4px;
+        font-size: 0.75rem;
+        font-weight: 600;
+    }
+
+    .visibility-badge.visible {
+        background: rgba(34, 197, 94, 0.2);
+        color: #22c55e;
+    }
+
+    .visibility-badge.hidden {
+        background: rgba(156, 163, 175, 0.2);
+        color: #9ca3af;
+    }
+
+    .action-buttons {
+        display: flex;
+        gap: 0.5rem;
+        margin: 0;
+    }
+
+    .btn {
+        padding: 0.5rem 1rem;
+        border: none;
+        border-radius: 4px;
+        cursor: pointer;
+        font-weight: 500;
+        transition: all 0.2s ease;
+        font-size: 0.875rem;
+    }
+
+    .btn-approve {
+        background: #22c55e;
+        color: white;
+    }
+
+    .btn-approve:hover {
+        background: #16a34a;
+    }
+
+    .btn-reject {
+        background: #ef4444;
+        color: white;
+    }
+
+    .btn-reject:hover {
+        background: #dc2626;
+    }
+
+    .duplicate-warning {
+        display: none;
+        margin-top: 0.5rem;
+        padding: 0.5rem;
+        background: rgba(239, 68, 68, 0.1);
+        border: 1px solid rgba(239, 68, 68, 0.3);
+        border-radius: 4px;
+        color: #ef4444;
+        font-size: 0.875rem;
+        font-weight: 500;
+    }
+
+    .duplicate-warning.show {
+        display: block;
+    }
+</style>
+<script>
+    const existingCommands = {{ existing_commands | tojson }};
+    
+    document.addEventListener('DOMContentLoaded', function() {
+        const commandInputs = document.querySelectorAll('input[name="command_name"]');
+        
+        commandInputs.forEach(input => {
+            const warning = document.createElement('div');
+            warning.className = 'duplicate-warning';
+            warning.textContent = 'Warning: A command with this name already exists!';
+            input.parentElement.appendChild(warning);
+            
+            // Get the associated approve button
+            const formId = input.getAttribute('form');
+            const approveForm = document.getElementById(formId);
+            const approveButton = approveForm ? approveForm.querySelector('button[type="submit"]') : null;
+            
+            const checkDuplicate = function() {
+                const value = input.value.trim().toLowerCase().replace(/^!/, '');
+                const isDuplicate = value && existingCommands.includes(value);
+                
+                if (isDuplicate) {
+                    warning.classList.add('show');
+                    if (approveButton) {
+                        approveButton.disabled = true;
+                        approveButton.style.opacity = '0.5';
+                        approveButton.style.cursor = 'not-allowed';
+                    }
+                } else {
+                    warning.classList.remove('show');
+                    if (approveButton) {
+                        approveButton.disabled = false;
+                        approveButton.style.opacity = '1';
+                        approveButton.style.cursor = 'pointer';
+                    }
+                }
+            };
+            
+            input.addEventListener('input', checkDuplicate);
+            
+            // Check initial value
+            checkDuplicate();
+        });
+    });
+</script>
+{% endblock %}
+
+{% block dashboard_content %}
+<div class="dashboard-header">
+    <h1>Pending Clips</h1>
+    <p>Review and approve user-submitted soundboard clips</p>
+</div>
+
+<!-- Pending Clips Table -->
+<section>
+    {% if pending_clips %}
+    <div class="table-container" role="region" aria-labelledby="pending-clips-heading" tabindex="0">
+        <h3 id="pending-clips-heading" class="sr-only">Pending Soundboard Clips</h3>
+        <table class="data-table">
+            <caption class="sr-only">Pending soundboard clips awaiting approval</caption>
+            <thead>
+            <tr>
+                <th scope="col">Command</th>
+                <th scope="col">Clip Preview</th>
+                <th scope="col">Uploader</th>
+                <th scope="col">Actions</th>
+            </tr>
+            </thead>
+            <tbody>
+            {% for clip in pending_clips %}
+            {% set lower = (clip.clip_url|lower) %}
+            {% set base = lower.split('?')[0] %}
+            <tr>
+                <td>
+                    <div>
+                        <input 
+                            type="text" 
+                            name="command_name" 
+                            value="{{ clip.command }}" 
+                            class="edit-input"
+                            required
+                            placeholder="Command name"
+                            form="approve-form-{{ clip.id }}"
+                        >
+                    </div>
+                </td>
+                <td>
+                    {% if base.endswith(('.mp4', '.webm', '.ogg', '.ogv', '.mov')) %}
+                    <video controls class="clip-preview">
+                        <source src="{{ clip.clip_url }}" type="video/{{ base.split('.')[-1] }}">
+                        Your browser does not support the video tag.
+                    </video>
+                    {% elif base.endswith(('.mp3', '.wav', '.m4a', '.flac', '.aac', '.wma')) %}
+                    <audio controls>
+                        <source src="{{ clip.clip_url }}" type="audio/{{ base.split('.')[-1] }}">
+                        Your browser does not support the audio tag.
+                    </audio>
+                    {% else %}
+                    <a href="{{ clip.clip_url }}" target="_blank" rel="noopener noreferrer">Download</a>
+                    {% endif %}
+                </td>
+                <td>
+                    <a 
+                        href="https://twitch.tv/{{ clip.uploader_twitch_login }}" 
+                        target="_blank" 
+                        rel="noopener noreferrer"
+                        style="color: var(--accent); text-decoration: none; font-weight: 500;"
+                    >
+                        {{ clip.uploader_twitch_display_name }}
+                    </a>
+                    <br>
+                    {% if clip.may_persist_uploader_info %}
+                    <span class="visibility-badge visible" style="margin-top: 0.25rem; display: inline-block;">Visible after approval</span>
+                    {% else %}
+                    <span class="visibility-badge hidden" style="margin-top: 0.25rem; display: inline-block;">Deleted after approval</span>
+                    {% endif %}
+                </td>
+                <td>
+                    <div class="action-buttons">
+                        <form 
+                            id="approve-form-{{ clip.id }}"
+                            method="post" 
+                            action="{{ request.app.url_path_for('approve_pending_clip', clip_id=clip.id) }}"
+                            style="margin: 0;"
+                        >
+                            <button type="submit" class="btn btn-approve">
+                                Approve
+                            </button>
+                        </form>
+                        <form 
+                            method="post" 
+                            action="{{ request.app.url_path_for('reject_pending_clip', clip_id=clip.id) }}"
+                            style="margin: 0;"
+                            onsubmit="return confirm('Are you sure you want to reject this clip?');"
+                        >
+                            <button type="submit" class="btn btn-reject">
+                                Reject
+                            </button>
+                        </form>
+                    </div>
+                </td>
+            </tr>
+            {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% else %}
+    <p style="color: var(--muted); padding: 1rem; background: rgba(255, 255, 255, 0.02); border: 1px solid var(--border); border-radius: 6px;">
+        No pending clips at the moment. Clips submitted by viewers will appear here for review.
+    </p>
+    {% endif %}
+</section>
+{% endblock %}

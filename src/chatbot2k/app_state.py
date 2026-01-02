@@ -61,3 +61,7 @@ class AppState(ABC):
     @abstractmethod
     def command_queue(self) -> asyncio.Queue[Command]:
         """Queue of commands to allow communication between otherwise unrelated components."""
+
+    @abstractmethod
+    def reload_command_handlers(self) -> None:
+        """Reload all command handlers from the database."""

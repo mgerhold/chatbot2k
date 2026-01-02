@@ -52,7 +52,10 @@ class ParameterizedCommand(SQLModel, table=True):
 @final
 class SoundboardCommand(SQLModel, table=True):
     name: str = Field(primary_key=True)
-    clip_url: str
+    filename: str
+    uploader_twitch_id: Optional[str] = Field(default=None)
+    uploader_twitch_login: Optional[str] = Field(default=None)
+    uploader_twitch_display_name: Optional[str] = Field(default=None)
 
 
 @final
@@ -142,3 +145,16 @@ class LiveNotificationChannel(SQLModel, table=True):
     broadcaster_id: str
     text_template: str
     target_channel: str  # Name of the channel (usually on Discord) to send the notification to.
+
+
+@final
+class PendingSoundboardClip(SQLModel, table=True):
+    """Represents a pending soundboard clip upload."""
+
+    id: Optional[int] = Field(default=None, primary_key=True)
+    name: str
+    filename: str
+    uploader_twitch_id: str
+    uploader_twitch_login: str
+    uploader_twitch_display_name: str
+    may_persist_uploader_info: bool

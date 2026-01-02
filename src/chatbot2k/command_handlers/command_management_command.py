@@ -1,5 +1,4 @@
 import asyncio
-from collections.abc import Callable
 from typing import Final
 from typing import NamedTuple
 from typing import Optional
@@ -34,14 +33,12 @@ type _ErrorMessage = str
 class CommandManagementCommand(CommandHandler):
     COMMAND_NAME = "command"
     _ADD_SUBCOMMAND = "add"
-    _ADD_CLIP_SUBCOMMAND = "add-clip"
     _ADD_SCRIPT_SUBCOMMAND = "add-script"
     _UPDATE_SUBCOMMAND = "update"
     _REMOVE_SUBCOMMAND = "remove"
 
-    def __init__(self, app_state: AppState, on_commands_changed: Callable[[], None]) -> None:
+    def __init__(self, app_state: AppState) -> None:
         super().__init__(app_state, name=CommandManagementCommand.COMMAND_NAME)
-        self._on_commands_changed: Final = on_commands_changed
 
     @override
     async def handle_command(self, chat_command: ChatCommand) -> Optional[list[ChatResponse]]:
@@ -54,11 +51,6 @@ class CommandManagementCommand(CommandHandler):
                     self._app_state,
                     chat_command,
                     is_update=False,
-                )
-            case CommandManagementCommand._ADD_CLIP_SUBCOMMAND if argc >= 3:
-                success, response = CommandManagementCommand._add_clip_command(
-                    self._app_state,
-                    chat_command,
                 )
             case CommandManagementCommand._ADD_SCRIPT_SUBCOMMAND if argc >= 3:
                 success, response = await CommandManagementCommand._add_script_command(
@@ -79,7 +71,7 @@ class CommandManagementCommand(CommandHandler):
             case _:
                 return None
         if success:
-            self._on_commands_changed()
+            self._app_state.reload_command_handlers()
         return [
             ChatResponse(
                 text=response,
@@ -95,13 +87,13 @@ class CommandManagementCommand(CommandHandler):
     @property
     @override
     def usage(self) -> str:
-        return "!command [add|add-clip|add-script|update|remove] <parameters>..."
+        return "!command [add|add-script|update|remove] <parameters>..."
 
     @property
     @override
     def description(self) -> str:
         return (
-            "Manage custom commands. Use `!command add` to add a new command, `!command add-clip` to add "
+            "Manage custom commands. Use `!command add` to add a new command, to add "
             + "a soundboard command, `!command add-script` to add a script command, `!command update` to "
             + "update an existing command, and `!command remove` to delete a command."
         )
@@ -174,29 +166,6 @@ class CommandManagementCommand(CommandHandler):
             app_state.translations_manager.get_translation(
                 TranslationKey.COMMAND_UPDATED if is_update else TranslationKey.COMMAND_ADDED
             ),
-        )
-
-    @staticmethod
-    def _add_clip_command(
-        app_state: AppState,
-        chat_command: ChatCommand,
-    ) -> tuple[bool, str]:
-        name: Final = chat_command.arguments[1].lstrip("!")
-
-        if name.lower() in (command.lower() for command in app_state.command_handlers):
-            return (
-                False,
-                app_state.translations_manager.get_translation(TranslationKey.COMMAND_ALREADY_EXISTS),
-            )
-
-        app_state.database.add_soundboard_command(
-            name=name,
-            clip_url=chat_command.arguments[2],
-        )
-
-        return (
-            True,
-            app_state.translations_manager.get_translation(TranslationKey.COMMAND_ADDED),
         )
 
     @staticmethod
@@ -318,6 +287,15 @@ class CommandManagementCommand(CommandHandler):
     @staticmethod
     def _remove_command(app_state: AppState, chat_command: ChatCommand) -> tuple[bool, str]:
         name: Final = chat_command.arguments[1].lstrip("!")
+
+        # Check if this is a soundboard command—if so, prevent removal via chat.
+        soundboard_commands: Final = app_state.database.get_soundboard_commands()
+        if any(cmd.name.lower() == name.lower() for cmd in soundboard_commands):
+            return (
+                False,
+                app_state.translations_manager.get_translation(TranslationKey.SOUNDBOARD_MANAGED_VIA_WEB_UI),
+            )
+
         was_removed: Final = app_state.database.remove_command_case_insensitive(name=name)
         if was_removed:
             return (

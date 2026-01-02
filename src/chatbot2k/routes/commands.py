@@ -125,6 +125,8 @@ async def show_main_page(
             SoundboardCommand(
                 command=handler.usage,
                 clip_url=handler.clip_url,
+                uploader_twitch_login=handler.uploader_twitch_login,
+                uploader_twitch_display_name=handler.uploader_twitch_display_name,
             )
             for handler in app_state.command_handlers.values()
             if isinstance(handler, ClipHandler)

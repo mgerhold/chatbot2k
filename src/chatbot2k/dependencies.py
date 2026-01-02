@@ -122,6 +122,7 @@ async def get_common_context(
         )
     )
     is_broadcaster: Final = False if current_user is None else await is_user_broadcaster(app_state, current_user.id)
+    pending_clips_count: Final = app_state.database.get_number_of_pending_soundboard_clips()
     return CommonContext(
         bot_name=app_state.database.retrieve_configuration_setting_or_default(
             ConfigurationSettingKind.BOT_NAME,
@@ -135,4 +136,5 @@ async def get_common_context(
         current_user=current_user,
         profile_image_url=profile_image_url,
         is_broadcaster=is_broadcaster,
+        pending_clips_count=pending_clips_count,
     )

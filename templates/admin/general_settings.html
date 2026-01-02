@@ -1,4 +1,4 @@
-{% extends "dashboard/base.html" %}
+{% extends "admin/base.html" %}
 
 {% block title %}{{ bot_name }} — General Settings{% endblock %}
 
@@ -47,6 +47,42 @@
     }
 
     .form-group input[type="text"]:focus {
+        outline: 2px solid var(--accent);
+        outline-offset: 1px;
+        background: rgba(255, 255, 255, 0.08);
+    }
+
+    .form-group input[type="number"] {
+        width: 100%;
+        padding: 0.75rem;
+        background: rgba(255, 255, 255, 0.05);
+        border: 1px solid var(--border);
+        border-radius: 4px;
+        color: var(--text);
+        font-family: inherit;
+        font-size: 1rem;
+    }
+
+    .form-group input[type="number"]:focus {
+        outline: 2px solid var(--accent);
+        outline-offset: 1px;
+        background: rgba(255, 255, 255, 0.08);
+    }
+
+    .form-group input[type="email"],
+    .form-group input[type="password"] {
+        width: 100%;
+        padding: 0.75rem;
+        background: rgba(255, 255, 255, 0.05);
+        border: 1px solid var(--border);
+        border-radius: 4px;
+        color: var(--text);
+        font-family: inherit;
+        font-size: 1rem;
+    }
+
+    .form-group input[type="email"]:focus,
+    .form-group input[type="password"]:focus {
         outline: 2px solid var(--accent);
         outline-offset: 1px;
         background: rgba(255, 255, 255, 0.08);
@@ -159,6 +195,48 @@
             {% endfor %}
         </select>
         <span class="help-text">The locale for formatting dates, numbers, and messages.</span>
+    </div>
+
+    <div class="form-group">
+        <label for="max_pending_soundboard_clips">Max Pending Soundboard Clips</label>
+        <input 
+            type="number" 
+            id="max_pending_soundboard_clips" 
+            name="max_pending_soundboard_clips" 
+            value="{{ current_max_pending_soundboard_clips | e if current_max_pending_soundboard_clips else '10' }}" 
+            required
+            min="0"
+            step="1"
+            placeholder="Enter maximum pending clips"
+        >
+        <span class="help-text">Maximum number of pending soundboard clips allowed in the system.</span>
+    </div>
+
+    <div class="form-group">
+        <label for="max_pending_soundboard_clips_per_user">Max Pending Soundboard Clips Per User</label>
+        <input 
+            type="number" 
+            id="max_pending_soundboard_clips_per_user" 
+            name="max_pending_soundboard_clips_per_user" 
+            value="{{ current_max_pending_soundboard_clips_per_user | e if current_max_pending_soundboard_clips_per_user else '2' }}" 
+            required
+            min="0"
+            step="1"
+            placeholder="Enter maximum clips per user"
+        >
+        <span class="help-text">Maximum number of pending soundboard clips allowed per user.</span>
+    </div>
+
+    <div class="form-group">
+        <label for="broadcaster_email_address">Broadcaster Email Address</label>
+        <input
+            type="email"
+            id="broadcaster_email_address"
+            name="broadcaster_email_address"
+            value="{{ current_broadcaster_email_address | e if current_broadcaster_email_address else '' }}"
+            placeholder="noreply@example.com"
+        >
+        <span class="help-text">Email address of the broadcaster used for notifications.</span>
     </div>
 
     <div class="form-actions">

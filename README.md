@@ -1,481 +1,558 @@
 # Chatbot2k
 
-Chatbot2k is a chatbot application that is able to connect to multiple chat platforms at the same time (currently
-supporting Discord and Twitch).
+Chatbot2k is a multi-platform chatbot application with an integrated web dashboard for managing commands, clips, and bot settings. It connects to Discord and Twitch simultaneously, providing a unified interface for chat moderation and interaction.
 
 ## Features
 
-🔌 Connects to multiple chat platforms (Discord, Twitch)  
-🗣️ Can respond to commands (simple command-response system)  
-📖 Provides dictionary functionality: When a user message contains a defined keyword (usually an acronym), the bot
-responds with the corresponding definition.  
-📹 Can trigger video and audio clips based on user commands (soundboard functionality)  
-⌨️ Supports defining and invoking script commands written in a custom scripting language
-🌐 Web interface that shows a list of possible commands and clips
+### Core Functionality
+🔌 **Multi-Platform Support** – Connects to Discord and Twitch simultaneously  
+🗣️ **Command System** – Static responses, parameterized commands, and custom script commands  
+📖 **Dictionary** – Auto-responds with definitions when keywords/acronyms are mentioned  
+📹 **Soundboard** – Trigger audio/video clips via commands  
+⌨️ **Custom Scripting Language** – Create complex commands with persistent state and logic  
+🌐 **Web Dashboard** – Manage bot features and settings through a web interface  
+🔐 **OAuth Authentication** – Secure login with Twitch OAuth for the broadcaster and viewers  
+🔔 **Live Notifications** – Discord notifications when streams go live
 
-The main use-case is to use this bot during my own livestreams and on my Discord sever.
+### Web Dashboard
+- **General Settings** – Configure basic application settings
+- **Commands Management** – View all available commands
+- **Soundboard** – Upload, play, and delete audio/video clips
+- **Live Notifications** – Configure Twitch channels for stream-live notifications
+- **Overlay** – Embedded media player for OBS/streaming software
+
+### Command Types
+- **Static Commands** – Simple text responses (e.g., `!discord` → "Join my Discord: discord.gg/...")
+- **Parameterized Commands** – Response templates with placeholders (e.g., `!hello @user`)
+- **Script Commands** – Custom logic using the built-in scripting language
+- **Soundboard Commands** – Trigger media clips (managed exclusively via web UI)
 
 ## Development
 
-The project is written in Python and uses [astral's uv](https://docs.astral.sh/uv/) as project and package manager. You
-need to have it installed to run the project. Install dependencies like this:
+The project is written in **Python 3.13+** and uses [Astral's uv](https://docs.astral.sh/uv/) as the package manager.
+
+### Setup
+
+Install dependencies:
 
 ```bash
 uv sync
 ```
 
-Use the following command to run the bot locally using uvicorn. This also supports hot-reloading during development:
+Run the bot locally with hot-reloading:
 
 ```bash
 uv run uvicorn chatbot2k.main:app --host 0.0.0.0 --port 8080 --reload
 ```
 
-## Scripting Language Reference
+### Development Tools
 
-A new script command can be added by moderators of broadcasters using the command: `!command add-script !<
-command_name> "<script_code>"`
+Run linting, formatting, and type-checking:
 
-Each script consists of multiple sections:
+```bash
+uv run fix
+```
 
-1. **Stores (optional)**: Each store defines a variable that is persisted in the bot's database. This allows persisting
-   state across multiple invocations of the script.
-2. **Parameters (optional)**: Define parameters that can be passed to the script when invoked.
-3. **Statements**: The actual code that is executed when the script command is invoked.
+Run tests with coverage:
 
-See below for details on each section.
+```bash
+uv run test
+```
+
+Check code quality without making changes:
+
+```bash
+uv run check
+```
+
+### Database Migrations
+
+The project uses Alembic for database migrations:
+
+```bash
+# Create a new migration
+uv run alembic revision -m "description"
+
+# Apply migrations
+uv run alembic upgrade head
+
+# Rollback one migration
+uv run alembic downgrade -1
+```
+
+---
+
+## Scripting Language
+
+The bot includes a custom scripting language for creating complex, stateful commands. Moderators can add script commands via chat using:
+
+```
+!command add-script !<command_name> "<script_code>"
+```
+
+**⚠️ Note**: Soundboard clips cannot be added/removed via chat commands – they must be managed by the broadcaster through the web dashboard.
+
+### Script Structure
+
+Each script can contain:
+
+1. **STORE declarations** (optional) – Persistent variables saved in the database
+2. **PARAMS declarations** (optional) – Parameters users provide when invoking the command
+3. **Statements** – The actual code (variable definitions, assignments, prints, etc.)
 
 ### Data Types
 
-Currently, the language supports the following data types:
+The language supports the following data types:
 
-- **Booleans**: The literals `true` and `false`.
-- **Numbers**: Integral or floating-point numbers, possibly negative. They are mapped to Python's `float` type.
-- **Strings**: Sequences of characters enclosed in single quotes (`'`). They are mapped to Python's `str` type and
-  support UTF-8. The allowed escape sequences are:
-  - `\'` for single quote
-  - `\n` for newline
-  - `\\` for backslash
-- **Lists**: Ordered foldions of elements of the same type. Lists are created using square brackets `[]` and can
-  contain any data type, including nested lists. All elements in a list must have the same type. The type is written as
-  `list<element_type>` (e.g., `list<number>`, `list<string>`, `list<list<number>>`).
+- **Boolean** – Literals `true` and `false`
+- **Number** – Integers and floating-point numbers (maps to Python's `float`)
+  - Examples: `42`, `3.14`, `-7`, `0`
+- **String** – UTF-8 text enclosed in single quotes
+  - Escape sequences: `\'` (quote), `\n` (newline), `\\` (backslash)
+  - Example: `'Hello, world!'`
+- **List** – Ordered collections of same-typed elements
+  - Syntax: `[1, 2, 3]`, `['a', 'b']`, `[[1, 2], [3, 4]]`
+  - Type notation: `list<number>`, `list<string>`, `list<list<number>>`
 
-## Keywords
+### Reserved Keywords
 
-The following keywords are reserved in the scripting language:
+```
+and     as      bool    false   fold    for     if      join
+LET     list    not     number  or      PARAMS  PRINT   sort
+split   string  STORE   true    with    yeet
+```
 
-- `and`
-- `as`
-- `bool`
-- `fold`
-- `false`
-- `for`
-- `if`
-- `LET`
-- `list`
-- `not`
-- `number`
-- `or`
-- `PARAMS`
-- `PRINT`
-- `sort`
-- `split`
-- `string`
-- `STORE`
-- `true`
-- `with`
-- `yeet`
+### Identifiers
 
-## Identifiers
+- Must start with an ASCII letter
+- May contain letters, digits, and underscores
+- Case-sensitive
+- Cannot be a reserved keyword
 
-Identifiers must start with an ASCII letter. They may continue with ASCII letters, digits, or underscores (`_`).
-Identifiers are case-sensitive. Identifiers cannot be the same as reserved keywords.
+### STORE Declarations
 
-## Stores
-
-Each store is defined like this:
+Persistent variables saved to the database:
 
 ```
 STORE <store_name> = <initial_value>;
 ```
 
-On script creation, this will create a new database entry for the store with the given initial value. The store is
-scoped to the script, so multiple scripts can have stores with the same name without interfering with each other.  
-`<store_name>` can be any valid identifier that has not been used as a store name in this script before.  
-`<initial_value>` can be any valid expression. It may also reference other stores defined earlier in the same script.
+- Created once when the script is first added
+- Scoped to the individual script
+- Can reference other stores defined earlier
+- Changes persist between invocations
 
-Example:
+**Examples:**
 
 ```
-STORE a = 0;
-STORE b = 10;
-STORE c = a + b;
+STORE counter = 0;
 STORE greeting = 'Hello, world!';
+STORE total = counter + 10;
 ```
 
-## Parameters
+### PARAMS Declarations
 
-Parameters are defined like this:
-
-```
-PARAMS <param_name>, <param_name>, ...;
-```
-
-`<param_name>` can be any valid identifier that has not been used as a store name or parameter name in this script before. The data type for every parameter is string.  
-When invoking the script command, users must provide values for these parameters.
-
-## Statements
-
-The following statements are supported:
-
-### Variable Definitions
-
-Define a new variable like this:
+Define parameters that users provide when invoking the command:
 
 ```
-LET <var_name> = <expression>;
+PARAMS <param1>, <param2>, ...;
 ```
 
-Each variable is scoped to the script execution, so it will not persist across multiple invocations of the script.  
-`<var_name>` can be any valid identifier that has not been used before in this script.  
-`<expression>` can be any valid expression, including references to stores, parameters, and previously defined variables.
-
-*Note: Referencing a store will yield its current value from the database, not necessarily its initial value.*
-
-Variables can optionally be annotated with a type:
-
-```
-LET <var_name>: <type> = <expression>;
-```
-
-Where `<type>` is one of `string`, `number`, `bool`, or `list<element_type>` (e.g., `list<number>`, `list<string>`). The
-type annotation is required when defining an empty list literal, as the type cannot be inferred. For non-empty lists,
-the type is inferred from the elements.
+- All parameters are strings
+- Must be unique within the script
+- Cannot shadow store names
 
 **Example:**
 
 ```
-LET x = 42;
-LET y = x + 10;
-LET a = 'Hello, ';
-LET b = a + 'world!';
-LET numbers = [1, 2, 3, 4, 5];
-LET empty_list: list<string> = [];
-LET words: list<string> = ['apple', 'banana', 'cherry'];
+PARAMS name, message;
+PRINT 'Hello, ' + name + '! You said: ' + message;
 ```
 
-### Assignments
+Invocation: `!greet Alice "How are you?"`
 
-You can assign new values stores, parameters, and variables like this:
+### Statements
+
+#### Variable Definitions
+
+Define local (non-persistent) variables:
+
+```
+LET <var_name> = <expression>;
+LET <var_name>: <type> = <expression>;
+```
+
+- Type annotations required for empty lists
+- Cannot shadow existing names
+- Scoped to single execution
+
+**Examples:**
+
+```
+LET x = 42;
+LET message = 'Hello, ' + 'world!';
+LET numbers = [1, 2, 3];
+LET empty_list: list<string> = [];
+```
+
+#### Assignments
+
+Update stores, parameters, or variables:
 
 ```
 <name> = <expression>;
 ```
 
-`<name>` can be either a store name, a parameter name, or a variable name that has been defined earlier in the script.  
-`<expression>` can be any valid expression, including references to stores, parameters, and variables.
+- Store changes persist to database
+- Must respect type compatibility
+- Failed executions don't update stores
 
-*Note: Store values are persisted to the database after script execution ends successfully. If it fails at runtime, no
-changes are made to the stores.*
+**Examples:**
 
-### Print Statement
+```
+STORE counter = 0;
+counter = counter + 1;  // Updates database
 
-You can output text to the chat using the print statement:
+PARAMS name;
+name = 'upper'(name);   // Modifies parameter value
+
+LET x = 10;
+x = x * 2;             // Updates local variable
+```
+
+#### PRINT Statement
+
+Output to chat:
 
 ```
 PRINT <expression>;
 ```
 
-`<expression>` can be any valid expression. The result will be converted to a string. All prints inside a script
-execution are concatenated and sent as a single message to the chat after the script finishes executing.
+- Converts result to string
+- Multiple PRINTs are concatenated
+- Sent as single message after execution
 
 **Example:**
 
 ```
-LET number = 42;
-PRINT 'The answer is: ';
-PRINT number;
+STORE counter = 0;
+counter = counter + 1;
+PRINT 'This command has been used ';
+PRINT counter;
+PRINT ' times!';
 ```
 
-This will output: `The answer is: 42`
+Output: `This command has been used 1 times!`
 
 ### Expressions
 
-The following expressions are supported:
+#### Literals
+- Numbers: `42`, `3.14`, `-7`
+- Strings: `'Hello'`, `'Line 1\nLine 2'`
+- Booleans: `true`, `false`
+- Lists: `[1, 2, 3]`, `['a', 'b']`, `[[1], [2]]`
 
-- **Literals**: Numbers (e.g., `42`, `3.14`, `-7`), strings (e.g., `'Hello, world!'`), booleans (`true`, `false`), and
-  lists (e.g., `[1, 2, 3]`, `['a', 'b', 'c']`, `[[1, 2], [3, 4]]`)
-- **Variable, Parameter and Store References**: Using the name of a variable, parameter, or store to get its current value.
-- **Arithmetic Operations**: Addition (`+`), subtraction (`-`), multiplication (`*`), division (`/`), and modulo (`%`) for numbers. The language supports both `+` and `-` in their unary and binary forms.
-- **Comparison Operations**: Equal (`==`), not equal (`!=`), less than (`<`), less than or equal (`<=`), greater than (`>`), greater than or equal (`>=`) for all data types.
-- **Logical Operations**: And (`and`), or (`or`), and not (`not`) for boolean values.
-- **Ternary Operator**: The conditional expression `condition ? value_if_true : value_if_false` evaluates the condition and returns `value_if_true` if the condition is true, otherwise returns `value_if_false`. Both branches must have the same type.
-- **String Concatenation**: Using the `+` operator to concatenate strings.
-- **List Concatenation**: Using the `+` operator to concatenate lists of the same element type (e.g., `[1, 2] + [3, 4]` results in `[1, 2, 3, 4]`).
-- **Parentheses**: To group expressions and control the order of evaluation.
-- **Subscript Operator**: Access individual characters in a string or elements in a list using the syntax `string[index]`
-  or `list[index]`, where `index` is a zero-based integer. The index must be a non-negative integer within the bounds of
-  the string or list.
-- **Conversion to Number**: The prefix `$` operator converts a value to a number. For strings, the string must represent a number literal, possibly with a leading `+` or `-`. For booleans, `true` is converted to `1` and `false` to `0`. Applying the operator to a number has no effect.
-- **Conversion to String**: The prefix `#` operator converts a value to its string representation. For numbers, it formats the number (removing unnecessary decimal points for whole numbers). For booleans, it converts to `'true'` or `'false'`. Applying the operator to a string has no effect.
-- **Conversion to Boolean**: The prefix `?` operator converts a value to a boolean. For numbers, `0` is converted to `false`, all other numbers to `true`. For strings, only the literals `'true'` and `'false'` can be converted to their respective boolean values. Applying the operator to a boolean has no effect.
-- **Code Evaluation**: The prefix `!` operator evaluates a string as code and returns the result as a string. The evaluated source code must not contain any stores, or parameters. It cannot access any values from the surrounding script context.
-- **Function Calls**: Call builtin functions using the syntax `'function_name'(arg1, arg2, ...)`. See the Builtin Functions section below for available functions.
-- **Range Operators**: Create integer ranges using the `..=` (inclusive) or `..<` (exclusive) operators. Both operands must be numbers that represent integers (no fractional part). The operators return a `list<number>`. Ranges can be ascending (e.g., `1..=5` produces `[1, 2, 3, 4, 5]`) or descending (e.g., `5..=1` produces `[5, 4, 3, 2, 1]`). The exclusive operator `..<` excludes the end value (e.g., `1..<5` produces `[1, 2, 3, 4]`).
-- **Split Expressions**: Split a string into a list of strings using the syntax `split(string)` or `split(string, delimiter)`. If no delimiter is provided, the string is split by spaces. The result is always of type `list<string>`. Both arguments must be strings if a delimiter is provided.
-- **Join Expressions**: Join a list of strings into a single string using the syntax `join(list)` or `join(list, delimiter)`. If no delimiter is provided, the strings are joined with no separator. The first argument must be a `list<string>`, and the optional second argument must be a string.
-- **Sort Expressions**: Sort a list using the syntax `sort(list)` or `sort(list; lhs, rhs yeet comparison)`. For `list<number>`, the comparison expression is optional and defaults to ascending numeric order. For other list types, you must provide a custom comparison function. The comparison expression should evaluate to `true` if `lhs < rhs`. The identifiers `lhs` and `rhs` can be any names that don't shadow existing identifiers. Returns a sorted list of the same type.
-- **List Comprehensions**: Create new lists by transforming elements from an iterable (string or list) using the syntax
-  `for <iterable> as <element> [if <condition>] yeet <expression>`. The optional `if <condition>` filters which
-  elements are processed. See the List Comprehensions section below for details.
-- **Fold Expressions**: Reduce an iterable (string or list) to a single value using the syntax
-  `fold <iterable> as <accumulator>, <element> with <expression>`. See the Fold Expressions section below for
-  details.
+#### Operators
 
-## Builtin Functions
+**Arithmetic**: `+`, `-`, `*`, `/`, `%` (numbers only)
+```
+PRINT 2 + 3 * 4;  // 14 (precedence: * before +)
+PRINT 10 % 3;     // 1 (modulo)
+```
 
-The scripting language provides several builtin functions that can be called using the syntax `'function_name'(arguments...)`. All function names must be specified as string literals. All builtin functions return their result as a string value. This keeps them consistent with calling scripts.
+**Comparison**: `==`, `!=`, `<`, `<=`, `>`, `>=`
+```
+PRINT 5 > 3;              // true
+PRINT 'apple' < 'banana'; // true (lexicographic)
+```
 
-### String Functions
+**Logical**: `and`, `or`, `not` (booleans only)
+```
+PRINT true and false;     // false
+PRINT not (5 > 10);       // true
+```
 
-- **`'type'(value)`**: Returns the data type of the value as a string (`'string'`, `'number'`, `'bool'`, or
-  `'list<type>'`).
-- **`'length'(str)`**: Returns the length of a string or list as a number. Requires a string or list argument.
-- **`'upper'(str)`**: Converts a string to uppercase. Requires a string argument.
-- **`'lower'(str)`**: Converts a string to lowercase. Requires a string argument.
-- **`'trim'(str)`**: Removes whitespace from both ends of a string. Requires a string argument.
-- **`'replace'(str, old, new)`**: Replaces all occurrences of `old` with `new` in the string. All arguments must be strings.
-- **`'contains'(haystack, needle)`**: Returns `true` if the haystack (string or list) contains the needle, otherwise
-  `false`. For lists, the needle must be of the same type as the list elements.
-- **`'starts_with'(str, prefix)`**: Returns `true` if the string starts with the prefix, otherwise `false`. Both arguments must be strings.
-- **`'ends_with'(str, suffix)`**: Returns `true` if the string ends with the suffix, otherwise `false`. Both arguments must be strings.
+**Ternary**: `condition ? value_if_true : value_if_false`
+```
+LET age = 18;
+PRINT age >= 18 ? 'Adult' : 'Minor';  // Adult
+```
 
-### Math Functions
+**Concatenation**: `+` for strings and lists
+```
+PRINT 'Hello' + ' ' + 'world';  // Hello world
+PRINT [1, 2] + [3, 4];          // [1, 2, 3, 4]
+```
 
-- **`'abs'(num)`**: Returns the absolute value of a number.
-- **`'min'(num1, num2, ...)`**: Returns the minimum of one or more numbers. Accepts any number of arguments. Can also
-  accept a single list of numbers.
-- **`'max'(num1, num2, ...)`**: Returns the maximum of one or more numbers. Accepts any number of arguments. Can also
-  accept a single list of numbers.
-- **`'round'(num)`**: Rounds a number to the nearest integer.
-- **`'floor'(num)`**: Rounds a number down to the nearest integer.
-- **`'ceil'(num)`**: Rounds a number up to the nearest integer.
-- **`'sqrt'(num)`**: Returns the square root of a non-negative number.
-- **`'pow'(base, exponent)`**: Returns base raised to the power of exponent.
+**Subscript**: `string[index]` or `list[index]` (0-based)
+```
+PRINT 'Hello'[1];      // e
+PRINT [10, 20, 30][2]; // 30
+```
 
-### Utility Functions
+#### Conversion Operators
 
-- **`'random'(min, max)`**: Returns a random floating-point number between min and max.
-- **`'timestamp'()`**: Returns the current Unix timestamp (seconds since epoch) as a number.
-- **`'date'(format)`**: Returns the current UTC date/time formatted according to the format string (using Python's `strftime()` format codes).
+**To Number**: `$expression`
+```
+PRINT $'42';     // 42
+PRINT $true;     // 1
+PRINT $false;    // 0
+```
 
-## List Comprehensions
+**To String**: `#expression`
+```
+PRINT #42;       // 42
+PRINT #true;     // true
+PRINT #3.14;     // 3.14
+```
 
-List comprehensions provide a concise way to create new lists by transforming elements from an iterable. The syntax is:
+**To Boolean**: `?expression`
+```
+PRINT ?1;        // true
+PRINT ?0;        // false
+PRINT ?'true';   // true
+PRINT ?'false';  // false
+```
+
+**Code Evaluation**: `!string_expression`
+```
+LET code = 'PRINT 2 + 3;';
+PRINT !code;  // 5
+```
+
+#### Ranges
+
+**Inclusive**: `start ..= end`
+```
+PRINT 1..=5;   // [1, 2, 3, 4, 5]
+PRINT 5..=1;   // [5, 4, 3, 2, 1]
+```
+
+**Exclusive**: `start ..< end`
+```
+PRINT 1..<5;   // [1, 2, 3, 4]
+PRINT 0..<0;   // []
+```
+
+#### Collection Operations
+
+**split** – Split string into list
+```
+split(string)              // Split by spaces
+split(string, delimiter)   // Split by custom delimiter
+
+PRINT split('a,b,c', ',');        // [a, b, c]
+PRINT split('hello world');       // [hello, world]
+```
+
+**join** – Join list of strings
+```
+join(list)                 // No separator
+join(list, delimiter)      // Custom separator
+
+PRINT join(['a', 'b'], ',');      // a,b,c
+PRINT join(['Hello', 'world']);   // Helloworld
+```
+
+**sort** – Sort a list
+```
+sort(list)                        // Ascending (numbers only)
+sort(list; lhs, rhs yeet expr)    // Custom comparison
+
+PRINT sort([3, 1, 4, 1, 5]);                      // [1, 1, 3, 4, 5]
+LET words = ['banana', 'apple'];
+PRINT sort(words; a, b yeet a < b);               // [apple, banana]
+```
+
+#### List Comprehensions
+
+Transform elements from an iterable:
 
 ```
 for <iterable> as <element> [if <condition>] yeet <expression>
 ```
 
-- `<iterable>` can be a list or a string
-- `<element>` is the name of the loop variable that represents each element during iteration
-- `<condition>` (optional) is a boolean expression that filters which elements are included in the result
-- `<expression>` is evaluated for each element that passes the condition (if present) and determines what goes into the resulting list
-- The keyword `if` introduces an optional filter condition
-- The keyword `yeet` separates the condition (or element declaration if no condition) from the transformation expression
+**Examples:**
 
-The result is a new list containing the transformed elements. When iterating over a string, each character becomes an
-element. When iterating over a list, each item in the list becomes an element. If a condition is specified, only
-elements for which the condition evaluates to `true` are included in the resulting list.
+```
+// Square numbers
+PRINT for [1, 2, 3] as n yeet n * n;  // [1, 4, 9]
+
+// Filter and transform
+LET nums = [1, 2, 3, 4, 5];
+PRINT for nums as n if n > 2 yeet n * 10;  // [30, 40, 50]
+
+// String to numbers
+LET words = ['10', '20', '30'];
+PRINT for words as w yeet $w;  // [10, 20, 30]
+
+// Nested (use parentheses)
+LET nested = [[1, 2], [3, 4]];
+PRINT for nested as sub yeet (for sub as n yeet n * 2);
+// [[2, 4], [6, 8]]
+```
+
+#### Fold Expressions
+
+Reduce iterable to single value:
+
+```
+fold <iterable> as <start>, <acc>, <elem> with <expression>
+```
 
 **Examples:**
 
 ```
-// Square each number in a list
-LET numbers = [1, 2, 3, 4, 5];
-LET squared = for numbers as num yeet num * num;
-PRINT squared;  // Output: [1, 4, 9, 16, 25]
+// Sum
+LET nums = [1, 2, 3, 4, 5];
+PRINT fold nums as 0, acc, n with acc + n;  // 15
 
-// Convert strings to numbers
-LET words = ['123', '456', '789'];
-LET parsed = for words as word yeet $word;
-PRINT parsed;  // Output: [123, 456, 789]
+// Product
+PRINT fold nums as 1, acc, n with acc * n;  // 120
 
-// Convert strings to uppercase
-LET words = ['apple', 'banana', 'cherry'];
-LET upper = for words as word yeet 'upper'(word);
-PRINT upper;  // Output: [APPLE, BANANA, CHERRY]
+// Concatenate
+LET words = ['Hello', ' ', 'World'];
+PRINT fold words as '', acc, w with acc + w;  // Hello World
 
-// Iterate over characters in a string
-LET result = for 'hello' as char yeet 'upper'(char);
-PRINT result;  // Output: [H, E, L, L, O]
+// Count
+LET items = ['a', 'b', 'c'];
+PRINT fold items as 0, acc, _ with acc + 1;  // 3
 ```
 
-**Filtering with Conditions:**
+### Built-in Functions
 
-You can add an optional `if` condition to filter elements:
+Call functions using `'function_name'(args...)`. All function names must be string literals.
 
-```
-// Filter numbers greater than 3
-LET numbers = [1, 2, 3, 4, 5];
-LET filtered = for numbers as num if num > 3 yeet num;
-PRINT filtered;  // Output: [4, 5]
+#### Type & Inspection
 
-// Filter words starting with 'a'
-LET words = ['apple', 'acorn', 'banana', 'avocado'];
-LET a_words = for words as word if ?'starts_with'(word, 'a') yeet word;
-PRINT a_words;  // Output: [apple, acorn, avocado]
+- **`'type'(value)`** – Returns type as string (`'string'`, `'number'`, `'bool'`, `'list<type>'`)
+- **`'length'(value)`** – Returns length of string or list
 
-// Filter and transform: get squares of numbers greater than 2
-LET numbers = [1, 2, 3, 4, 5];
-LET large_squares = for numbers as num if num > 2 yeet num * num;
-PRINT large_squares;  // Output: [9, 16, 25]
-```
+#### String Functions
 
-**Nested List Comprehensions:**
+- **`'upper'(str)`** – Convert to uppercase
+- **`'lower'(str)`** – Convert to lowercase  
+- **`'trim'(str)`** – Remove leading/trailing whitespace
+- **`'replace'(str, old, new)`** – Replace all occurrences
+- **`'contains'(haystack, needle)`** – Check if string/list contains value
+- **`'starts_with'(str, prefix)`** – Check if string starts with prefix
+- **`'ends_with'(str, suffix)`** – Check if string ends with suffix
 
-Nested list comprehensions must be enclosed in parentheses for better readability:
+#### Math Functions
 
-```
-LET nested_lists = [[1, 2], [3, 4], [5]];
-LET doubled = for nested_lists as sublist yeet (for sublist as num yeet num * 2);
-PRINT doubled;  // Output: [[2, 4], [6, 8], [10]]
-```
+- **`'abs'(num)`** – Absolute value
+- **`'min'(num1, num2, ...)`** – Minimum value (accepts list or varargs)
+- **`'max'(num1, num2, ...)`** – Maximum value (accepts list or varargs)
+- **`'round'(num)`** – Round to nearest integer
+- **`'floor'(num)`** – Round down
+- **`'ceil'(num)`** – Round up
+- **`'sqrt'(num)`** – Square root
+- **`'pow'(base, exponent)`** – Exponentiation
 
-**Important Notes:**
+#### Utility Functions
 
-- The loop variable (`<element>`) cannot shadow (have the same name as) any existing variable, parameter, or store
-- The optional condition (if provided) must be a boolean expression
-- Empty list literals cannot be used in list comprehensions, as the type cannot be inferred
-- The type of the resulting list is determined by the type of the `<expression>`
-
-## Range Operators
-
-Range operators provide a convenient way to generate sequences of integers. The scripting language supports two range operators:
-
-- **Inclusive range (`..=`)**: Generates a list that includes both the start and end values
-- **Exclusive range (`..<`)**: Generates a list that includes the start value but excludes the end value
-
-### Syntax
-
-```
-<start> ..= <end>  // Inclusive range
-<start> ..< <end>  // Exclusive range
-```
-
-Both `<start>` and `<end>` must be numbers representing integers (no fractional part).
-
-### Behavior
-
-- **Ascending ranges**: When start ≤ end, the range generates values from start to end
-- **Descending ranges**: When start > end, the range generates values from start down to end
-- **Type**: Both operators return `list<number>`
-
-### Examples
-
-```
-// Basic ascending ranges
-PRINT 1..=5;    // Output: [1, 2, 3, 4, 5]
-PRINT 1..<5;    // Output: [1, 2, 3, 4]
-
-// Descending ranges
-PRINT 5..=1;    // Output: [5, 4, 3, 2, 1]
-PRINT 5..<1;    // Output: [5, 4, 3, 2]
-
-// Negative ranges
-PRINT -2..=2;   // Output: [-2, -1, 0, 1, 2]
-PRINT -5..<0;   // Output: [-5, -4, -3, -2, -1]
-
-// Edge cases
-PRINT 0..=0;    // Output: [0]
-PRINT 0..<0;    // Output: []
-
-// Integration with list comprehensions
-LET squares = for (1..=5) as n yeet n * n;
-PRINT squares;  // Output: [1, 4, 9, 16, 25]
-
-// Integration with fold
-LET sum = fold (1..=10) as acc, n with acc + n;
-PRINT sum;      // Output: 55
-
-// Using ranges for iteration
-LET data = ['a', 'b', 'c', 'd', 'e'];
-LET indices = 0..=4;
-LET indexed = for indices as i yeet data[i];
-PRINT indexed;  // Output: [a, b, c, d, e]
-```
-
-### Important Notes
-
-- Both operands must be numbers without fractional parts (integers)
-- Runtime error if operands have fractional parts (e.g., `1.5..=3` raises an error)
-- Type error if operands are not numbers (e.g., `'a'..='z'` raises a type error)
-- Ranges can be used anywhere a list expression is expected
-
-## Fold Expressions
-
-Fold expressions provide a way to reduce an iterable (string or list) to a single value by repeatedly applying an
-operation. This is similar to a fold/reduce operation in functional programming. The syntax is:
-
-```
-fold <iterable> as <start>, <accumulator>, <element> with <expression>
-```
-
-- `<iterable>` can be a list or a string
-- `<start>` is an expression that provides the initial value for the accumulator
-- `<accumulator>` is the name of the variable that holds the accumulated result
-- `<element>` is the name of the variable that represents each element during iteration
-- `<expression>` is evaluated for each element and must return a value of the same type as the start value
-- The keyword `with` introduces the expression that combines the accumulator with each element
-
-The type of the fold expression is determined by the type of `<start>` and `<expression>`, which allows the result type
-to differ from the element type of the iterable. The accumulator is initialized with the value of `<start>`, and all
-elements of the iterable are processed.
+- **`'random'(min, max)`** – Random float between min and max
+- **`'timestamp'()`** – Current Unix timestamp (seconds since epoch)
+- **`'date'(format)`** – Current UTC date/time (Python `strftime` format)
 
 **Examples:**
 
 ```
-// Sum all numbers in a list
-LET numbers = [1, 2, 3, 4, 5];
-LET sum = fold numbers as 0, acc, elem with acc + elem;
-PRINT sum;  // Output: 15
-
-// Calculate the product of all numbers
-LET numbers = [1, 2, 3, 4];
-LET product = fold numbers as 1, acc, elem with acc * elem;
-PRINT product;  // Output: 24
-
-// Concatenate strings
-LET words = ['Hello', ' ', 'World', '!'];
-LET message = fold words as '', acc, elem with acc + elem;
-PRINT message;  // Output: Hello World!
-
-// Concatenate and transform characters from a string
-LET result = fold 'hello' as '', acc, char with acc + 'upper'(char);
-PRINT result;  // Output: HELLO
-
-// Count elements in a list (demonstrates different result type)
-LET items = ['apple', 'banana', 'cherry'];
-LET count = fold items as 0, acc, elem with acc + 1;
-PRINT count;  // Output: 3 (number result from string list)
+PRINT 'type'([1, 2, 3]);              // list<number>
+PRINT 'length'('hello');              // 5
+PRINT 'upper'('hello');               // HELLO
+PRINT 'replace'('hi hi', 'hi', 'bye'); // bye bye
+PRINT 'min'(5, 3, 8);                 // 3
+PRINT 'sqrt'(16);                     // 4
+PRINT 'date'('%Y-%m-%d');             // 2026-01-02
 ```
 
-**Complex Example - Combining List Comprehension and Fold:**
+---
+
+### Complete Example Scripts
+
+#### Counter Command
 
 ```
-// Calculate the sum of sums of nested lists
-LET nested = [[1, 2], [3, 4], [5]];
-LET sum = fold (
-    for nested as inner_list yeet (
-        fold inner_list as 0, acc, num with acc + num
-    )
-) as 0, outer_acc, inner_sum with outer_acc + inner_sum;
-PRINT sum;  // Output: 15
+STORE count = 0;
+count = count + 1;
+PRINT 'This command has been used ';
+PRINT count;
+PRINT ' times!';
 ```
 
-**Important Notes:**
+#### Greeter with Parameters
 
-- The accumulator and element variables cannot shadow existing variables, parameters, or stores
-- The `<expression>` must return a value of the same type as the `<start>` expression
-- The type of a fold expression is determined by `<start>` and `<expression>`, allowing the result type to differ from the iterable's element type
-- Both the accumulator and element are scoped to the fold expression only
+```
+PARAMS name;
+PRINT 'Hello, ';
+PRINT 'upper'(name);
+PRINT '! Welcome to the stream!';
+```
+
+#### List Processing
+
+```
+PARAMS numbers;
+LET num_list = for split(numbers, ',') as n yeet $'trim'(n);
+LET sum = fold num_list as 0, acc, n with acc + n;
+LET avg = sum / $'length'(num_list);
+PRINT 'Sum: ';
+PRINT sum;
+PRINT ' | Average: ';
+PRINT 'round'(avg);
+```
+
+Invocation: `!average 10, 20, 30, 40`  
+Output: `Sum: 100 | Average: 25`
+
+---
+
+## Architecture
+
+### Technology Stack
+
+- **Backend**: FastAPI (Python 3.13+)
+- **Database**: SQLite with SQLModel ORM
+- **Migrations**: Alembic
+- **Chat APIs**: 
+  - Discord.py for Discord integration
+  - TwitchAPI for Twitch integration
+- **Authentication**: Twitch OAuth with JWT session tokens
+- **Frontend**: Jinja2 templates with server-side rendering
+- **Package Management**: uv
+
+### Project Structure
+
+```
+chatbot2k/
+├── src/chatbot2k/
+│   ├── chats/              # Chat platform integrations
+│   ├── command_handlers/   # Command execution logic
+│   ├── database/           # Database engine and models
+│   ├── models/             # SQLModel data models
+│   ├── routes/             # FastAPI route handlers
+│   ├── scripting_engine/   # Custom language parser/interpreter
+│   ├── types/              # Type definitions
+│   └── utils/              # Helper utilities
+├── templates/              # Jinja2 HTML templates
+├── static/                 # CSS, JS, images
+├── migrations/             # Alembic database migrations
+├── data/                   # Runtime data (soundboard files, etc.)
+└── tests/                  # Test suite
+```
+
+### Key Components
+
+- **AppState** – Singleton managing database, chat connections, and command handlers
+- **Database** – SQLite with models for commands, translations, settings, clips, etc.
+- **Command Handlers** – Pluggable handlers for different command types
+- **Scripting Engine** – Full lexer/parser/interpreter for custom language
+- **Broadcaster** – System for posting messages repeatedly at a specified interval
+
+---
+
+## License
+
+MIT license. See [LICENSE.txt](LICENSE.txt) for details.
 

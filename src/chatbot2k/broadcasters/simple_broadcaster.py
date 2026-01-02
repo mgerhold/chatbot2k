@@ -9,8 +9,8 @@ from typing import override
 
 from chatbot2k.app_state import AppState
 from chatbot2k.broadcasters.broadcaster import Broadcaster
+from chatbot2k.broadcasters.utils import replace_constants
 from chatbot2k.builtins import apply_builtins
-from chatbot2k.constants import replace_constants
 from chatbot2k.types.broadcast_message import BroadcastMessage
 from chatbot2k.types.chat_command import ChatCommand
 from chatbot2k.types.chat_message import ChatMessage

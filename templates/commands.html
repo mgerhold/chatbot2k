@@ -96,7 +96,28 @@
     .script-data {
       display: none;
     }
-</style>
+    /* Soundboard table styling to prevent overflow */
+    #panel-soundboard .table-container {
+        overflow: auto;
+    }
+
+    #panel-soundboard .data-table {
+        width: 100%;
+    }
+
+    #panel-soundboard .data-table td:nth-child(2) {
+        max-width: 400px;
+    }
+
+    #panel-soundboard .data-table audio,
+    #panel-soundboard .data-table video {
+        max-width: 100%;
+        height: auto;
+    }
+
+    #panel-soundboard .sb-preview {
+        max-height: 200px;
+    }</style>
 {% endblock %}
 
 {% block header %}
@@ -179,12 +200,13 @@
         <section id="panel-soundboard" class="tab-panel" role="tabpanel" aria-labelledby="label-soundboard">
             <h2 id="soundboard-heading" class="sr-only">Soundboard</h2>
             <div class="table-container" role="region" aria-labelledby="soundboard-heading" tabindex="0">
-                <table class="soundboard data-table">
+                <table class="data-table">
                     <caption class="sr-only">Soundboard commands</caption>
                     <thead>
                     <tr>
                         <th scope="col">Command</th>
                         <th scope="col">Clip</th>
+                        <th scope="col">Uploader</th>
                     </tr>
                     </thead>
                     <tbody>
@@ -209,10 +231,19 @@
                             <a href="{{ sb.clip_url }}" target="_blank" rel="noopener noreferrer">Open clip</a>
                             {% endif %}
                         </td>
+                        <td>
+                            {% if sb.uploader_twitch_login and sb.uploader_twitch_display_name %}
+                            <a href="https://twitch.tv/{{ sb.uploader_twitch_login }}" target="_blank" rel="noopener noreferrer">
+                                {{ sb.uploader_twitch_display_name }}
+                            </a>
+                            {% else %}
+                            <span style="color: var(--muted);">—</span>
+                            {% endif %}
+                        </td>
                     </tr>
                     {% else %}
                     <tr>
-                        <td colspan="2" class="empty">No soundboard commands available.</td>
+                        <td colspan="3" class="empty">No soundboard commands available.</td>
                     </tr>
                     {% endfor %}
                     </tbody>

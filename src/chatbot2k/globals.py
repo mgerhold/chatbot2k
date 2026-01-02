@@ -90,15 +90,15 @@ class Globals(AppState):
     def command_queue(self) -> asyncio.Queue[Command]:
         return self._command_queue
 
-    def _on_commands_changed(self) -> None:
-        self._command_handlers = self._reload_command_handlers()
+    @override
+    def reload_command_handlers(self) -> None:
+        """Reload all command handlers from the database."""
+        self._command_handlers.clear()
+        self._command_handlers.update(self._reload_command_handlers())
 
     def _reload_command_handlers(self) -> dict[str, CommandHandler]:
         command_handlers: Final = load_commands(self)
-        command_handlers[CommandManagementCommand.COMMAND_NAME] = CommandManagementCommand(
-            self,
-            lambda: self._on_commands_changed(),
-        )
+        command_handlers[CommandManagementCommand.COMMAND_NAME] = CommandManagementCommand(self)
         command_handlers[GiveawayCommand.COMMAND_NAME] = GiveawayCommand(self)
         command_handlers[GiveawayEnterCommand.COMMAND_NAME] = GiveawayEnterCommand(self)
         command_handlers[DictionaryHandler.COMMAND_NAME] = DictionaryHandler(self)

@@ -136,6 +136,10 @@ class _MockAppState(AppState):
     def command_queue(self) -> asyncio.Queue[Command]:
         raise NotImplementedError
 
+    @override
+    def reload_command_handlers(self) -> None:
+        raise NotImplementedError
+
     def _on_commands_changed(self) -> None:
         raise NotImplementedError
 

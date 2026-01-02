@@ -32,8 +32,11 @@
                 <img src="/static/avatar.png" alt="{{ bot_name }} logo" class="navbar-logo">
                 {{ bot_name }}
             </a>
+            {% if current_user %}
+            <a href="/viewer" class="navbar-link">Viewer Dashboard</a>
+            {% endif %}
             {% if is_broadcaster %}
-            <a href="/dashboard" class="navbar-link">Dashboard</a>
+            <a href="/admin" class="navbar-link">Admin Dashboard</a>
             {% endif %}
         </div>
         <div class="navbar-right">
