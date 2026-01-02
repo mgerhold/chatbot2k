@@ -209,15 +209,10 @@ async def upload_pending_soundboard_clip(
         file_path.unlink(missing_ok=True)
         raise HTTPException(status_code=400, detail=str(e)) from e
 
-    smtp_settings: Final = app_state.smtp_settings
     to_address: Final = app_state.database.retrieve_configuration_setting(
         ConfigurationSettingKind.BROADCASTER_EMAIL_ADDRESS
     )
-    if smtp_settings is None:
-        logger.error(
-            "SMTP settings are not configured; cannot send notification email for new pending soundboard clip."
-        )
-    elif to_address is None or not to_address:
+    if to_address is None or not to_address:
         logger.error(
             "Broadcaster email address is not configured; cannot send notification "
             + "email for new pending soundboard clip."
@@ -237,7 +232,7 @@ async def upload_pending_soundboard_clip(
                     ConfigurationSettingKind.BOT_NAME, f"Chatbot of {app_state.config.twitch_channel}"
                 ),
             ),
-            settings=smtp_settings,
+            settings=app_state.config.smtp_settings,
         )
 
     return RedirectResponse(request.url_for("viewer_soundboard"), status_code=303)

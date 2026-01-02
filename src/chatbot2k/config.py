@@ -9,6 +9,9 @@ from typing import final
 
 from dotenv import load_dotenv
 
+from chatbot2k.types.smtp_settings import SmtpCryptoKind
+from chatbot2k.types.smtp_settings import SmtpSettings
+
 DATABASE_FILE_ENV_VARIABLE = "DATABASE_FILE"
 
 load_dotenv()
@@ -67,6 +70,12 @@ class Config:
         self._jwt_secret: Optional[str] = None
         self._discord_token: Optional[str] = None
         self._discord_moderator_role_id: Optional[int] = None
+        self._smtp_host: Optional[str] = None
+        self._smtp_port: Optional[int] = None
+        self._smtp_username: Optional[str] = None
+        self._smtp_password: Optional[str] = None
+        self._smtp_crypto: Optional[SmtpCryptoKind] = None
+        self._from_email_address: Optional[str] = None
         self.reload()
 
     def reload(self) -> None:
@@ -100,6 +109,13 @@ class Config:
             self._discord_moderator_role_id = int(discord_moderator_role_id_str)
         else:
             self._discord_moderator_role_id = None
+
+        self._smtp_host = get_environment_variable_or_raise("SMTP_HOST")
+        self._smtp_port = int(get_environment_variable_or_raise("SMTP_PORT"))
+        self._smtp_username = get_environment_variable_or_raise("SMTP_USERNAME")
+        self._smtp_password = get_environment_variable_or_raise("SMTP_PASSWORD")
+        self._smtp_crypto = SmtpCryptoKind.from_string(get_environment_variable_or_raise("SMTP_CRYPTO"))
+        self._from_email_address = get_environment_variable_or_raise("FROM_EMAIL_ADDRESS")
 
         self._database_file.parent.mkdir(parents=True, exist_ok=True)
 
@@ -194,6 +210,35 @@ class Config:
     @property
     def discord_moderator_role_id(self) -> Optional[int]:
         return self._discord_moderator_role_id
+
+    @property
+    def smtp_settings(self) -> SmtpSettings:
+        host: Final = self._smtp_host
+        port: Final = self._smtp_port
+        username: Final = self._smtp_username
+        password: Final = self._smtp_password
+        crypto: Final = self._smtp_crypto
+        from_address: Final = self._from_email_address
+        if host is None:
+            raise AssertionError("SMTP host is not set. This should not happen.")
+        if port is None:
+            raise AssertionError("SMTP port is not set. This should not happen.")
+        if username is None:
+            raise AssertionError("SMTP username is not set. This should not happen.")
+        if password is None:
+            raise AssertionError("SMTP password is not set. This should not happen.")
+        if crypto is None:
+            raise AssertionError("SMTP crypto kind is not set. This should not happen.")
+        if from_address is None:
+            raise AssertionError("From email address is not set. This should not happen.")
+        return SmtpSettings(
+            host=host,
+            port=port,
+            username=username,
+            password=password,
+            crypto=crypto,
+            from_address=from_address,
+        )
 
     @staticmethod
     def _update_env_file(path: Path, updates: dict[str, str]) -> None:

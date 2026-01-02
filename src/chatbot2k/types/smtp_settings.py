@@ -1,5 +1,6 @@
 from enum import Enum
 from enum import auto
+from typing import Final
 from typing import NamedTuple
 from typing import final
 
@@ -12,7 +13,7 @@ class SmtpCryptoKind(Enum):
 
     @classmethod
     def from_string(cls, value: str) -> "SmtpCryptoKind":
-        match value.strip():
+        match value.strip().lower():
             case "":
                 return cls.NONE
             case "tls":
@@ -20,7 +21,8 @@ class SmtpCryptoKind(Enum):
             case "ssl":
                 return cls.SSL
             case _:
-                raise ValueError(f"Unknown SMTP crypto kind: {value}")
+                msg: Final = f"Unknown SMTP crypto kind: {value}"
+                raise ValueError(msg)
 
 
 @final
