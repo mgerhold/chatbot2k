@@ -23,9 +23,7 @@ def upgrade() -> None:
     # Insert the new translation key with its default value
     # Only insert if it doesn't already exist
     connection = op.get_bind()
-    result = connection.execute(
-        sa.text("SELECT COUNT(*) FROM translation WHERE key = 'SOUNDBOARD_MANAGED_VIA_WEB_UI'")
-    )
+    result = connection.execute(sa.text("SELECT COUNT(*) FROM translation WHERE key = 'SOUNDBOARD_MANAGED_VIA_WEB_UI'"))
     count = result.scalar()
 
     if count == 0:
