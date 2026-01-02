@@ -108,6 +108,11 @@
                         Live Notifications
                     </a>
                 </li>
+                <li>
+                    <a href="{{ request.app.url_path_for('dashboard_soundboard') }}" class="{% if active_page == 'soundboard' %}active{% endif %}">
+                        Soundboard
+                    </a>
+                </li>
             </ul>
         </nav>
     </aside>

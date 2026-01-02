@@ -76,6 +76,7 @@ class MainPageContext(CommonContext):
 class ActivePage(StrEnum):
     GENERAL_SETTINGS = "general_settings"
     LIVE_NOTIFICATIONS = "live_notifications"
+    SOUNDBOARD = "soundboard"
 
 
 class DashboardContext(CommonContext):
@@ -113,3 +114,10 @@ class DashboardLiveNotificationsContext(DashboardContext):
 
     channels: list[LiveNotificationChannel]
     discord_text_channels: Optional[list[str]]
+
+
+@final
+class DashboardSoundboardContext(DashboardContext):
+    model_config = ConfigDict(frozen=True)
+
+    soundboard_commands: list[SoundboardCommand]

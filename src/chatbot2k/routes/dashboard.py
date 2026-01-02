@@ -27,7 +27,9 @@ from chatbot2k.types.template_contexts import ActivePage
 from chatbot2k.types.template_contexts import CommonContext
 from chatbot2k.types.template_contexts import DashboardGeneralSettingsContext
 from chatbot2k.types.template_contexts import DashboardLiveNotificationsContext
+from chatbot2k.types.template_contexts import DashboardSoundboardContext
 from chatbot2k.types.template_contexts import LiveNotificationChannel
+from chatbot2k.types.template_contexts import SoundboardCommand
 
 router: Final = APIRouter(prefix="/dashboard", dependencies=[Depends(get_broadcaster_user)])
 
@@ -299,3 +301,29 @@ async def delete_live_notification_channel(
     except KeyError as e:
         raise HTTPException(status_code=404, detail=str(e)) from e
     return RedirectResponse(request.url_for("dashboard_live_notifications"), status_code=303)
+
+
+@router.get("/soundboard", name="dashboard_soundboard")
+async def dashboard_soundboard(
+    request: Request,
+    app_state: Annotated[AppState, Depends(get_app_state)],
+    templates: Annotated[Jinja2Templates, Depends(get_templates)],
+    common_context: Annotated[CommonContext, Depends(get_common_context)],
+) -> Response:
+    """Dashboard page for viewing soundboard clips."""
+    soundboard_commands: Final = [
+        SoundboardCommand(command=cmd.name, clip_url=cmd.clip_url)
+        for cmd in app_state.database.get_soundboard_commands()
+    ]
+
+    context: Final = DashboardSoundboardContext(
+        **common_context.model_dump(),
+        active_page=ActivePage.SOUNDBOARD,
+        soundboard_commands=soundboard_commands,
+    )
+
+    return templates.TemplateResponse(
+        request=request,
+        name="dashboard/soundboard.html",
+        context=context.model_dump(),
+    )

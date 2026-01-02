@@ -1,0 +1,50 @@
+{% extends "dashboard/base.html" %}
+
+{% block dashboard_content %}
+<div class="dashboard-header">
+    <h1>Soundboard</h1>
+    <p>Manage and preview soundboard clips</p>
+</div>
+
+<div class="table-container" role="region" aria-labelledby="soundboard-heading" tabindex="0">
+    <h2 id="soundboard-heading" class="sr-only">Soundboard Commands</h2>
+    <table class="soundboard data-table">
+        <caption class="sr-only">Soundboard commands</caption>
+        <thead>
+        <tr>
+            <th scope="col">Command</th>
+            <th scope="col">Clip</th>
+        </tr>
+        </thead>
+        <tbody>
+        {% for sb in soundboard_commands %}
+        {% set lower = (sb.clip_url|lower) %}
+        {% set base = lower.split('?')[0] %}
+        <tr>
+            <td class="mono"><code>{{ sb.command | e }}</code></td>
+            <td>
+                {% if base.endswith('.mp3') or base.endswith('.wav') or base.endswith('.ogg') or
+                base.endswith('.flac') or base.endswith('.aac') or base.endswith('.m4a') or
+                base.endswith('.opus') %}
+                <audio controls preload="none" src="{{ sb.clip_url }}"></audio>
+                {% elif base.endswith('.mp4') or base.endswith('.webm') or base.endswith('.mov') or
+                base.endswith('.mkv') or base.endswith('.m4v') %}
+                <video controls preload="none" playsinline class="sb-preview">
+                    <source src="{{ sb.clip_url }}">
+                    Your browser can't play this clip. <a href="{{ sb.clip_url }}" target="_blank"
+                                                          rel="noopener noreferrer">Open</a>.
+                </video>
+                {% else %}
+                <a href="{{ sb.clip_url }}" target="_blank" rel="noopener noreferrer">Open clip</a>
+                {% endif %}
+            </td>
+        </tr>
+        {% else %}
+        <tr>
+            <td colspan="2" class="empty">No soundboard commands available.</td>
+        </tr>
+        {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% endblock %}
