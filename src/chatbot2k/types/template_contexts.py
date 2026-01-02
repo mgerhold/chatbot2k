@@ -21,6 +21,13 @@ class CommonContext(BaseModel):
 
 
 @final
+class ErrorContext(CommonContext):
+    model_config = ConfigDict(frozen=True)
+
+    error_detail: str
+
+
+@final
 class Command(BaseModel):
     model_config = ConfigDict(frozen=True)
 
