@@ -132,11 +132,22 @@ class ViewerContext(CommonContext):
 
 
 @final
+class PendingClip(BaseModel):
+    model_config = ConfigDict(frozen=True)
+
+    id: int
+    command: str
+    clip_url: str
+    may_persist_uploader_info: bool
+
+
+@final
 class ViewerSoundboardContext(ViewerContext):
     model_config = ConfigDict(frozen=True)
 
     max_pending_clips: int
     max_pending_clips_per_user: int
     total_pending_clips: int
-    user_pending_clips: int
+    user_pending_clips_count: int
     user_can_upload: bool
+    pending_clips: list[PendingClip]

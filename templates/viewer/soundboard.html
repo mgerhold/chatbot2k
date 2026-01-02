@@ -237,6 +237,159 @@
         display: flex;
         justify-content: center;
     }
+
+    .pending-clips-section {
+        margin-top: 2rem;
+        margin-bottom: 3rem;
+    }
+
+    .pending-clips-section h2 {
+        margin: 0 0 1rem 0;
+        font-size: 1.5rem;
+    }
+
+    .table-container {
+        border: 1px solid var(--border);
+        border-radius: var(--radius);
+        background: rgba(255, 255, 255, 0.02);
+        overflow: auto;
+    }
+
+    .data-table {
+        width: 100%;
+        border-collapse: collapse;
+        font-size: 0.95rem;
+    }
+
+    .data-table th,
+    .data-table td {
+        padding: 0.75rem 1rem;
+        text-align: left;
+        border-bottom: 1px solid var(--border);
+    }
+
+    .data-table thead th {
+        background: rgba(255, 255, 255, 0.03);
+        font-weight: 600;
+        color: var(--text);
+        position: sticky;
+        top: 0;
+    }
+
+    .data-table tbody tr:last-child td {
+        border-bottom: none;
+    }
+
+    .data-table tbody tr:hover {
+        background: rgba(96, 165, 250, 0.05);
+    }
+
+    .data-table td.empty {
+        text-align: center;
+        color: var(--muted);
+        padding: 2rem 1rem;
+    }
+
+    .data-table th:last-child,
+    .data-table td:last-child {
+        width: 1px;
+        white-space: nowrap;
+    }
+
+    .data-table audio,
+    .data-table video {
+        max-width: 100%;
+        height: auto;
+    }
+
+    .clip-preview {
+        max-height: 200px;
+    }
+
+    .command-name {
+        font-family: 'Courier New', monospace;
+        color: var(--accent);
+        font-weight: 600;
+    }
+
+    .edit-form {
+        display: flex;
+        flex-direction: column;
+        gap: 0.75rem;
+    }
+
+    .edit-input {
+        width: 100%;
+        padding: 0.5rem;
+        background: rgba(255, 255, 255, 0.05);
+        border: 1px solid var(--border);
+        border-radius: 4px;
+        color: var(--text);
+        font-family: 'Courier New', monospace;
+        font-size: 0.9rem;
+    }
+
+    .edit-input:focus {
+        outline: 2px solid var(--accent);
+        outline-offset: 1px;
+        background: rgba(255, 255, 255, 0.08);
+    }
+
+    .edit-checkbox {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        font-size: 0.875rem;
+    }
+
+    .edit-checkbox input[type="checkbox"] {
+        width: 1rem;
+        height: 1rem;
+        cursor: pointer;
+    }
+
+    .edit-checkbox label {
+        cursor: pointer;
+        color: var(--text);
+    }
+
+    .btn-small {
+        padding: 0.5rem 1rem;
+        border: none;
+        border-radius: 4px;
+        cursor: pointer;
+        font-weight: 500;
+        transition: all 0.2s ease;
+        font-size: 0.875rem;
+        background: var(--accent);
+        color: white;
+    }
+
+    .btn-small:hover {
+        background: var(--link-hover);
+    }
+
+    .btn-danger {
+        background: #ef4444;
+        color: white;
+        padding: 0.5rem 1rem;
+        border: none;
+        border-radius: 4px;
+        cursor: pointer;
+        font-weight: 500;
+        transition: all 0.2s ease;
+        font-size: 0.875rem;
+    }
+
+    .btn-danger:hover {
+        background: #dc2626;
+    }
+
+    .action-buttons {
+        display: flex;
+        gap: 0.5rem;
+        margin: 0;
+    }
 </style>
 {% endblock %}
 
@@ -257,7 +410,7 @@
     <div class="limits-info">
         <div class="limit-item">
             <span class="limit-label">Your Pending Clips</span>
-            <span class="limit-value">{{ user_pending_clips }} / {{ max_pending_clips_per_user }}</span>
+            <span class="limit-value">{{ user_pending_clips_count }} / {{ max_pending_clips_per_user }}</span>
         </div>
         <div class="limit-item">
             <span class="limit-label">Total Pending Clips</span>
@@ -266,13 +419,112 @@
     </div>
 </section>
 
+<!-- Pending Clips Section -->
+<section class="pending-clips-section">
+    <h2>Your Pending Clips</h2>
+    <p style="margin-bottom: 1.5rem; color: var(--muted); line-height: 1.6;">
+        Below are your clips awaiting broadcaster approval. You can edit the command name, 
+        change your visibility preference, or delete clips before they are reviewed.
+    </p>
+    {% if pending_clips %}
+    <div class="table-container" role="region" aria-labelledby="pending-clips-heading" tabindex="0">
+        <h3 id="pending-clips-heading" class="sr-only">Your Pending Soundboard Clips</h3>
+        <table class="data-table">
+            <caption class="sr-only">Your pending soundboard clips awaiting approval</caption>
+            <thead>
+            <tr>
+                <th scope="col">Command</th>
+                <th scope="col">Clip Preview</th>
+                <th scope="col">Keep Name Visible</th>
+                <th scope="col">Actions</th>
+            </tr>
+            </thead>
+            <tbody>
+            {% for clip in pending_clips %}
+            {% set lower = (clip.clip_url|lower) %}
+            {% set base = lower.split('?')[0] %}
+            <tr>
+                <td>
+                    <input 
+                        type="text" 
+                        name="command_name" 
+                        value="{{ clip.command }}" 
+                        class="edit-input"
+                        required
+                        placeholder="Command name"
+                        form="edit-form-{{ clip.id }}"
+                    >
+                </td>
+                <td>
+                    {% if base.endswith(('.mp4', '.webm', '.ogg', '.ogv', '.mov')) %}
+                    <video controls class="clip-preview">
+                        <source src="{{ clip.clip_url }}" type="video/{{ base.split('.')[-1] }}">
+                        Your browser does not support the video tag.
+                    </video>
+                    {% elif base.endswith(('.mp3', '.wav', '.m4a', '.flac', '.aac', '.wma')) %}
+                    <audio controls>
+                        <source src="{{ clip.clip_url }}" type="audio/{{ base.split('.')[-1] }}">
+                        Your browser does not support the audio tag.
+                    </audio>
+                    {% else %}
+                    <a href="{{ clip.clip_url }}" target="_blank" rel="noopener noreferrer">Download</a>
+                    {% endif %}
+                </td>
+                <td>
+                    <div class="edit-checkbox">
+                        <input 
+                            type="checkbox" 
+                            id="persist_{{ clip.id }}" 
+                            name="may_persist_uploader_info"
+                            {% if clip.may_persist_uploader_info %}checked{% endif %}
+                            form="edit-form-{{ clip.id }}"
+                        >
+                        <label for="persist_{{ clip.id }}">Yes</label>
+                    </div>
+                </td>
+                <td>
+                    <div class="action-buttons">
+                        <form 
+                            id="edit-form-{{ clip.id }}"
+                            method="post" 
+                            action="{{ request.app.url_path_for('update_pending_soundboard_clip', clip_id=clip.id) }}"
+                            style="margin: 0;"
+                        >
+                            <button type="submit" class="btn-small">
+                                Save
+                            </button>
+                        </form>
+                        <form 
+                            method="post" 
+                            action="{{ request.app.url_path_for('delete_pending_soundboard_clip', clip_id=clip.id) }}"
+                            style="margin: 0;"
+                            onsubmit="return confirm('Are you sure you want to delete this pending clip?');"
+                        >
+                            <button type="submit" class="btn-danger">
+                                Delete
+                            </button>
+                        </form>
+                    </div>
+                </td>
+            </tr>
+            {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% else %}
+    <p style="color: var(--muted); padding: 1rem; background: rgba(255, 255, 255, 0.02); border: 1px solid var(--border); border-radius: 6px;">
+        You don't have any pending clips. Upload a new clip above to get started!
+    </p>
+    {% endif %}
+</section>
+
 <!-- Upload Form -->
 <section class="upload-section {% if not user_can_upload %}disabled{% endif %}">
     {% if not user_can_upload %}
     <div class="notice">
         <p>
             <strong>Upload limit reached.</strong>
-            {% if user_pending_clips >= max_pending_clips_per_user %}
+            {% if user_pending_clips_count >= max_pending_clips_per_user %}
             You have reached your personal limit of {{ max_pending_clips_per_user }} pending clips.
             {% elif total_pending_clips >= max_pending_clips %}
             The system has reached its maximum of {{ max_pending_clips }} pending clips.
@@ -362,4 +614,5 @@
         </div>
     </form>
 </section>
+
 {% endblock %}

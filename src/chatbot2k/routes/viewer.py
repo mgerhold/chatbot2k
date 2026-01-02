@@ -19,6 +19,7 @@ from starlette.responses import Response
 from starlette.templating import Jinja2Templates
 
 from chatbot2k.app_state import AppState
+from chatbot2k.constants import RELATIVE_SOUNDBOARD_FILES_DIRECTORY
 from chatbot2k.constants import SOUNDBOARD_FILES_DIRECTORY
 from chatbot2k.dependencies import get_app_state
 from chatbot2k.dependencies import get_authenticated_user
@@ -26,6 +27,7 @@ from chatbot2k.dependencies import get_common_context
 from chatbot2k.dependencies import get_templates
 from chatbot2k.types.configuration_setting_kind import ConfigurationSettingKind
 from chatbot2k.types.template_contexts import CommonContext
+from chatbot2k.types.template_contexts import PendingClip
 from chatbot2k.types.template_contexts import ViewerSoundboardContext
 from chatbot2k.types.user_info import UserInfo
 
@@ -96,14 +98,29 @@ async def viewer_soundboard(
 
     user_can_upload: Final = total_pending_count < limits.max_clips and user_pending_count < limits.max_clips_per_user
 
+    pending_clips: Final = sorted(
+        (
+            PendingClip(
+                id=clip.id,
+                command=clip.name,
+                clip_url=f"/{RELATIVE_SOUNDBOARD_FILES_DIRECTORY.as_posix()}/{clip.filename}",
+                may_persist_uploader_info=clip.may_persist_uploader_info,
+            )
+            for clip in user_pending_clips
+            if clip.id is not None  # Should never happen, but needed to satisfy the type checker.
+        ),
+        key=lambda c: c.command,
+    )
+
     context: Final = ViewerSoundboardContext(
         **common_context.model_dump(),
         active_page="soundboard",
         max_pending_clips=limits.max_clips,
         max_pending_clips_per_user=limits.max_clips_per_user,
         total_pending_clips=total_pending_count,
-        user_pending_clips=user_pending_count,
+        user_pending_clips_count=user_pending_count,
         user_can_upload=user_can_upload,
+        pending_clips=pending_clips,
     )
 
     return templates.TemplateResponse(
@@ -186,5 +203,61 @@ async def upload_pending_soundboard_clip(
         # If database insertion fails, clean up the file.
         file_path.unlink(missing_ok=True)
         raise HTTPException(status_code=400, detail=str(e)) from e
+
+    return RedirectResponse(request.url_for("viewer_soundboard"), status_code=303)
+
+
+@router.post("/soundboard/update/{clip_id}", name="update_pending_soundboard_clip")
+async def update_pending_soundboard_clip(
+    request: Request,
+    app_state: Annotated[AppState, Depends(get_app_state)],
+    current_user: Annotated[UserInfo, Depends(get_authenticated_user)],
+    clip_id: int,
+    command_name: Annotated[str, Form()],
+    may_persist_uploader_info: Annotated[str, Form()] = "off",
+) -> Response:
+    """Update a pending soundboard clip's name and visibility preference."""
+    # Verify the clip belongs to the current user.
+    user_pending_clips: Final = app_state.database.get_pending_soundboard_clips_by_twitch_user_id(
+        twitch_user_id=current_user.id
+    )
+    if not any(clip.id == clip_id for clip in user_pending_clips):
+        raise HTTPException(status_code=404, detail="Clip not found or access denied")
+
+    command_name = command_name.strip().lstrip("!")
+    if not command_name:
+        raise HTTPException(status_code=400, detail="Command name cannot be empty")
+
+    try:
+        app_state.database.update_pending_soundboard_clip(
+            id_=clip_id,
+            name=command_name,
+            may_persist_uploader_info=(may_persist_uploader_info == "on"),
+        )
+    except KeyError as e:
+        raise HTTPException(status_code=404, detail=str(e)) from e
+
+    return RedirectResponse(request.url_for("viewer_soundboard"), status_code=303)
+
+
+@router.post("/soundboard/delete/{clip_id}", name="delete_pending_soundboard_clip")
+async def delete_pending_soundboard_clip(
+    request: Request,
+    app_state: Annotated[AppState, Depends(get_app_state)],
+    current_user: Annotated[UserInfo, Depends(get_authenticated_user)],
+    clip_id: int,
+) -> Response:
+    """Delete a pending soundboard clip."""
+    # Verify the clip belongs to the current user.
+    user_pending_clips: Final = app_state.database.get_pending_soundboard_clips_by_twitch_user_id(
+        twitch_user_id=current_user.id
+    )
+    if not any(clip.id == clip_id for clip in user_pending_clips):
+        raise HTTPException(status_code=404, detail="Clip not found or access denied")
+
+    try:
+        app_state.database.remove_pending_soundboard_clip(id_=clip_id)
+    except KeyError as e:
+        raise HTTPException(status_code=404, detail=str(e)) from e
 
     return RedirectResponse(request.url_for("viewer_soundboard"), status_code=303)
