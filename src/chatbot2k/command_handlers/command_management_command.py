@@ -33,7 +33,6 @@ type _ErrorMessage = str
 class CommandManagementCommand(CommandHandler):
     COMMAND_NAME = "command"
     _ADD_SUBCOMMAND = "add"
-    _ADD_CLIP_SUBCOMMAND = "add-clip"
     _ADD_SCRIPT_SUBCOMMAND = "add-script"
     _UPDATE_SUBCOMMAND = "update"
     _REMOVE_SUBCOMMAND = "remove"
@@ -52,11 +51,6 @@ class CommandManagementCommand(CommandHandler):
                     self._app_state,
                     chat_command,
                     is_update=False,
-                )
-            case CommandManagementCommand._ADD_CLIP_SUBCOMMAND if argc >= 3:
-                success, response = (
-                    False,
-                    self._app_state.translations_manager.get_translation(TranslationKey.SOUNDBOARD_MANAGED_VIA_WEB_UI),
                 )
             case CommandManagementCommand._ADD_SCRIPT_SUBCOMMAND if argc >= 3:
                 success, response = await CommandManagementCommand._add_script_command(
@@ -93,13 +87,13 @@ class CommandManagementCommand(CommandHandler):
     @property
     @override
     def usage(self) -> str:
-        return "!command [add|add-clip|add-script|update|remove] <parameters>..."
+        return "!command [add|add-script|update|remove] <parameters>..."
 
     @property
     @override
     def description(self) -> str:
         return (
-            "Manage custom commands. Use `!command add` to add a new command, `!command add-clip` to add "
+            "Manage custom commands. Use `!command add` to add a new command, to add "
             + "a soundboard command, `!command add-script` to add a script command, `!command update` to "
             + "update an existing command, and `!command remove` to delete a command."
         )
