@@ -3,13 +3,13 @@ import logging
 from collections.abc import AsyncGenerator
 from contextlib import asynccontextmanager
 from contextlib import suppress
-from pathlib import Path
 from typing import Final
 
 import uvicorn
 from fastapi import FastAPI
 from starlette.staticfiles import StaticFiles
 
+from chatbot2k.constants import STATIC_FILES_DIRECTORY
 from chatbot2k.core import run_main_loop
 from chatbot2k.dependencies import get_app_state
 from chatbot2k.routes import auth
@@ -37,7 +37,6 @@ async def lifespan(_: FastAPI) -> AsyncGenerator[None]:
             await main_task
 
 
-STATIC_FILES_DIRECTORY = Path(__file__).parent.parent.parent / "static"
 if not STATIC_FILES_DIRECTORY.exists():
     raise FileNotFoundError(f"Static files directory {STATIC_FILES_DIRECTORY} does not exist.")
 
