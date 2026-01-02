@@ -54,9 +54,9 @@ class CommandManagementCommand(CommandHandler):
                     is_update=False,
                 )
             case CommandManagementCommand._ADD_CLIP_SUBCOMMAND if argc >= 3:
-                success, response = CommandManagementCommand._add_clip_command(
-                    self._app_state,
-                    chat_command,
+                success, response = (
+                    False,
+                    self._app_state.translations_manager.get_translation(TranslationKey.SOUNDBOARD_MANAGED_VIA_WEB_UI),
                 )
             case CommandManagementCommand._ADD_SCRIPT_SUBCOMMAND if argc >= 3:
                 success, response = await CommandManagementCommand._add_script_command(
@@ -172,33 +172,6 @@ class CommandManagementCommand(CommandHandler):
             app_state.translations_manager.get_translation(
                 TranslationKey.COMMAND_UPDATED if is_update else TranslationKey.COMMAND_ADDED
             ),
-        )
-
-    @staticmethod
-    def _add_clip_command(
-        app_state: AppState,
-        chat_command: ChatCommand,
-    ) -> tuple[bool, str]:
-        name: Final = chat_command.arguments[1].lstrip("!")
-
-        if name.lower() in (command.lower() for command in app_state.command_handlers):
-            return (
-                False,
-                app_state.translations_manager.get_translation(TranslationKey.COMMAND_ALREADY_EXISTS),
-            )
-
-        # Extract filename from the provided URL/path
-        clip_url_or_path: Final = chat_command.arguments[2]
-        filename: Final = clip_url_or_path.split("/")[-1].split("?")[0]
-
-        app_state.database.add_soundboard_command(
-            name=name,
-            filename=filename,
-        )
-
-        return (
-            True,
-            app_state.translations_manager.get_translation(TranslationKey.COMMAND_ADDED),
         )
 
     @staticmethod
@@ -320,6 +293,15 @@ class CommandManagementCommand(CommandHandler):
     @staticmethod
     def _remove_command(app_state: AppState, chat_command: ChatCommand) -> tuple[bool, str]:
         name: Final = chat_command.arguments[1].lstrip("!")
+
+        # Check if this is a soundboard command—if so, prevent removal via chat.
+        soundboard_commands: Final = app_state.database.get_soundboard_commands()
+        if any(cmd.name.lower() == name.lower() for cmd in soundboard_commands):
+            return (
+                False,
+                app_state.translations_manager.get_translation(TranslationKey.SOUNDBOARD_MANAGED_VIA_WEB_UI),
+            )
+
         was_removed: Final = app_state.database.remove_command_case_insensitive(name=name)
         if was_removed:
             return (
