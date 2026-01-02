@@ -58,6 +58,18 @@
         font-weight: 600;
     }
 
+    .nav-badge {
+        display: inline-block;
+        margin-left: 0.5rem;
+        padding: 0.125rem 0.5rem;
+        background: #ef4444;
+        color: white;
+        border-radius: 10px;
+        font-size: 0.75rem;
+        font-weight: 600;
+        line-height: 1;
+    }
+
     .dashboard-content {
         flex: 1;
         min-width: 0;
@@ -111,6 +123,14 @@
                 <li>
                     <a href="{{ request.app.url_path_for('admin_soundboard') }}" class="{% if active_page == 'soundboard' %}active{% endif %}">
                         Soundboard
+                    </a>
+                </li>
+                <li>
+                    <a href="{{ request.app.url_path_for('admin_pending_clips') }}" class="{% if active_page == 'pending_clips' %}active{% endif %}">
+                        Pending Clips
+                        {% if pending_clips_count > 0 %}
+                        <span class="nav-badge">{{ pending_clips_count }}</span>
+                        {% endif %}
                     </a>
                 </li>
             </ul>

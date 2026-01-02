@@ -226,6 +226,26 @@ class Database:
         with self._session() as s:
             return list(s.exec(select(SoundboardCommand)).all())
 
+    def update_soundboard_command_name(self, *, old_name: str, new_name: str) -> None:
+        """Update the name of a soundboard command."""
+        with self._session() as s:
+            # Check if new name already exists (case-insensitive).
+            existing_with_new_name = s.exec(
+                select(SoundboardCommand).where(func.lower(SoundboardCommand.name) == new_name.lower())
+            ).one_or_none()
+            if existing_with_new_name is not None and existing_with_new_name.name != old_name:
+                raise ValueError(f"SoundboardCommand '{new_name}' already exists")
+
+            # Get the command to update
+            obj = s.get(SoundboardCommand, old_name)
+            if obj is None:
+                raise KeyError(f"SoundboardCommand '{old_name}' not found")
+
+            # Update the name
+            obj.name = new_name
+            s.add(obj)
+            s.commit()
+
     def add_broadcast(
         self,
         *,

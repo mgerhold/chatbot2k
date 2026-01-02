@@ -17,6 +17,7 @@ class CommonContext(BaseModel):
     current_user: Optional[UserInfo]
     profile_image_url: Optional[str]
     is_broadcaster: bool
+    pending_clips_count: int
 
 
 @final
@@ -59,6 +60,8 @@ class SoundboardCommand(BaseModel):
 
     command: str
     clip_url: str
+    uploader_twitch_login: Optional[str]
+    uploader_twitch_display_name: Optional[str]
 
 
 @final
@@ -77,6 +80,7 @@ class ActivePage(StrEnum):
     GENERAL_SETTINGS = "general_settings"
     LIVE_NOTIFICATIONS = "live_notifications"
     SOUNDBOARD = "soundboard"
+    PENDING_CLIPS = "pending_clips"
 
 
 class AdminContext(CommonContext):
@@ -123,12 +127,7 @@ class AdminSoundboardContext(AdminContext):
     model_config = ConfigDict(frozen=True)
 
     soundboard_commands: list[SoundboardCommand]
-
-
-class ViewerContext(CommonContext):
-    model_config = ConfigDict(frozen=True)
-
-    active_page: str
+    existing_commands: list[str]
 
 
 @final
@@ -139,6 +138,22 @@ class PendingClip(BaseModel):
     command: str
     clip_url: str
     may_persist_uploader_info: bool
+    uploader_twitch_login: str
+    uploader_twitch_display_name: str
+
+
+@final
+class AdminPendingClipsContext(AdminContext):
+    model_config = ConfigDict(frozen=True)
+
+    pending_clips: list[PendingClip]
+    existing_commands: list[str]
+
+
+class ViewerContext(CommonContext):
+    model_config = ConfigDict(frozen=True)
+
+    active_page: str
 
 
 @final

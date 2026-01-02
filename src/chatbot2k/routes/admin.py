@@ -33,9 +33,11 @@ from chatbot2k.types.configuration_setting_kind import ConfigurationSettingKind
 from chatbot2k.types.template_contexts import ActivePage
 from chatbot2k.types.template_contexts import AdminGeneralSettingsContext
 from chatbot2k.types.template_contexts import AdminLiveNotificationsContext
+from chatbot2k.types.template_contexts import AdminPendingClipsContext
 from chatbot2k.types.template_contexts import AdminSoundboardContext
 from chatbot2k.types.template_contexts import CommonContext
 from chatbot2k.types.template_contexts import LiveNotificationChannel
+from chatbot2k.types.template_contexts import PendingClip
 from chatbot2k.types.template_contexts import SoundboardCommand
 from chatbot2k.types.user_info import UserInfo
 
@@ -367,21 +369,27 @@ async def admin_soundboard(
     common_context: Annotated[CommonContext, Depends(get_common_context)],
 ) -> Response:
     """Admin dashboard page for viewing soundboard clips."""
+    db_commands = app_state.database.get_soundboard_commands()
     soundboard_commands: Final = sorted(
         (
             SoundboardCommand(
                 command=cmd.name,
                 clip_url=f"/{RELATIVE_SOUNDBOARD_FILES_DIRECTORY.as_posix()}/{cmd.filename}",
+                uploader_twitch_login=cmd.uploader_twitch_login,
+                uploader_twitch_display_name=cmd.uploader_twitch_display_name,
             )
-            for cmd in app_state.database.get_soundboard_commands()
+            for cmd in db_commands
         ),
         key=lambda cmd: cmd.command,
     )
+
+    existing_commands: Final = [command.lower() for command in app_state.command_handlers]
 
     context: Final = AdminSoundboardContext(
         **common_context.model_dump(),
         active_page=ActivePage.SOUNDBOARD,
         soundboard_commands=soundboard_commands,
+        existing_commands=existing_commands,
     )
 
     return templates.TemplateResponse(
@@ -444,6 +452,40 @@ async def upload_soundboard_clip(
     return RedirectResponse(request.url_for("admin_soundboard"), status_code=303)
 
 
+@router.post("/soundboard/update/{old_command_name}", name="update_soundboard_command")
+async def update_soundboard_command(
+    request: Request,
+    old_command_name: str,
+    app_state: Annotated[AppState, Depends(get_app_state)],
+    command_name: Annotated[str, Form()],
+) -> Response:
+    """Update a soundboard command name."""
+    new_command_name = command_name.strip().lower().replace("!", "")
+
+    if not new_command_name:
+        raise HTTPException(status_code=400, detail="Command name cannot be empty")
+
+    # Check if we're just changing case or if it's actually the same.
+    if new_command_name.lower() == old_command_name.lower():
+        # Just a case change or no change, allow it.
+        try:
+            app_state.database.update_soundboard_command_name(old_name=old_command_name, new_name=new_command_name)
+        except (ValueError, KeyError) as e:
+            raise HTTPException(status_code=400, detail=str(e)) from e
+    else:
+        # Different command name, check for duplicates.
+        try:
+            app_state.database.update_soundboard_command_name(old_name=old_command_name, new_name=new_command_name)
+        except ValueError as e:
+            raise HTTPException(status_code=400, detail=str(e)) from e
+        except KeyError as e:
+            raise HTTPException(status_code=404, detail=str(e)) from e
+
+    app_state.reload_command_handlers()
+
+    return RedirectResponse(request.url_for("admin_soundboard"), status_code=303)
+
+
 @router.post("/soundboard/delete/{command_name}", name="delete_soundboard_clip")
 async def delete_soundboard_clip(
     request: Request,
@@ -469,3 +511,106 @@ async def delete_soundboard_clip(
     app_state.reload_command_handlers()
 
     return RedirectResponse(request.url_for("admin_soundboard"), status_code=303)
+
+
+@router.get("/pending-clips", name="admin_pending_clips")
+async def admin_pending_clips(
+    request: Request,
+    app_state: Annotated[AppState, Depends(get_app_state)],
+    templates: Annotated[Jinja2Templates, Depends(get_templates)],
+    common_context: Annotated[CommonContext, Depends(get_common_context)],
+) -> Response:
+    """Admin dashboard page for reviewing pending soundboard clips."""
+    all_pending_clips: Final = app_state.database.get_all_pending_soundboard_clips()
+
+    pending_clips: Final = sorted(
+        [
+            PendingClip(
+                id=clip.id,
+                command=clip.name,
+                clip_url=f"/{RELATIVE_SOUNDBOARD_FILES_DIRECTORY.as_posix()}/{clip.filename}",
+                may_persist_uploader_info=clip.may_persist_uploader_info,
+                uploader_twitch_login=clip.uploader_twitch_login,
+                uploader_twitch_display_name=clip.uploader_twitch_display_name,
+            )
+            for clip in all_pending_clips
+            if clip.id is not None
+        ],
+        key=lambda c: c.command,
+    )
+
+    context: Final = AdminPendingClipsContext(
+        **common_context.model_dump(),
+        active_page=ActivePage.PENDING_CLIPS,
+        pending_clips=pending_clips,
+        existing_commands=[name.lower() for name in app_state.command_handlers],
+    )
+
+    return templates.TemplateResponse(
+        request=request,
+        name="admin/pending_clips.html",
+        context=context.model_dump(),
+    )
+
+
+@router.post("/pending-clips/approve/{clip_id}", name="approve_pending_clip")
+async def approve_pending_clip(
+    request: Request,
+    app_state: Annotated[AppState, Depends(get_app_state)],
+    clip_id: int,
+    command_name: Annotated[str, Form()],
+) -> Response:
+    """Approve a pending soundboard clip and add it to the soundboard."""
+    # Get the pending clip.
+    all_pending_clips: Final = app_state.database.get_all_pending_soundboard_clips()
+    pending_clip = next((clip for clip in all_pending_clips if clip.id == clip_id), None)
+
+    if pending_clip is None:
+        raise HTTPException(status_code=404, detail="Pending clip not found")
+
+    command_name = command_name.strip().lstrip("!")
+    if not command_name:
+        raise HTTPException(status_code=400, detail="Command name cannot be empty")
+
+    if command_name.lower() in (name.lower() for name in app_state.command_handlers):
+        raise HTTPException(status_code=400, detail=f"Command '!{command_name}' already exists")
+
+    # Add to soundboard commands.
+    try:
+        app_state.database.add_soundboard_command(
+            name=command_name,
+            filename=pending_clip.filename,
+            uploader_twitch_id=(pending_clip.uploader_twitch_id if pending_clip.may_persist_uploader_info else None),
+            uploader_twitch_login=(
+                pending_clip.uploader_twitch_login if pending_clip.may_persist_uploader_info else None
+            ),
+            uploader_twitch_display_name=(
+                pending_clip.uploader_twitch_display_name if pending_clip.may_persist_uploader_info else None
+            ),
+        )
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e)) from e
+
+    try:
+        app_state.database.remove_pending_soundboard_clip(id_=clip_id)
+    except KeyError as e:
+        raise HTTPException(status_code=404, detail=str(e)) from e
+
+    app_state.reload_command_handlers()
+
+    return RedirectResponse(request.url_for("admin_pending_clips"), status_code=303)
+
+
+@router.post("/pending-clips/reject/{clip_id}", name="reject_pending_clip")
+async def reject_pending_clip(
+    request: Request,
+    app_state: Annotated[AppState, Depends(get_app_state)],
+    clip_id: int,
+) -> Response:
+    """Reject and delete a pending soundboard clip."""
+    try:
+        app_state.database.remove_pending_soundboard_clip(id_=clip_id)
+    except KeyError as e:
+        raise HTTPException(status_code=404, detail=str(e)) from e
+
+    return RedirectResponse(request.url_for("admin_pending_clips"), status_code=303)

@@ -43,6 +43,8 @@ def load_commands(app_state: AppState) -> dict[str, CommandHandler]:
             app_state=app_state,
             name=soundboard_command.name,
             filename=soundboard_command.filename,
+            uploader_twitch_login=soundboard_command.uploader_twitch_login,
+            uploader_twitch_display_name=soundboard_command.uploader_twitch_display_name,
         )
 
     database_persistent_store: Final = DatabasePersistentStore(app_state.database)

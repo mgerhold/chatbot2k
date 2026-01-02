@@ -105,6 +105,8 @@ async def viewer_soundboard(
                 command=clip.name,
                 clip_url=f"/{RELATIVE_SOUNDBOARD_FILES_DIRECTORY.as_posix()}/{clip.filename}",
                 may_persist_uploader_info=clip.may_persist_uploader_info,
+                uploader_twitch_login=clip.uploader_twitch_login,
+                uploader_twitch_display_name=clip.uploader_twitch_display_name,
             )
             for clip in user_pending_clips
             if clip.id is not None  # Should never happen, but needed to satisfy the type checker.
