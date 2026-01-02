@@ -37,6 +37,7 @@ from chatbot2k.types.template_contexts import AdminSoundboardContext
 from chatbot2k.types.template_contexts import CommonContext
 from chatbot2k.types.template_contexts import LiveNotificationChannel
 from chatbot2k.types.template_contexts import SoundboardCommand
+from chatbot2k.types.user_info import UserInfo
 
 router: Final = APIRouter(prefix="/admin", dependencies=[Depends(get_broadcaster_user)])
 
@@ -117,6 +118,12 @@ async def admin_general_settings(
     author_name: Final = app_state.database.retrieve_configuration_setting(ConfigurationSettingKind.AUTHOR_NAME)
     timezone: Final = app_state.database.retrieve_configuration_setting(ConfigurationSettingKind.TIMEZONE)
     locale: Final = app_state.database.retrieve_configuration_setting(ConfigurationSettingKind.LOCALE)
+    max_pending_soundboard_clips: Final = app_state.database.retrieve_configuration_setting(
+        ConfigurationSettingKind.MAX_PENDING_SOUNDBOARD_CLIPS
+    )
+    max_pending_soundboard_clips_per_user: Final = app_state.database.retrieve_configuration_setting(
+        ConfigurationSettingKind.MAX_PENDING_SOUNDBOARD_CLIPS_PER_USER
+    )
 
     context: Final = AdminGeneralSettingsContext(
         **common_context.model_dump(),
@@ -125,6 +132,8 @@ async def admin_general_settings(
         current_author_name=author_name,
         current_timezone=timezone,
         current_locale=locale,
+        current_max_pending_soundboard_clips=max_pending_soundboard_clips,
+        current_max_pending_soundboard_clips_per_user=max_pending_soundboard_clips_per_user,
         available_timezones=_get_common_timezones(),
         available_locales=_get_common_locales(),
     )
@@ -144,6 +153,8 @@ async def update_general_settings(
     author_name: Annotated[str, Form()],
     timezone: Annotated[str, Form()],
     locale: Annotated[str, Form()],
+    max_pending_soundboard_clips: Annotated[str, Form()],
+    max_pending_soundboard_clips_per_user: Annotated[str, Form()],
 ) -> Response:
     """Update general settings."""
     if not bot_name.strip():
@@ -154,6 +165,34 @@ async def update_general_settings(
         raise HTTPException(status_code=400, detail="Timezone cannot be empty")
     if not locale.strip():
         raise HTTPException(status_code=400, detail="Locale cannot be empty")
+
+    # Validate max_pending_soundboard_clips is a non-negative integer
+    try:
+        max_clips = int(max_pending_soundboard_clips.strip())
+        if max_clips < 0:
+            raise HTTPException(
+                status_code=400,
+                detail="Max pending soundboard clips must be a non-negative integer",
+            )
+    except ValueError as e:
+        raise HTTPException(
+            status_code=400,
+            detail="Max pending soundboard clips must be a non-negative integer",
+        ) from e
+
+    # Validate max_pending_soundboard_clips_per_user is a non-negative integer
+    try:
+        max_clips_per_user = int(max_pending_soundboard_clips_per_user.strip())
+        if max_clips_per_user < 0:
+            raise HTTPException(
+                status_code=400,
+                detail="Max pending soundboard clips per user must be a non-negative integer",
+            )
+    except ValueError as e:
+        raise HTTPException(
+            status_code=400,
+            detail="Max pending soundboard clips per user must be a non-negative integer",
+        ) from e
 
     app_state.database.store_configuration_setting(
         ConfigurationSettingKind.BOT_NAME,
@@ -170,6 +209,14 @@ async def update_general_settings(
     app_state.database.store_configuration_setting(
         ConfigurationSettingKind.LOCALE,
         locale.strip(),
+    )
+    app_state.database.store_configuration_setting(
+        ConfigurationSettingKind.MAX_PENDING_SOUNDBOARD_CLIPS,
+        str(max_clips),
+    )
+    app_state.database.store_configuration_setting(
+        ConfigurationSettingKind.MAX_PENDING_SOUNDBOARD_CLIPS_PER_USER,
+        str(max_clips_per_user),
     )
 
     return RedirectResponse(request.url_for("admin_general_settings"), status_code=303)
@@ -348,6 +395,7 @@ async def admin_soundboard(
 async def upload_soundboard_clip(
     request: Request,
     app_state: Annotated[AppState, Depends(get_app_state)],
+    current_user: Annotated[UserInfo, Depends(get_broadcaster_user)],
     command_name: Annotated[str, Form()],
     file: Annotated[UploadFile, File()],
 ) -> Response:
@@ -382,6 +430,9 @@ async def upload_soundboard_clip(
         app_state.database.add_soundboard_command(
             name=command_name,
             filename=unique_filename,
+            uploader_twitch_id=current_user.id,
+            uploader_twitch_login=current_user.login,
+            uploader_twitch_display_name=current_user.display_name,
         )
     except ValueError as e:
         # If database insertion fails, clean up the file.

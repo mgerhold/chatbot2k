@@ -93,6 +93,8 @@ class AdminGeneralSettingsContext(AdminContext):
     current_author_name: Optional[str]
     current_timezone: Optional[str]
     current_locale: Optional[str]
+    current_max_pending_soundboard_clips: Optional[str]
+    current_max_pending_soundboard_clips_per_user: Optional[str]
     available_timezones: list[str]
     available_locales: list[tuple[str, str]]
 
