@@ -23,6 +23,7 @@ from chatbot2k.database.tables import DictionaryEntry
 from chatbot2k.database.tables import LiveNotificationChannel
 from chatbot2k.database.tables import Parameter
 from chatbot2k.database.tables import ParameterizedCommand
+from chatbot2k.database.tables import PendingSoundboardClip
 from chatbot2k.database.tables import Script
 from chatbot2k.database.tables import ScriptStore
 from chatbot2k.database.tables import SoundboardCommand
@@ -525,3 +526,76 @@ class Database:
                 raise KeyError(msg)
             s.delete(live_notification_channel)
             s.commit()
+
+    def add_pending_soundboard_clip(
+        self,
+        *,
+        name: str,
+        filename: str,
+        uploader_twitch_id: str,
+        uploader_twitch_login: str,
+        uploader_twitch_display_name: str,
+        may_persist_uploader_info: bool,
+    ) -> None:
+        """Add a pending soundboard clip."""
+        with self._session() as s:
+            existing: Final = s.get(PendingSoundboardClip, name)
+            if existing is not None:
+                raise ValueError(f"PendingSoundboardClip '{name}' already exists")
+            clip: Final = PendingSoundboardClip(
+                name=name,
+                filename=filename,
+                uploader_twitch_id=uploader_twitch_id,
+                uploader_twitch_login=uploader_twitch_login,
+                uploader_twitch_display_name=uploader_twitch_display_name,
+                may_persist_uploader_info=may_persist_uploader_info,
+            )
+            s.add(clip)
+            s.commit()
+
+    def update_pending_soundboard_clip(
+        self,
+        *,
+        id_: int,
+        name: str,
+        may_persist_uploader_info: bool,
+    ) -> None:
+        """Update a pending soundboard clip."""
+        with self._session() as s:
+            clip: Final = s.get(PendingSoundboardClip, id_)
+            if clip is None:
+                raise KeyError(f"PendingSoundboardClip with ID {id_} not found")
+            clip.name = name
+            clip.may_persist_uploader_info = may_persist_uploader_info
+            s.add(clip)
+            s.commit()
+
+    def remove_pending_soundboard_clip(self, *, id_: int) -> None:
+        """Remove a pending soundboard clip by ID."""
+        with self._session() as s:
+            clip: Final = s.get(PendingSoundboardClip, id_)
+            if clip is None:
+                raise KeyError(f"PendingSoundboardClip with ID {id_} not found")
+            s.delete(clip)
+            s.commit()
+
+    def get_number_of_pending_soundboard_clips(self) -> int:
+        """Get the number of pending soundboard clips."""
+        with self._session() as s:
+            return s.exec(select(func.count()).select_from(PendingSoundboardClip)).one()
+
+    def get_all_pending_soundboard_clips(self) -> list[PendingSoundboardClip]:
+        """Get all pending soundboard clips."""
+        with self._session() as s:
+            return list(s.exec(select(PendingSoundboardClip).order_by(PendingSoundboardClip.name)).all())
+
+    def get_pending_soundboard_clips_by_twitch_user_id(self, *, twitch_user_id: str) -> list[PendingSoundboardClip]:
+        """Get pending soundboard clips for a specific Twitch user ID."""
+        with self._session() as s:
+            return list(
+                s.exec(
+                    select(PendingSoundboardClip)
+                    .where(PendingSoundboardClip.uploader_twitch_id == twitch_user_id)
+                    .order_by(PendingSoundboardClip.name)
+                ).all()
+            )
