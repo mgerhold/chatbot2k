@@ -169,11 +169,25 @@ class Database:
                 for command in s.exec(select(ParameterizedCommand)).all()
             ]
 
-    def add_soundboard_command(self, *, name: str, filename: str) -> SoundboardCommand:
+    def add_soundboard_command(
+        self,
+        *,
+        name: str,
+        filename: str,
+        uploader_twitch_id: Optional[str],
+        uploader_twitch_login: Optional[str],
+        uploader_twitch_display_name: Optional[str],
+    ) -> SoundboardCommand:
         with self._session() as s:
             if s.get(SoundboardCommand, name):
                 raise ValueError(f"SoundboardCommand '{name}' already exists")
-            obj = SoundboardCommand(name=name, filename=filename)
+            obj = SoundboardCommand(
+                name=name,
+                filename=filename,
+                uploader_twitch_id=uploader_twitch_id,
+                uploader_twitch_login=uploader_twitch_login,
+                uploader_twitch_display_name=uploader_twitch_display_name,
+            )
             s.add(obj)
             s.commit()
             s.refresh(obj)
