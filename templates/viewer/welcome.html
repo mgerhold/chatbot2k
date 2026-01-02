@@ -1,0 +1,14 @@
+{% extends "viewer/base.html" %}
+
+{% block title %}{{ bot_name }} — Viewer Dashboard{% endblock %}
+
+{% block dashboard_content %}
+<div class="dashboard-header">
+    <h1>Welcome to the Viewer Dashboard</h1>
+    <p>Hello, {{ current_user.display_name }}! This is your personal dashboard.</p>
+</div>
+
+<div class="content-section">
+    <p>More features coming soon!</p>
+</div>
+{% endblock %}

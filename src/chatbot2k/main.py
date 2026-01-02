@@ -18,6 +18,7 @@ from chatbot2k.routes import commands
 from chatbot2k.routes import imprint
 from chatbot2k.routes import login
 from chatbot2k.routes import overlay
+from chatbot2k.routes import viewer
 
 logging.basicConfig(level=logging.INFO)
 
@@ -49,6 +50,7 @@ app.include_router(login.router)
 app.include_router(overlay.router)
 app.include_router(auth.router)
 app.include_router(admin.router)
+app.include_router(viewer.router)
 app.mount(
     "/static",
     StaticFiles(directory="static"),
