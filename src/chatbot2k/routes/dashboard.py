@@ -1,4 +1,5 @@
 import asyncio
+import logging
 from pathlib import Path
 from typing import Annotated
 from typing import Final
@@ -38,6 +39,8 @@ from chatbot2k.types.template_contexts import LiveNotificationChannel
 from chatbot2k.types.template_contexts import SoundboardCommand
 
 router: Final = APIRouter(prefix="/dashboard", dependencies=[Depends(get_broadcaster_user)])
+
+logger: Final = logging.getLogger(__name__)
 
 
 def _get_common_timezones() -> list[str]:
@@ -317,13 +320,16 @@ async def dashboard_soundboard(
     common_context: Annotated[CommonContext, Depends(get_common_context)],
 ) -> Response:
     """Dashboard page for viewing soundboard clips."""
-    soundboard_commands: Final = [
-        SoundboardCommand(
-            command=cmd.name,
-            clip_url=f"/{RELATIVE_SOUNDBOARD_FILES_DIRECTORY.as_posix()}/{cmd.filename}",
-        )
-        for cmd in app_state.database.get_soundboard_commands()
-    ]
+    soundboard_commands: Final = sorted(
+        (
+            SoundboardCommand(
+                command=cmd.name,
+                clip_url=f"/{RELATIVE_SOUNDBOARD_FILES_DIRECTORY.as_posix()}/{cmd.filename}",
+            )
+            for cmd in app_state.database.get_soundboard_commands()
+        ),
+        key=lambda cmd: cmd.command,
+    )
 
     context: Final = DashboardSoundboardContext(
         **common_context.model_dump(),
@@ -381,6 +387,33 @@ async def upload_soundboard_clip(
         # If database insertion fails, clean up the file.
         file_path.unlink(missing_ok=True)
         raise HTTPException(status_code=400, detail=str(e)) from e
+
+    app_state.reload_command_handlers()
+
+    return RedirectResponse(request.url_for("dashboard_soundboard"), status_code=303)
+
+
+@router.post("/soundboard/delete/{command_name}", name="delete_soundboard_clip")
+async def delete_soundboard_clip(
+    request: Request,
+    command_name: str,
+    app_state: Annotated[AppState, Depends(get_app_state)],
+) -> Response:
+    """Delete a soundboard clip."""
+    soundboard_commands: Final = app_state.database.get_soundboard_commands()
+    command = next((c for c in soundboard_commands if c.name.lower() == command_name.lower()), None)
+
+    if command is None:
+        raise HTTPException(status_code=404, detail="Soundboard command not found")
+
+    file_path: Final = SOUNDBOARD_FILES_DIRECTORY / command.filename
+    try:
+        file_path.unlink(missing_ok=True)
+    except Exception as e:
+        logger.exception(f"Warning: Failed to delete file {file_path}: {e}")
+
+    if not app_state.database.remove_command_case_insensitive(name=command.name):
+        raise HTTPException(status_code=500, detail="Failed to delete command from database")
 
     app_state.reload_command_handlers()
 

@@ -78,6 +78,82 @@
     .btn-primary:hover {
         background: var(--link-hover);
     }
+
+    .btn-danger {
+        background: #ef4444;
+        color: white;
+        padding: 0.5rem 1rem;
+        font-size: 0.875rem;
+    }
+
+    .btn-danger:hover {
+        background: #dc2626;
+    }
+
+    .table-container {
+        border: 1px solid var(--border);
+        border-radius: var(--radius);
+        background: rgba(255, 255, 255, 0.02);
+    }
+
+    .data-table {
+        width: 100%;
+        border-collapse: collapse;
+        font-size: 0.95rem;
+    }
+
+    .data-table th,
+    .data-table td {
+        padding: 0.75rem 1rem;
+        text-align: left;
+        border-bottom: 1px solid var(--border);
+    }
+
+    .data-table thead th {
+        background: rgba(255, 255, 255, 0.03);
+        font-weight: 600;
+        color: var(--text);
+        position: sticky;
+        top: 0;
+    }
+
+    .data-table tbody tr:last-child td {
+        border-bottom: none;
+    }
+
+    .data-table tbody tr:hover {
+        background: rgba(96, 165, 250, 0.05);
+    }
+
+    .data-table td.empty {
+        text-align: center;
+        color: var(--muted);
+        padding: 2rem 1rem;
+    }
+
+    .data-table th:first-child,
+    .data-table td:first-child {
+        width: 1px;
+        white-space: nowrap;
+        vertical-align: top;
+    }
+
+    .data-table audio,
+    .data-table video {
+        max-width: 100%;
+        height: auto;
+    }
+
+    .sb-preview {
+        max-height: 200px;
+    }
+
+    .command-cell {
+        display: flex;
+        flex-direction: column;
+        gap: 0.5rem;
+        align-items: flex-start;
+    }
 </style>
 {% endblock %}
 
@@ -121,7 +197,14 @@
             {% set lower = (sb.clip_url|lower) %}
             {% set base = lower.split('?')[0] %}
             <tr>
-                <td class="mono"><code>{{ sb.command | e }}</code></td>
+                <td>
+                    <div class="command-cell">
+                        <code>{{ sb.command | e }}</code>
+                        <form action="{{ request.app.url_path_for('delete_soundboard_clip', command_name=sb.command) }}" method="post" onsubmit="return confirm('Are you sure you want to delete this clip?');">
+                            <button type="submit" class="btn btn-danger">Delete</button>
+                        </form>
+                    </div>
+                </td>
                 <td>
                     {% if base.endswith('.mp3') or base.endswith('.wav') or base.endswith('.ogg') or
                     base.endswith('.flac') or base.endswith('.aac') or base.endswith('.m4a') or
