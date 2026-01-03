@@ -77,6 +77,16 @@ async def admin_general_settings(
     broadcaster_email_address: Final = app_state.database.retrieve_configuration_setting(
         ConfigurationSettingKind.BROADCASTER_EMAIL_ADDRESS
     )
+    current_script_execution_timeout_string: Final = app_state.database.retrieve_configuration_setting_or_raise(
+        ConfigurationSettingKind.SCRIPT_EXECUTION_TIMEOUT,
+    )
+
+    if (
+        not current_script_execution_timeout_string
+        or not current_script_execution_timeout_string.isdigit()
+        or int(current_script_execution_timeout_string) < 1
+    ):
+        raise HTTPException(status_code=500, detail="Invalid script execution timeout configuration")
 
     context: Final = AdminGeneralSettingsContext(
         **common_context.model_dump(),
@@ -88,6 +98,7 @@ async def admin_general_settings(
         current_max_pending_soundboard_clips=max_pending_soundboard_clips,
         current_max_pending_soundboard_clips_per_user=max_pending_soundboard_clips_per_user,
         current_broadcaster_email_address=broadcaster_email_address,
+        current_script_execution_timeout=int(current_script_execution_timeout_string),
         available_timezones=get_common_timezones(),
         available_locales=get_common_locales(),
     )
@@ -109,6 +120,7 @@ async def update_general_settings(
     locale: Annotated[str, Form()],
     max_pending_soundboard_clips: Annotated[str, Form()],
     max_pending_soundboard_clips_per_user: Annotated[str, Form()],
+    script_execution_timeout: Annotated[str, Form()],
     broadcaster_email_address: Annotated[str, Form()] = "",
 ) -> Response:
     """Update general settings."""
@@ -121,9 +133,9 @@ async def update_general_settings(
     if not locale.strip():
         raise HTTPException(status_code=400, detail="Locale cannot be empty")
 
-    # Validate max_pending_soundboard_clips is a non-negative integer
+    # Validate max_pending_soundboard_clips is a non-negative integer.
     try:
-        max_clips = int(max_pending_soundboard_clips.strip())
+        max_clips: Final = int(max_pending_soundboard_clips.strip())
         if max_clips < 0:
             raise HTTPException(
                 status_code=400,
@@ -135,9 +147,9 @@ async def update_general_settings(
             detail="Max pending soundboard clips must be a non-negative integer",
         ) from e
 
-    # Validate max_pending_soundboard_clips_per_user is a non-negative integer
+    # Validate max_pending_soundboard_clips_per_user is a non-negative integer.
     try:
-        max_clips_per_user = int(max_pending_soundboard_clips_per_user.strip())
+        max_clips_per_user: Final = int(max_pending_soundboard_clips_per_user.strip())
         if max_clips_per_user < 0:
             raise HTTPException(
                 status_code=400,
@@ -147,6 +159,17 @@ async def update_general_settings(
         raise HTTPException(
             status_code=400,
             detail="Max pending soundboard clips per user must be a non-negative integer",
+        ) from e
+
+    # Validate script_execution_timeout is a positive integer.
+    try:
+        timeout_seconds: Final = int(script_execution_timeout.strip())
+        if timeout_seconds < 1:
+            raise HTTPException(status_code=400, detail="Script execution timeout must be a positive integer")
+    except ValueError as e:
+        raise HTTPException(
+            status_code=400,
+            detail="Script execution timeout must be a positive integer",
         ) from e
 
     app_state.database.store_configuration_setting(
@@ -177,6 +200,11 @@ async def update_general_settings(
     app_state.database.store_configuration_setting(
         ConfigurationSettingKind.BROADCASTER_EMAIL_ADDRESS,
         broadcaster_email_address.strip(),
+    )
+
+    app_state.database.store_configuration_setting(
+        ConfigurationSettingKind.SCRIPT_EXECUTION_TIMEOUT,
+        str(timeout_seconds),
     )
 
     return RedirectResponse(request.url_for("admin_general_settings"), status_code=303)
