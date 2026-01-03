@@ -15,6 +15,7 @@ from chatbot2k.command_handlers.command_handler import CommandHandler
 from chatbot2k.config import Config
 from chatbot2k.database.engine import Database
 from chatbot2k.dictionary import Dictionary
+from chatbot2k.entrance_sounds import EntranceSoundHandler
 from chatbot2k.scripting_engine.lexer import Lexer
 from chatbot2k.scripting_engine.parser import AssignmentTypeError
 from chatbot2k.scripting_engine.parser import EmptyListLiteralAssignmentToNonListError
@@ -129,6 +130,11 @@ class _MockAppState(AppState):
     @is_soundboard_enabled.setter
     @override
     def is_soundboard_enabled(self, value: bool) -> None:
+        raise NotImplementedError
+
+    @property
+    @override
+    def entrance_sound_handler(self) -> EntranceSoundHandler:
         raise NotImplementedError
 
     @property

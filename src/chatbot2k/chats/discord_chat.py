@@ -110,6 +110,7 @@ class DiscordChat(Chat):
                 formatting_support=FormattingSupport.MARKDOWN,
                 can_post_live_notifications=True,
                 can_trigger_soundboard=False,
+                can_trigger_entrance_sounds=False,
                 supports_giveaways=False,
             )
         )

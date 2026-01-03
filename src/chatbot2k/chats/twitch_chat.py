@@ -43,6 +43,7 @@ class TwitchChat(Chat):
                 formatting_support=FormattingSupport.NONE,
                 can_post_live_notifications=False,
                 can_trigger_soundboard=True,
+                can_trigger_entrance_sounds=True,
                 supports_giveaways=True,
             ),
         )

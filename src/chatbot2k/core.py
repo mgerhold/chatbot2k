@@ -115,6 +115,9 @@ async def run_main_loop(app_state: AppState) -> None:
                 case _Sentinel():
                     active_participant_indices.discard(i)
                 case ChatMessage():
+                    if chats[i].feature_flags.can_trigger_entrance_sounds:
+                        await app_state.entrance_sound_handler.trigger_entrance_sounds(chat_message)
+
                     # Notify broadcasters about the chat message so they can react to it,
                     # e.g. by delaying the next broadcast if it was already triggered by
                     # a regular chat message.
