@@ -15,5 +15,8 @@ class RetrieveDiscordChatCommand:
         await self._callback(discord_chat)
 
 
-# The following type alias can be extended to be a union of multiple command types in the future.
-type Command = RetrieveDiscordChatCommand
+@final
+class ReloadBroadcastersCommand: ...
+
+
+type Command = RetrieveDiscordChatCommand | ReloadBroadcastersCommand

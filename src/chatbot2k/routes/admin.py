@@ -27,6 +27,7 @@ from chatbot2k.dependencies import get_common_context
 from chatbot2k.dependencies import get_templates
 from chatbot2k.types.configuration_setting_kind import ConfigurationSettingKind
 from chatbot2k.types.template_contexts import ActivePage
+from chatbot2k.types.template_contexts import AdminBroadcastsContext
 from chatbot2k.types.template_contexts import AdminConstantsContext
 from chatbot2k.types.template_contexts import AdminContext
 from chatbot2k.types.template_contexts import AdminEntranceSoundsContext
@@ -34,6 +35,7 @@ from chatbot2k.types.template_contexts import AdminGeneralSettingsContext
 from chatbot2k.types.template_contexts import AdminLiveNotificationsContext
 from chatbot2k.types.template_contexts import AdminPendingClipsContext
 from chatbot2k.types.template_contexts import AdminSoundboardContext
+from chatbot2k.types.template_contexts import Broadcast
 from chatbot2k.types.template_contexts import CommonContext
 from chatbot2k.types.template_contexts import Constant
 from chatbot2k.types.template_contexts import EntranceSound
@@ -270,6 +272,150 @@ async def delete_constant(
         raise HTTPException(status_code=404, detail=str(e)) from e
     return RedirectResponse(
         url=request.app.url_path_for("admin_constants"),
+        status_code=303,
+    )
+
+
+@router.get("/broadcasts", name="admin_broadcasts")
+async def admin_broadcasts(
+    request: Request,
+    app_state: Annotated[AppState, Depends(get_app_state)],
+    templates: Annotated[Jinja2Templates, Depends(get_templates)],
+    common_context: Annotated[CommonContext, Depends(get_common_context)],
+) -> Response:
+    """Admin dashboard page for managing broadcasts."""
+    admin_context: Final = AdminContext(
+        **common_context.model_dump(),
+        active_page=ActivePage.BROADCASTS,
+    )
+    broadcasts: Final = sorted(
+        (
+            Broadcast(
+                id=broadcast.id,
+                interval_seconds=broadcast.interval_seconds,
+                message=broadcast.message,
+                alias_command=broadcast.alias_command,
+            )
+            for broadcast in app_state.database.get_broadcasts()
+            if broadcast.id is not None
+        ),
+        key=lambda b: b.id,
+    )
+    static_commands: Final = sorted([f"!{cmd.name}" for cmd in app_state.database.get_static_commands()])
+    context: Final = AdminBroadcastsContext(
+        **admin_context.model_dump(),
+        broadcasts=broadcasts,
+        static_commands=static_commands,
+    )
+
+    return templates.TemplateResponse(
+        request=request,
+        name="admin/broadcasts.html",
+        context=context.model_dump(),
+    )
+
+
+@router.post("/broadcasts/add", name="add_broadcast")
+async def add_broadcast(
+    request: Request,
+    app_state: Annotated[AppState, Depends(get_app_state)],
+    interval_seconds: Annotated[int, Form()],
+    message: Annotated[str, Form()],
+    alias_command: Annotated[str, Form()] = "",
+    enable_alias: Annotated[str, Form()] = "",
+) -> Response:
+    """Add a new broadcast."""
+    try:
+        if interval_seconds < 1:
+            raise HTTPException(status_code=400, detail="Interval must be at least 1 second")
+
+        # Only set alias_command if checkbox is enabled and a command is selected.
+        final_alias_command: Final = alias_command.strip() if enable_alias and alias_command.strip() else None
+
+        if final_alias_command is not None and (
+            not final_alias_command.startswith("!")
+            or not any(
+                final_alias_command.removeprefix("!") == command.name
+                for command in app_state.database.get_static_commands()
+            )
+        ):
+            raise HTTPException(status_code=400, detail="Invalid alias command selected")
+
+        app_state.database.add_broadcast(
+            interval_seconds=interval_seconds,
+            message=message,
+            alias_command=final_alias_command,
+        )
+        logger.info(f"Added broadcast with interval {interval_seconds}s")
+    except ValueError as e:
+        logger.error(f"Failed to add broadcast: {e}")
+        raise HTTPException(status_code=400, detail=str(e)) from e
+    await app_state.reload_broadcasters()
+    return RedirectResponse(
+        url=request.app.url_path_for("admin_broadcasts"),
+        status_code=303,
+    )
+
+
+@router.post("/broadcasts/{broadcast_id}/update", name="update_broadcast")
+async def update_broadcast(
+    request: Request,
+    app_state: Annotated[AppState, Depends(get_app_state)],
+    broadcast_id: int,
+    interval_seconds: Annotated[int, Form()],
+    message: Annotated[str, Form()],
+    alias_command: Annotated[str, Form()] = "",
+) -> Response:
+    """Update an existing broadcast."""
+    try:
+        if interval_seconds < 1:
+            raise HTTPException(status_code=400, detail="Interval must be at least 1 second")
+
+        # Empty string means no alias.
+        final_alias_command = alias_command.strip() if alias_command.strip() else None
+
+        if final_alias_command is not None and (
+            not final_alias_command.startswith("!")
+            or not any(
+                final_alias_command.removeprefix("!") == command.name
+                for command in app_state.database.get_static_commands()
+            )
+        ):
+            raise HTTPException(status_code=400, detail="Invalid alias command selected")
+
+        app_state.database.update_broadcast(
+            id_=broadcast_id,
+            interval_seconds=interval_seconds,
+            message=message,
+            alias_command=final_alias_command,
+        )
+        logger.info(f"Updated broadcast {broadcast_id}")
+    except (ValueError, KeyError) as e:
+        logger.error(f"Failed to update broadcast: {e}")
+        raise HTTPException(status_code=400, detail=str(e)) from e
+    await app_state.reload_broadcasters()
+    return RedirectResponse(
+        url=request.app.url_path_for("admin_broadcasts"),
+        status_code=303,
+    )
+
+
+@router.post("/broadcasts/{broadcast_id}/delete", name="delete_broadcast")
+async def delete_broadcast(
+    request: Request,
+    app_state: Annotated[AppState, Depends(get_app_state)],
+    broadcast_id: int,
+) -> Response:
+    """Delete a broadcast."""
+    try:
+        app_state.database.remove_broadcast(id_=broadcast_id)
+        logger.info(f"Deleted broadcast {broadcast_id}")
+    except KeyError as e:
+        logger.error(f"Failed to delete broadcast: {e}")
+        raise HTTPException(status_code=404, detail=str(e)) from e
+    await app_state.reload_broadcasters()
+    return RedirectResponse(
+        url=request.app.url_path_for("admin_broadcasts"),
         status_code=303,
     )
 

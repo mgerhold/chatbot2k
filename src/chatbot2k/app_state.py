@@ -80,6 +80,10 @@ class AppState(ABC):
     def reload_command_handlers(self) -> None:
         """Reload all command handlers from the database."""
 
+    @abstractmethod
+    async def reload_broadcasters(self) -> None:
+        """Reload all broadcasters from the database."""
+
     @final
     def shut_down(self) -> None:
         self.is_shutting_down.set()

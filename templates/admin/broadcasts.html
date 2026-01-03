@@ -1,0 +1,425 @@
+{% extends "admin/base.html" %}
+
+{% block title %}{{ bot_name }} — Broadcasts{% endblock %}
+
+{% block head_extra %}
+{{ super() }}
+<style>
+    .add-section {
+        margin-bottom: 2rem;
+        padding: 1.5rem;
+        background: rgba(96, 165, 250, 0.05);
+        border: 1px solid var(--border);
+        border-radius: var(--radius);
+    }
+
+    .add-section h2 {
+        margin: 0 0 1rem 0;
+        font-size: 1.25rem;
+    }
+
+    .form-group {
+        margin-bottom: 1rem;
+    }
+
+    .form-group label {
+        display: block;
+        margin-bottom: 0.5rem;
+        font-weight: 500;
+        color: var(--text);
+    }
+
+    .form-group input[type="text"],
+    .form-group input[type="number"],
+    .form-group textarea,
+    .form-group select {
+        width: 100%;
+        padding: 0.75rem;
+        background: rgba(255, 255, 255, 0.05);
+        border: 1px solid var(--border);
+        border-radius: 4px;
+        color: var(--text);
+        font-family: inherit;
+    }
+
+    .form-group textarea {
+        resize: vertical;
+        min-height: 100px;
+    }
+
+    .form-group input[type="text"]:focus,
+    .form-group input[type="number"]:focus,
+    .form-group textarea:focus,
+    .form-group select:focus {
+        outline: 2px solid var(--accent);
+        outline-offset: 1px;
+        background: rgba(255, 255, 255, 0.08);
+    }
+
+    .form-group small {
+        display: block;
+        margin-top: 0.25rem;
+        color: var(--muted);
+        font-size: 0.875rem;
+    }
+
+    .form-group select:disabled {
+        opacity: 0.5;
+        cursor: not-allowed;
+    }
+
+    .checkbox-group {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        margin-bottom: 1rem;
+    }
+
+    .checkbox-group input[type="checkbox"] {
+        width: auto;
+        cursor: pointer;
+    }
+
+    .checkbox-group label {
+        margin: 0;
+        cursor: pointer;
+    }
+
+    .btn {
+        padding: 0.5rem 1rem;
+        border: none;
+        border-radius: 4px;
+        cursor: pointer;
+        font-weight: 500;
+        transition: all 0.2s ease;
+        text-decoration: none;
+        display: inline-block;
+    }
+
+    .btn-primary {
+        background: var(--accent);
+        color: white;
+        padding: 0.75rem 1.5rem;
+    }
+
+    .btn-primary:hover {
+        background: var(--link-hover);
+    }
+
+    .btn-danger {
+        background: #ef4444;
+        color: white;
+        padding: 0.5rem 1rem;
+        font-size: 0.875rem;
+    }
+
+    .btn-danger:hover {
+        background: #dc2626;
+    }
+
+    .table-container {
+        border: 1px solid var(--border);
+        border-radius: var(--radius);
+        background: rgba(255, 255, 255, 0.02);
+        overflow: auto;
+    }
+
+    .data-table {
+        width: 100%;
+        border-collapse: collapse;
+        font-size: 0.95rem;
+    }
+
+    .data-table th,
+    .data-table td {
+        padding: 0.75rem 1rem;
+        text-align: left;
+        border-bottom: 1px solid var(--border);
+    }
+
+    .data-table thead th {
+        background: rgba(255, 255, 255, 0.03);
+        font-weight: 600;
+        color: var(--text);
+        position: sticky;
+        top: 0;
+    }
+
+    .data-table tbody tr:last-child td {
+        border-bottom: none;
+    }
+
+    .data-table tbody tr:hover {
+        background: rgba(96, 165, 250, 0.05);
+    }
+
+    .data-table td.empty {
+        text-align: center;
+        color: var(--muted);
+        padding: 2rem 1rem;
+    }
+
+    .data-table th:last-child,
+    .data-table td:last-child {
+        width: 1px;
+        white-space: nowrap;
+    }
+
+    .data-table td:nth-child(1) {
+        width: 120px;
+    }
+
+    .data-table td:nth-child(3) {
+        width: 180px;
+    }
+
+    .edit-input {
+        width: 100%;
+        padding: 0.5rem;
+        background: rgba(255, 255, 255, 0.05);
+        border: 1px solid var(--border);
+        border-radius: 4px;
+        color: var(--text);
+        font-family: inherit;
+        font-size: 0.9rem;
+    }
+
+    .edit-textarea {
+        width: 100%;
+        padding: 0.5rem;
+        background: rgba(255, 255, 255, 0.05);
+        border: 1px solid var(--border);
+        border-radius: 4px;
+        color: var(--text);
+        font-family: inherit;
+        font-size: 0.9rem;
+        resize: vertical;
+        min-height: 120px;
+    }
+
+    .edit-select {
+        width: 100%;
+        padding: 0.5rem;
+        background: rgba(255, 255, 255, 0.05);
+        border: 1px solid var(--border);
+        border-radius: 4px;
+        color: var(--text);
+        font-family: inherit;
+        font-size: 0.9rem;
+    }
+
+    .edit-input:focus,
+    .edit-textarea:focus,
+    .edit-select:focus {
+        outline: 2px solid var(--accent);
+        outline-offset: 1px;
+        background: rgba(255, 255, 255, 0.08);
+    }
+
+    .edit-select:disabled {
+        opacity: 0.5;
+        cursor: not-allowed;
+        background: rgba(255, 255, 255, 0.02);
+    }
+
+    .action-buttons {
+        display: flex;
+        gap: 0.5rem;
+        margin: 0;
+    }
+
+    .action-buttons .btn-primary {
+        padding: 0.5rem 1rem;
+        font-size: 0.875rem;
+        background: #22c55e;
+    }
+
+    .action-buttons .btn-primary:hover {
+        background: #16a34a;
+    }
+
+    .alias-container {
+        display: flex;
+        flex-direction: column;
+        gap: 0.5rem;
+    }
+
+    .alias-checkbox {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+    }
+
+    .alias-checkbox input[type="checkbox"] {
+        width: auto;
+        cursor: pointer;
+    }
+
+    .alias-checkbox label {
+        margin: 0;
+        font-size: 0.875rem;
+        cursor: pointer;
+        user-select: none;
+    }
+</style>
+<script>
+    function toggleAliasDropdown(checkboxId, selectId) {
+        const checkbox = document.getElementById(checkboxId);
+        const select = document.getElementById(selectId);
+        select.disabled = !checkbox.checked;
+        if (!checkbox.checked) {
+            select.value = '';
+        }
+    }
+
+    document.addEventListener('DOMContentLoaded', function() {
+        // Initialize all alias checkboxes
+        document.querySelectorAll('[id^="enable-alias-"]').forEach(checkbox => {
+            const index = checkbox.id.replace('enable-alias-', '');
+            const select = document.getElementById('alias-command-' + index);
+            if (select) {
+                checkbox.checked = select.value !== '';
+                select.disabled = !checkbox.checked;
+            }
+        });
+
+        // Add event listener for the add form
+        const addCheckbox = document.getElementById('enable-alias-add');
+        const addSelect = document.getElementById('alias_command_add');
+        if (addCheckbox && addSelect) {
+            addCheckbox.addEventListener('change', function() {
+                addSelect.disabled = !this.checked;
+                if (!this.checked) {
+                    addSelect.value = '';
+                }
+            });
+            // Initialize state
+            addSelect.disabled = !addCheckbox.checked;
+        }
+    });
+</script>
+{% endblock %}
+
+{% block dashboard_content %}
+<div class="dashboard-header">
+    <h1>Broadcasts</h1>
+    <p>Manage automated broadcast messages</p>
+</div>
+
+<!-- Add New Broadcast Form -->
+<section class="add-section">
+    <h2>Add New Broadcast</h2>
+    <form action="{{ request.app.url_path_for('add_broadcast') }}" method="post">
+        <div class="form-group">
+            <label for="interval_seconds">Interval (seconds)</label>
+            <input type="number" id="interval_seconds" name="interval_seconds" min="1" placeholder="e.g., 300" required>
+            <small>Time between broadcasts in seconds</small>
+        </div>
+        <div class="form-group">
+            <label for="message">Message</label>
+            <textarea id="message" name="message" placeholder="Enter broadcast message..." required></textarea>
+        </div>
+        <div class="alias-container">
+            <div class="alias-checkbox">
+                <input type="checkbox" id="enable-alias-add" name="enable_alias">
+                <label for="enable-alias-add">Enable alias command</label>
+            </div>
+            <div class="form-group" style="margin-bottom: 0;">
+                <label for="alias_command_add">Alias Command</label>
+                <select id="alias_command_add" name="alias_command" class="edit-select">
+                    <option value="">-- Select a command --</option>
+                    {% for cmd in static_commands %}
+                    <option value="{{ cmd }}">{{ cmd }}</option>
+                    {% endfor %}
+                </select>
+                <small>Optional: Link to an existing static command</small>
+            </div>
+        </div>
+        <button type="submit" class="btn btn-primary" style="margin-top: 1rem;">Add Broadcast</button>
+    </form>
+</section>
+
+<section>
+    <h2>Existing Broadcasts</h2>
+    <div class="table-container" role="region" aria-labelledby="broadcasts-heading" tabindex="0">
+        <h3 id="broadcasts-heading" class="sr-only">Broadcasts</h3>
+        <table class="data-table">
+            <caption class="sr-only">Broadcasts</caption>
+            <thead>
+            <tr>
+                <th scope="col">Interval (s)</th>
+                <th scope="col">Message</th>
+                <th scope="col">Alias Command</th>
+                <th scope="col">Actions</th>
+            </tr>
+            </thead>
+            <tbody>
+            {% for broadcast in broadcasts %}
+            <tr>
+                <td>
+                    <input 
+                        type="number" 
+                        name="interval_seconds" 
+                        value="{{ broadcast.interval_seconds }}" 
+                        class="edit-input"
+                        min="1"
+                        required
+                        form="save-form-{{ loop.index }}"
+                    >
+                </td>
+                <td>
+                    <textarea 
+                        name="message" 
+                        class="edit-textarea"
+                        required
+                        form="save-form-{{ loop.index }}"
+                    >{{ broadcast.message }}</textarea>
+                </td>
+                <td>
+                    <div class="alias-container">
+                        <div class="alias-checkbox">
+                            <input 
+                                type="checkbox" 
+                                id="enable-alias-{{ loop.index }}"
+                                onchange="toggleAliasDropdown('enable-alias-{{ loop.index }}', 'alias-command-{{ loop.index }}')"
+                            >
+                            <label for="enable-alias-{{ loop.index }}">Enable</label>
+                        </div>
+                        <select 
+                            id="alias-command-{{ loop.index }}"
+                            name="alias_command" 
+                            class="edit-select"
+                            form="save-form-{{ loop.index }}"
+                        >
+                            <option value="">-- None --</option>
+                            {% for cmd in static_commands %}
+                            <option value="{{ cmd }}" {% if broadcast.alias_command == cmd %}selected{% endif %}>{{ cmd }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                </td>
+                <td>
+                    <div class="action-buttons">
+                        <form 
+                            id="save-form-{{ loop.index }}"
+                            action="{{ request.app.url_path_for('update_broadcast', broadcast_id=broadcast.id) }}" 
+                            method="post"
+                        >
+                            <button type="submit" class="btn btn-primary">Save</button>
+                        </form>
+                        <form action="{{ request.app.url_path_for('delete_broadcast', broadcast_id=broadcast.id) }}" method="post" onsubmit="return confirm('Are you sure you want to delete this broadcast?');">
+                            <button type="submit" class="btn btn-danger">Delete</button>
+                        </form>
+                    </div>
+                </td>
+            </tr>
+            {% else %}
+            <tr>
+                <td colspan="4" class="empty">No broadcasts available.</td>
+            </tr>
+            {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</section>
+{% endblock %}

@@ -274,6 +274,25 @@ class Database:
             s.delete(obj)
             s.commit()
 
+    def update_broadcast(
+        self,
+        *,
+        id_: int,
+        interval_seconds: int,
+        message: str,
+        alias_command: Optional[str],
+    ) -> None:
+        """Update an existing broadcast."""
+        with self._session() as s:
+            broadcast = s.get(Broadcast, id_)
+            if broadcast is None:
+                raise KeyError(f"Broadcast with id {id_} not found")
+            broadcast.interval_seconds = interval_seconds
+            broadcast.message = message
+            broadcast.alias_command = alias_command
+            s.add(broadcast)
+            s.commit()
+
     def get_broadcasts(self) -> list[Broadcast]:
         with self._session() as s:
             return list(s.exec(select(Broadcast)).all())
