@@ -836,10 +836,11 @@ class ListComprehensionExpression(BaseExpression):
 class FoldExpression(BaseExpression):
     """
     Expression of the form `fold <iterable> as <start>, <accumulator>, <element> with <expression>`,
-    where `<iterable>` can either be a list or a string. `<start>` is the initial value of the accumulator,
-    whose type may differ from the element type of `<iterable>`. `<accumulator>` and `<element>` are variable names
-    that can be freely chosen as long as they don't shadow existing names in the context. The type of
-    `<expression>` must match the type of `<start>`, and is also the type of the whole fold expression.
+    where `<iterable>` can either be a list or a string (possibly empty). `<start>` is the initial
+    value of the accumulator, whose type may differ from the element type of `<iterable>`.
+    `<accumulator>` and `<element>` are variable names that can be freely chosen as long as they don't
+    shadow existing names in the context. The type of `<expression>` must match the type of `<start>`,
+    and is also the type of the whole fold expression.
     """
 
     model_config = ConfigDict(frozen=True)
@@ -902,9 +903,6 @@ class FoldExpression(BaseExpression):
         elements: list[Value],
         context: ExecutionContext,
     ) -> Value:
-        if not elements:
-            msg = "Fold expression iterable must not be empty."
-            raise ExecutionError(msg)
         start_value: Final = await self.start.evaluate(context)
         if start_value.get_data_type() != self.expression.get_data_type():
             msg = (

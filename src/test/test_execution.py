@@ -526,6 +526,7 @@ async def _create_callable_script(script_name: str, source: str) -> CallableScri
         ("PRINT for 1 ..= 5 as n yeet n * n;", _Success("[1, 4, 9, 16, 25]")),
         ("PRINT fold 1 ..= 5 as 0, acc, n with acc + n;", _Success("15")),
         ("PRINT fold 1 ..= 5 as 10, acc, n with acc + n;", _Success("25")),
+        ("PRINT fold 0 ..< 0 as 100, acc, n with acc * n;", _Success("100")),
         (
             "PRINT 1.5 ..= 3;",
             _Error(
