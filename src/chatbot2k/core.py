@@ -28,7 +28,7 @@ logger: Final = logging.getLogger(__name__)
 
 
 @final
-class Sentinel:
+class _Sentinel:
     pass
 
 
@@ -63,7 +63,7 @@ async def run_main_loop(app_state: AppState) -> None:
         await DiscordChat.create(app_state),
     ]
 
-    queue: Final[asyncio.Queue[tuple[int, ChatMessage | BroadcastMessage | Sentinel]]] = asyncio.Queue()
+    queue: Final[asyncio.Queue[tuple[int, ChatMessage | BroadcastMessage | _Sentinel]]] = asyncio.Queue()
     active_participant_indices: Final[set[int]] = set(range(len(chats) + len(app_state.broadcasters)))
 
     async def _producer(i: int, chat_or_broadcaster: Chat | Broadcaster) -> None:
@@ -78,7 +78,7 @@ async def run_main_loop(app_state: AppState) -> None:
         finally:
             # Either the chat or broadcaster finished or an error occurred,
             # we signal that it is done.
-            await queue.put((i, Sentinel()))
+            await queue.put((i, _Sentinel()))
 
     async def _on_channel_live(event: StreamLiveEvent) -> None:
         await _handle_channel_going_live(app_state, event, chats)
@@ -112,7 +112,7 @@ async def run_main_loop(app_state: AppState) -> None:
             i, chat_message = await queue.get()
 
             match chat_message:
-                case Sentinel():
+                case _Sentinel():
                     active_participant_indices.discard(i)
                 case ChatMessage():
                     # Notify broadcasters about the chat message so they can react to it,
