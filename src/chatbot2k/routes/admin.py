@@ -2,8 +2,10 @@ import asyncio
 import logging
 from typing import Annotated
 from typing import Final
+from typing import Literal
 from typing import Optional
 from typing import cast
+from typing import final
 from uuid import uuid4
 from zoneinfo import available_timezones
 
@@ -13,6 +15,7 @@ from fastapi import File
 from fastapi import Form
 from fastapi import HTTPException
 from fastapi import UploadFile
+from pydantic import BaseModel
 from starlette.requests import Request
 from starlette.responses import RedirectResponse
 from starlette.responses import Response
@@ -44,6 +47,7 @@ from chatbot2k.types.template_contexts import SoundboardCommand
 from chatbot2k.types.user_info import UserInfo
 from chatbot2k.utils.mime_types import get_file_extension_by_mime_type
 from chatbot2k.utils.twitch import get_twitch_user_info_by_ids
+from chatbot2k.utils.twitch import get_twitch_user_info_by_logins
 
 router: Final = APIRouter(prefix="/admin", dependencies=[Depends(get_broadcaster_user)])
 
@@ -678,6 +682,52 @@ async def admin_entrance_sounds(
         name="admin/entrance_sounds.html",
         context=context.model_dump(),
     )
+
+
+@final
+class _ValidateTwitchUserSuccessResponse(BaseModel):
+    valid: Literal[True] = True
+    user_id: str
+    profile_image_url: str
+
+
+@final
+class _ValidateTwitchUserErrorResponse(BaseModel):
+    valid: Literal[False] = False
+    error: str
+
+
+@router.get("/api/validate-twitch-user", name="validate_twitch_user")
+async def validate_twitch_user(
+    username: str,
+    app_state: Annotated[AppState, Depends(get_app_state)],
+) -> _ValidateTwitchUserSuccessResponse | _ValidateTwitchUserErrorResponse:
+    """Validate a Twitch username and return user ID if found."""
+    login: Final = username.lower()
+    users: Final = await get_twitch_user_info_by_logins([login], app_state)
+    if len(users) != 1:
+        return _ValidateTwitchUserErrorResponse(
+            valid=False,
+            error="User not found",
+        )
+    user: Final = next(iter(users.values()))
+    return _ValidateTwitchUserSuccessResponse(
+        valid=True,
+        user_id=user.id,
+        profile_image_url=user.profile_image_url,
+    )
+
+
+@router.post("/entrance-sounds/upload", name="upload_entrance_sound")
+async def upload_entrance_sound(
+    request: Request,
+    app_state: Annotated[AppState, Depends(get_app_state)],
+    twitch_user_id: Annotated[str, Form()],
+    file: Annotated[UploadFile, File()],
+) -> Response:
+    """Upload a new entrance sound for a user."""
+    # TODO: Implement entrance sound upload logic
+    return RedirectResponse(request.url_for("admin_entrance_sounds"), status_code=303)
 
 
 @router.post("/entrance-sounds/{twitch_user_id}/update", name="update_entrance_sound")
