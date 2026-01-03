@@ -417,6 +417,10 @@ PRINT fold words as '', acc, w with acc + w;  // Hello World
 // Count
 LET items = ['a', 'b', 'c'];
 PRINT fold items as 0, acc, _ with acc + 1;  // 3
+
+// Empty list
+LET empty: list<number> = [];
+PRINT fold empty as 100, acc, n with acc + n;  // 100
 ```
 
 ### Built-in Functions
