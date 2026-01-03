@@ -154,7 +154,6 @@ async def twitch_callback(
                 auth: Final = UserAuthenticator(twitch, SCOPES, url=app_state.config.twitch_redirect_uri)
                 auth_result: Final = await auth.authenticate(user_token=code)  # type: ignore[reportUnknownVariableType]
                 if auth_result is None:
-                    await twitch.close()
                     raise HTTPException(
                         status_code=HTTPStatus.UNAUTHORIZED,
                         detail="Failed to authenticate with Twitch",
@@ -163,7 +162,6 @@ async def twitch_callback(
                 await twitch.set_user_authentication(access_token, SCOPES, refresh_token)
                 user: Final = await first(twitch.get_users())
                 if user is None:
-                    await twitch.close()
                     raise HTTPException(
                         status_code=HTTPStatus.UNAUTHORIZED,
                         detail="Failed to retrieve user information from Twitch",
