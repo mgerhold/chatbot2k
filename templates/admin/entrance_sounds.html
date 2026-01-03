@@ -253,6 +253,20 @@
         color: var(--link-hover);
         text-decoration: underline;
     }
+
+    .user-cell {
+        display: flex;
+        align-items: center;
+        gap: 0.75rem;
+    }
+
+    .user-cell .profile-pic {
+        width: 40px;
+        height: 40px;
+        border-radius: 50%;
+        border: 2px solid var(--border);
+        flex-shrink: 0;
+    }
 </style>
 <script>
     let userValidationTimeout = null;
@@ -371,9 +385,12 @@
             {% set base = lower.split('?')[0] %}
             <tr>
                 <td>
-                    <a href="{{ entrance_sound.twitch_url }}" target="_blank" rel="noopener noreferrer" class="twitch-user-link">
-                        {{ entrance_sound.twitch_display_name }}
-                    </a>
+                    <div class="user-cell">
+                        <img src="{{ entrance_sound.twitch_profile_image_url }}" alt="{{ entrance_sound.twitch_display_name }}" class="profile-pic">
+                        <a href="{{ entrance_sound.twitch_url }}" target="_blank" rel="noopener noreferrer" class="twitch-user-link">
+                            {{ entrance_sound.twitch_display_name }}
+                        </a>
+                    </div>
                 </td>
                 <td>
                     {% if base.endswith('.mp3') %}

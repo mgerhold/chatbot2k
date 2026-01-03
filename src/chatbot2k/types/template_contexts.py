@@ -165,6 +165,7 @@ class EntranceSound(BaseModel):
 
     twitch_user_id: str
     twitch_display_name: str
+    twitch_profile_image_url: str
     twitch_url: str
     clip_url: str
 

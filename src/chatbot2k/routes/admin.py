@@ -659,6 +659,7 @@ async def admin_entrance_sounds(
             EntranceSound(
                 twitch_user_id=entrance_sound.twitch_user_id,
                 twitch_display_name=users_by_id[entrance_sound.twitch_user_id].display_name,
+                twitch_profile_image_url=users_by_id[entrance_sound.twitch_user_id].profile_image_url,
                 twitch_url=f"https://twitch.tv/{users_by_id[entrance_sound.twitch_user_id].login}",
                 clip_url=f"/{RELATIVE_SOUNDBOARD_FILES_DIRECTORY.as_posix()}/{entrance_sound.filename}",
             )
