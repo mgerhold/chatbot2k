@@ -789,3 +789,12 @@ async def delete_entrance_sound(
         raise HTTPException(status_code=500, detail="Failed to delete entrance sound from database") from e
 
     return RedirectResponse(request.url_for("admin_entrance_sounds"), status_code=303)
+
+
+@router.post("/entrance-sounds/reset-session", name="reset_entry_sounds_session")
+async def reset_entry_sounds_session(
+    request: Request,
+    app_state: Annotated[AppState, Depends(get_app_state)],
+) -> Response:
+    app_state.entrance_sound_handler.reset_entrance_sounds_session()
+    return RedirectResponse(request.url_for("admin_entrance_sounds"), status_code=303)

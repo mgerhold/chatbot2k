@@ -248,6 +248,50 @@
         text-decoration: underline;
     }
 
+    .dashboard-header {
+        margin-bottom: 2rem;
+    }
+
+    .dashboard-header-title {
+        display: flex;
+        align-items: center;
+        gap: 1rem;
+        margin-bottom: 0.5rem;
+    }
+
+    .dashboard-header-title h1 {
+        margin: 0;
+    }
+
+    .dashboard-header p {
+        margin: 0;
+    }
+
+    .reset-button {
+        background: none;
+        border: 1px solid var(--border);
+        color: var(--text);
+        padding: 0.5rem 0.75rem;
+        border-radius: 4px;
+        cursor: pointer;
+        transition: all 0.2s ease;
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        font-size: 0.875rem;
+    }
+
+    .reset-button:hover {
+        background: rgba(96, 165, 250, 0.1);
+        border-color: var(--accent);
+        color: var(--accent);
+    }
+
+    .reset-button svg {
+        width: 20px;
+        height: 20px;
+    }
+
     .user-cell {
         display: flex;
         align-items: center;
@@ -338,7 +382,17 @@
 
 {% block dashboard_content %}
 <div class="dashboard-header">
-    <h1>Entrance Sounds</h1>
+    <div class="dashboard-header-title">
+        <h1>Entrance Sounds</h1>
+        <form action="{{ request.app.url_path_for('reset_entry_sounds_session') }}" method="post" onsubmit="return confirm('Are you sure you want to reset the entrance sounds session? This will clear the playback history.');">
+            <button type="submit" class="reset-button" title="Reset entrance sounds session">
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                </svg>
+                <span>Reset Session</span>
+            </button>
+        </form>
+    </div>
     <p>Manage user entrance sounds (audio/video clips that play when a user joins the channel)</p>
 </div>
 
