@@ -158,3 +158,11 @@ class PendingSoundboardClip(SQLModel, table=True):
     uploader_twitch_login: str
     uploader_twitch_display_name: str
     may_persist_uploader_info: bool
+
+
+@final
+class EntranceSound(SQLModel, table=True):
+    """Represents an entrance sound configuration for a Twitch user."""
+
+    twitch_user_id: str = Field(primary_key=True)
+    filename: str
