@@ -4,8 +4,8 @@ from typing import Final
 from typing import Optional
 
 import httpx
-from cachetools import TTLCache
 from fastapi import Depends
+from fastapi import HTTPException
 from fastapi import Request
 from fastapi.routing import APIRouter
 from starlette.responses import Response
@@ -15,6 +15,7 @@ from chatbot2k.app_state import AppState
 from chatbot2k.command_handlers.clip_handler import ClipHandler
 from chatbot2k.command_handlers.script_command_handler import ScriptCommandHandler
 from chatbot2k.dependencies import get_app_state
+from chatbot2k.dependencies import get_broadcaster_user
 from chatbot2k.dependencies import get_common_context
 from chatbot2k.dependencies import get_templates
 from chatbot2k.types.permission_level import PermissionLevel
@@ -25,6 +26,7 @@ from chatbot2k.types.template_contexts import DictionaryEntry
 from chatbot2k.types.template_contexts import MainPageContext
 from chatbot2k.types.template_contexts import ScriptCommandData
 from chatbot2k.types.template_contexts import SoundboardCommand
+from chatbot2k.types.user_info import UserInfo
 from chatbot2k.utils.markdown import markdown_to_sanitized_html
 
 router: Final = APIRouter()
@@ -46,21 +48,25 @@ def _looks_like_url(text: str) -> bool:
     return text.startswith(("http://", "https://"))
 
 
-_SOURCE_CODE_CACHE: TTLCache[str, str] = TTLCache(maxsize=1000, ttl=15.0 * 60.0)
-
-
-async def _fetch_script_source(url: str) -> Optional[str]:
+async def _fetch_script_source(
+    url: str,
+    app_state: AppState,
+    *,
+    force_refresh: bool = False,
+) -> Optional[str]:
     """
-    Tries to fetch the script source code from the given URL. Returns `None`
-    if fetching fails. Employs a simple in-memory cache to avoid repeated network requests.
+    Returns the source code from the given URL from the database. If the database
+    does not contain the source code, fetches it via HTTP.
     """
-    if url in _SOURCE_CODE_CACHE:
-        return _SOURCE_CODE_CACHE[url]
+    if not force_refresh:
+        cached_source_code: Final = app_state.database.get_cached_source_code(url=url)
+        if cached_source_code is not None:
+            return cached_source_code
     try:
         async with httpx.AsyncClient(timeout=10.0) as client:
             response: Final = await client.get(url)
             response.raise_for_status()
-            _SOURCE_CODE_CACHE[url] = response.text
+            app_state.database.add_or_update_cached_source_code(url=url, source_code=response.text)
             return response.text
     except Exception as e:
         logger.error(f"Failed to fetch script source from URL '{url}': {e}")
@@ -99,7 +105,7 @@ async def show_main_page(
             ScriptCommandData(
                 command=handler.usage,
                 source_code=(
-                    await _fetch_script_source(script.source_code)
+                    await _fetch_script_source(script.source_code, app_state)
                     if _looks_like_url(script.source_code)
                     else script.source_code
                 ),
@@ -159,3 +165,36 @@ async def show_main_page(
         name="commands.html",
         context=context.model_dump(),
     )
+
+
+@router.post("/api/refresh-source-code/{script_name:path}", name="refresh_source_code")
+async def refresh_script_source_code(
+    script_name: str,
+    app_state: Annotated[AppState, Depends(get_app_state)],
+    _: Annotated[UserInfo, Depends(get_broadcaster_user)],  # Require broadcaster permissions.
+) -> None:
+    normalized_name: Final = script_name.removeprefix("!").lower()
+    handler: Final = app_state.command_handlers.get(normalized_name)
+    if not isinstance(handler, ScriptCommandHandler):
+        raise HTTPException(status_code=404, detail=f"Script command '{script_name}' not found.")
+    script: Final = app_state.database.get_script(handler.name)
+    if script is None:
+        raise HTTPException(
+            status_code=404,
+            detail=f"Script command '{script_name}' has no associated script in the database.",
+        )
+    if not _looks_like_url(script.source_code):
+        raise HTTPException(
+            status_code=400,
+            detail=f"Script command '{script_name}' does not have a URL source code.",
+        )
+    fetched_source: Final = await _fetch_script_source(
+        url=script.source_code,
+        app_state=app_state,
+        force_refresh=True,
+    )
+    if fetched_source is None:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Failed to fetch source code for script command '{script_name}'.",
+        )
