@@ -41,3 +41,4 @@ class EntranceSoundHandler:
     def reset_entrance_sounds_session(self) -> None:
         """Resets the entrance sounds session, allowing entrance sounds to be played again for all users."""
         self._entrance_sounds_already_played_for.clear()
+        logger.info("Entrance sounds session has been reset.")
