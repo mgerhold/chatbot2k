@@ -79,3 +79,11 @@ class AppState(ABC):
     @abstractmethod
     def reload_command_handlers(self) -> None:
         """Reload all command handlers from the database."""
+
+    @final
+    def shut_down(self) -> None:
+        self.is_shutting_down.set()
+
+    @property
+    @abstractmethod
+    def is_shutting_down(self) -> asyncio.Event: ...
