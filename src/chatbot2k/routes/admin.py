@@ -678,3 +678,25 @@ async def admin_entrance_sounds(
         name="admin/entrance_sounds.html",
         context=context.model_dump(),
     )
+
+
+@router.post("/entrance-sounds/{twitch_user_id}/update", name="update_entrance_sound")
+async def update_entrance_sound(
+    request: Request,
+    twitch_user_id: str,
+    app_state: Annotated[AppState, Depends(get_app_state)],
+) -> Response:
+    """Update an entrance sound for a specific user."""
+    # TODO: Implement entrance sound update logic
+    return RedirectResponse(request.url_for("admin_entrance_sounds"), status_code=303)
+
+
+@router.post("/entrance-sounds/{twitch_user_id}/delete", name="delete_entrance_sound")
+async def delete_entrance_sound(
+    request: Request,
+    twitch_user_id: str,
+    app_state: Annotated[AppState, Depends(get_app_state)],
+) -> Response:
+    """Delete an entrance sound for a specific user."""
+    # TODO: Implement entrance sound deletion logic
+    return RedirectResponse(request.url_for("admin_entrance_sounds"), status_code=303)

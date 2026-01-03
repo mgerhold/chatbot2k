@@ -1,0 +1,229 @@
+{% extends "admin/base.html" %}
+
+{% block title %}{{ bot_name }} — Entrance Sounds{% endblock %}
+
+{% block head_extra %}
+{{ super() }}
+<style>
+    .table-container {
+        border: 1px solid var(--border);
+        border-radius: var(--radius);
+        background: rgba(255, 255, 255, 0.02);
+        overflow: auto;
+    }
+
+    .data-table {
+        width: 100%;
+        border-collapse: collapse;
+        font-size: 0.95rem;
+    }
+
+    .data-table th,
+    .data-table td {
+        padding: 0.75rem 1rem;
+        text-align: left;
+        border-bottom: 1px solid var(--border);
+    }
+
+    .data-table thead th {
+        background: rgba(255, 255, 255, 0.03);
+        font-weight: 600;
+        color: var(--text);
+        position: sticky;
+        top: 0;
+    }
+
+    .data-table tbody tr:last-child td {
+        border-bottom: none;
+    }
+
+    .data-table tbody tr:hover {
+        background: rgba(96, 165, 250, 0.05);
+    }
+
+    .data-table td.empty {
+        text-align: center;
+        color: var(--muted);
+        padding: 2rem 1rem;
+    }
+
+    .data-table th:last-child,
+    .data-table td:last-child {
+        width: 1px;
+        white-space: nowrap;
+    }
+
+    .data-table td:nth-child(2) {
+        max-width: 400px;
+    }
+
+    .data-table audio,
+    .data-table video {
+        max-width: 100%;
+        height: auto;
+        display: inline-block;
+        min-height: 32px;
+    }
+
+    .data-table audio {
+        min-width: 200px;
+    }
+
+    .clip-preview {
+        max-height: 200px;
+    }
+
+    .btn {
+        padding: 0.5rem 1rem;
+        border: none;
+        border-radius: 4px;
+        cursor: pointer;
+        font-weight: 500;
+        transition: all 0.2s ease;
+        text-decoration: none;
+        display: inline-block;
+    }
+
+    .btn-primary {
+        background: #22c55e;
+        color: white;
+        padding: 0.5rem 1rem;
+        font-size: 0.875rem;
+    }
+
+    .btn-primary:hover {
+        background: #16a34a;
+    }
+
+    .btn-danger {
+        background: #ef4444;
+        color: white;
+        padding: 0.5rem 1rem;
+        font-size: 0.875rem;
+    }
+
+    .btn-danger:hover {
+        background: #dc2626;
+    }
+
+    .action-buttons {
+        display: flex;
+        gap: 0.5rem;
+        margin: 0;
+    }
+
+    .twitch-user-link {
+        color: var(--link);
+        text-decoration: none;
+    }
+
+    .twitch-user-link:hover {
+        color: var(--link-hover);
+        text-decoration: underline;
+    }
+</style>
+{% endblock %}
+
+{% block dashboard_content %}
+<div class="dashboard-header">
+    <h1>Entrance Sounds</h1>
+    <p>Manage user entrance sounds (audio/video clips that play when a user joins the channel)</p>
+</div>
+
+<section>
+    <h2>User Entrance Sounds</h2>
+    <div class="table-container" role="region" aria-labelledby="entrance-sounds-heading" tabindex="0">
+        <h3 id="entrance-sounds-heading" class="sr-only">Entrance Sounds</h3>
+        <table class="data-table">
+            <caption class="sr-only">Entrance sounds by user</caption>
+            <thead>
+            <tr>
+                <th scope="col">Twitch User</th>
+                <th scope="col">Clip Preview</th>
+                <th scope="col">Actions</th>
+            </tr>
+            </thead>
+            <tbody>
+            {% for entrance_sound in entrance_sounds %}
+            {% set lower = (entrance_sound.clip_url|lower) %}
+            {% set base = lower.split('?')[0] %}
+            <tr>
+                <td>
+                    <a href="{{ entrance_sound.twitch_url }}" target="_blank" rel="noopener noreferrer" class="twitch-user-link">
+                        {{ entrance_sound.twitch_display_name }}
+                    </a>
+                </td>
+                <td>
+                    {% if base.endswith('.mp3') %}
+                    <audio controls preload="metadata" src="{{ entrance_sound.clip_url }}" type="audio/mpeg">
+                        Your browser can't play this clip. <a href="{{ entrance_sound.clip_url }}" target="_blank" rel="noopener noreferrer">Open</a>.
+                    </audio>
+                    {% elif base.endswith('.wav') %}
+                    <audio controls preload="metadata" src="{{ entrance_sound.clip_url }}" type="audio/wav">
+                        Your browser can't play this clip. <a href="{{ entrance_sound.clip_url }}" target="_blank" rel="noopener noreferrer">Open</a>.
+                    </audio>
+                    {% elif base.endswith('.ogg') or base.endswith('.opus') %}
+                    <audio controls preload="metadata" src="{{ entrance_sound.clip_url }}" type="audio/ogg">
+                        Your browser can't play this clip. <a href="{{ entrance_sound.clip_url }}" target="_blank" rel="noopener noreferrer">Open</a>.
+                    </audio>
+                    {% elif base.endswith('.flac') %}
+                    <audio controls preload="metadata" src="{{ entrance_sound.clip_url }}" type="audio/flac">
+                        Your browser can't play this clip. <a href="{{ entrance_sound.clip_url }}" target="_blank" rel="noopener noreferrer">Open</a>.
+                    </audio>
+                    {% elif base.endswith('.aac') %}
+                    <audio controls preload="metadata" src="{{ entrance_sound.clip_url }}" type="audio/aac">
+                        Your browser can't play this clip. <a href="{{ entrance_sound.clip_url }}" target="_blank" rel="noopener noreferrer">Open</a>.
+                    </audio>
+                    {% elif base.endswith('.m4a') %}
+                    <audio controls preload="metadata" src="{{ entrance_sound.clip_url }}" type="audio/mp4">
+                        Your browser can't play this clip. <a href="{{ entrance_sound.clip_url }}" target="_blank" rel="noopener noreferrer">Open</a>.
+                    </audio>
+                    {% elif base.endswith('.mp4') or base.endswith('.m4v') %}
+                    <video controls preload="metadata" playsinline class="clip-preview" src="{{ entrance_sound.clip_url }}" type="video/mp4">
+                        Your browser can't play this clip. <a href="{{ entrance_sound.clip_url }}" target="_blank" rel="noopener noreferrer">Open</a>.
+                    </video>
+                    {% elif base.endswith('.webm') %}
+                    <video controls preload="metadata" playsinline class="clip-preview" src="{{ entrance_sound.clip_url }}" type="video/webm">
+                        Your browser can't play this clip. <a href="{{ entrance_sound.clip_url }}" target="_blank" rel="noopener noreferrer">Open</a>.
+                    </video>
+                    {% elif base.endswith('.mov') %}
+                    <video controls preload="metadata" playsinline class="clip-preview" src="{{ entrance_sound.clip_url }}" type="video/quicktime">
+                        Your browser can't play this clip. <a href="{{ entrance_sound.clip_url }}" target="_blank" rel="noopener noreferrer">Open</a>.
+                    </video>
+                    {% elif base.endswith('.mkv') %}
+                    <video controls preload="metadata" playsinline class="clip-preview" src="{{ entrance_sound.clip_url }}" type="video/x-matroska">
+                        Your browser can't play this clip. <a href="{{ entrance_sound.clip_url }}" target="_blank" rel="noopener noreferrer">Open</a>.
+                    </video>
+                    {% else %}
+                    <a href="{{ entrance_sound.clip_url }}" target="_blank" rel="noopener noreferrer">Open clip</a>
+                    {% endif %}
+                </td>
+                <td>
+                    <div class="action-buttons">
+                        <form 
+                            id="save-form-{{ loop.index }}"
+                            action="{{ request.app.url_path_for('update_entrance_sound', twitch_user_id=entrance_sound.twitch_user_id) }}" 
+                            method="post"
+                        >
+                            <button type="submit" class="btn btn-primary">Save</button>
+                        </form>
+                        <form 
+                            action="{{ request.app.url_path_for('delete_entrance_sound', twitch_user_id=entrance_sound.twitch_user_id) }}" 
+                            method="post" 
+                            onsubmit="return confirm('Are you sure you want to delete the entrance sound for {{ entrance_sound.twitch_display_name }}?');"
+                        >
+                            <button type="submit" class="btn btn-danger">Delete</button>
+                        </form>
+                    </div>
+                </td>
+            </tr>
+            {% else %}
+            <tr>
+                <td colspan="3" class="empty">No entrance sounds configured yet.</td>
+            </tr>
+            {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</section>
+{% endblock %}

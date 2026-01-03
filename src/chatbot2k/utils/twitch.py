@@ -18,6 +18,8 @@ async def get_twitch_user_info_by_ids(
     user_ids: list[str],
     app_state: AppState,
 ) -> dict[str, TwitchUserInfo]:
+    if not user_ids:
+        return {}
     twitch: Final = await Twitch(
         app_state.config.twitch_client_id,
         app_state.config.twitch_client_secret,
