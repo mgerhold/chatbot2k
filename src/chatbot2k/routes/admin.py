@@ -770,5 +770,22 @@ async def delete_entrance_sound(
     app_state: Annotated[AppState, Depends(get_app_state)],
 ) -> Response:
     """Delete an entrance sound for a specific user."""
-    # TODO: Implement entrance sound deletion logic
+    entrance_sound: Final = app_state.database.get_entrance_sound_by_twitch_user_id(twitch_user_id=twitch_user_id)
+    if entrance_sound is None:
+        raise HTTPException(
+            status_code=400,
+            detail="Failed to delete entrance sound because it does not exist.",
+        )
+    file_path: Final = SOUNDBOARD_FILES_DIRECTORY / entrance_sound.filename
+    try:
+        file_path.unlink(missing_ok=True)
+    except Exception as e:
+        logger.exception(f"Warning: Failed to delete file {file_path}: {e}")
+
+    try:
+        app_state.database.delete_entrance_sound(twitch_user_id=twitch_user_id)
+    except Exception as e:
+        logger.exception(f"Failed to delete entrance sound from database: {e}")
+        raise HTTPException(status_code=500, detail="Failed to delete entrance sound from database") from e
+
     return RedirectResponse(request.url_for("admin_entrance_sounds"), status_code=303)

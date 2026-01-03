@@ -660,6 +660,11 @@ class Database:
         with self._session() as s:
             return list(s.exec(select(EntranceSound)).all())
 
+    def get_entrance_sound_by_twitch_user_id(self, *, twitch_user_id: str) -> Optional[EntranceSound]:
+        """Get an entrance sound for a specific Twitch user ID."""
+        with self._session() as s:
+            return s.exec(select(EntranceSound).where(EntranceSound.twitch_user_id == twitch_user_id)).one_or_none()
+
     def delete_entrance_sound(self, *, twitch_user_id: str) -> None:
         """Delete an entrance sound for a Twitch user."""
         with self._session() as s:
