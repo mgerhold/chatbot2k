@@ -1,4 +1,3 @@
-import asyncio
 import logging
 from typing import Annotated
 from typing import Final
@@ -22,14 +21,12 @@ from starlette.templating import Jinja2Templates
 from twitchAPI.twitch import Twitch
 
 from chatbot2k.app_state import AppState
-from chatbot2k.chats.discord_chat import DiscordChat
 from chatbot2k.constants import RELATIVE_SOUNDBOARD_FILES_DIRECTORY
 from chatbot2k.constants import SOUNDBOARD_FILES_DIRECTORY
 from chatbot2k.dependencies import get_app_state
 from chatbot2k.dependencies import get_broadcaster_user
 from chatbot2k.dependencies import get_common_context
 from chatbot2k.dependencies import get_templates
-from chatbot2k.types.commands import RetrieveDiscordChatCommand
 from chatbot2k.types.configuration_setting_kind import ConfigurationSettingKind
 from chatbot2k.types.template_contexts import ActivePage
 from chatbot2k.types.template_contexts import AdminContext
@@ -44,6 +41,7 @@ from chatbot2k.types.template_contexts import LiveNotificationChannel
 from chatbot2k.types.template_contexts import PendingClip
 from chatbot2k.types.template_contexts import SoundboardCommand
 from chatbot2k.types.user_info import UserInfo
+from chatbot2k.utils.discord import get_available_discord_text_channels
 from chatbot2k.utils.mime_types import get_file_extension_by_mime_type
 from chatbot2k.utils.time_and_locale import get_common_locales
 from chatbot2k.utils.time_and_locale import get_common_timezones
@@ -181,27 +179,6 @@ async def update_general_settings(
     return RedirectResponse(request.url_for("admin_general_settings"), status_code=303)
 
 
-async def _get_available_discord_text_channels(app_state: AppState) -> Optional[list[str]]:
-    on_callback_called: Final = asyncio.Event()
-    available_channels: Final[list[str]] = []
-
-    async def _callback(discord_chat: DiscordChat) -> None:
-        nonlocal on_callback_called
-        nonlocal available_channels
-
-        text_channels: Final = discord_chat.get_writable_text_channels(force_refresh=True)
-        available_channels.extend(text_channels)
-        on_callback_called.set()
-
-    await app_state.command_queue.put(RetrieveDiscordChatCommand(_callback))
-    try:
-        await asyncio.wait_for(on_callback_called.wait(), timeout=1.0)
-    except TimeoutError:
-        return None
-
-    return available_channels
-
-
 @router.get("/live-notifications", name="admin_live_notifications")
 async def admin_live_notifications(
     request: Request,
@@ -220,7 +197,7 @@ async def admin_live_notifications(
         )
         for channel in app_state.database.get_live_notification_channels()
     ]
-    discord_text_channels: Final = await _get_available_discord_text_channels(app_state)
+    discord_text_channels: Final = await get_available_discord_text_channels(app_state)
 
     context: Final = AdminLiveNotificationsContext(
         **common_context.model_dump(),
