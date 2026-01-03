@@ -655,23 +655,6 @@ class Database:
             s.add(entrance_sound)
             s.commit()
 
-    def update_entrance_sound(
-        self,
-        *,
-        twitch_user_id: str,
-        filename: str,
-    ) -> None:
-        """Update an entrance sound for a Twitch user."""
-        with self._session() as s:
-            entrance_sound: Final = s.exec(
-                select(EntranceSound).where(EntranceSound.twitch_user_id == twitch_user_id)
-            ).one_or_none()
-            if entrance_sound is None:
-                raise KeyError(f"EntranceSound for Twitch user ID '{twitch_user_id}' not found")
-            entrance_sound.filename = filename
-            s.add(entrance_sound)
-            s.commit()
-
     def get_all_entry_sounds(self) -> list[EntranceSound]:
         """Get all entrance sounds."""
         with self._session() as s:

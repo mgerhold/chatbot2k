@@ -763,17 +763,6 @@ async def upload_entrance_sound(
     return RedirectResponse(request.url_for("admin_entrance_sounds"), status_code=303)
 
 
-@router.post("/entrance-sounds/{twitch_user_id}/update", name="update_entrance_sound")
-async def update_entrance_sound(
-    request: Request,
-    twitch_user_id: str,
-    app_state: Annotated[AppState, Depends(get_app_state)],
-) -> Response:
-    """Update an entrance sound for a specific user."""
-    # TODO: Implement entrance sound update logic
-    return RedirectResponse(request.url_for("admin_entrance_sounds"), status_code=303)
-
-
 @router.post("/entrance-sounds/{twitch_user_id}/delete", name="delete_entrance_sound")
 async def delete_entrance_sound(
     request: Request,

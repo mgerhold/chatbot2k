@@ -238,12 +238,6 @@
         background: #dc2626;
     }
 
-    .action-buttons {
-        display: flex;
-        gap: 0.5rem;
-        margin: 0;
-    }
-
     .twitch-user-link {
         color: var(--link);
         text-decoration: none;
@@ -438,22 +432,13 @@
                     {% endif %}
                 </td>
                 <td>
-                    <div class="action-buttons">
-                        <form 
-                            id="save-form-{{ loop.index }}"
-                            action="{{ request.app.url_path_for('update_entrance_sound', twitch_user_id=entrance_sound.twitch_user_id) }}" 
-                            method="post"
-                        >
-                            <button type="submit" class="btn btn-primary">Save</button>
-                        </form>
-                        <form 
-                            action="{{ request.app.url_path_for('delete_entrance_sound', twitch_user_id=entrance_sound.twitch_user_id) }}" 
-                            method="post" 
-                            onsubmit="return confirm('Are you sure you want to delete the entrance sound for {{ entrance_sound.twitch_display_name }}?');"
-                        >
-                            <button type="submit" class="btn btn-danger">Delete</button>
-                        </form>
-                    </div>
+                    <form 
+                        action="{{ request.app.url_path_for('delete_entrance_sound', twitch_user_id=entrance_sound.twitch_user_id) }}" 
+                        method="post" 
+                        onsubmit="return confirm('Are you sure you want to delete the entrance sound for {{ entrance_sound.twitch_display_name }}?');"
+                    >
+                        <button type="submit" class="btn btn-danger">Delete</button>
+                    </form>
                 </td>
             </tr>
             {% else %}
