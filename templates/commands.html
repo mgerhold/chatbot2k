@@ -123,7 +123,53 @@
 
     #panel-soundboard .sb-preview {
         max-height: 200px;
-    }</style>
+    }
+
+    /* Source URL container with refresh button */
+    .source-url-container {
+        margin-top: 8px;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+    }
+
+    .btn-refresh-source {
+        background: none;
+        border: 1px solid rgba(255, 255, 255, 0.2);
+        color: var(--accent, #4a9eff);
+        cursor: pointer;
+        padding: 4px 8px;
+        border-radius: 4px;
+        display: inline-flex;
+        align-items: center;
+        gap: 4px;
+        font-size: 13px;
+        transition: all 0.2s ease;
+    }
+
+    .btn-refresh-source:hover {
+        background: rgba(74, 158, 255, 0.1);
+        border-color: var(--accent, #4a9eff);
+    }
+
+    .btn-refresh-source:disabled {
+        opacity: 0.5;
+        cursor: not-allowed;
+    }
+
+    .btn-refresh-source svg {
+        transition: transform 0.3s ease;
+    }
+
+    .btn-refresh-source.refreshing svg {
+        animation: spin 1s linear infinite;
+    }
+
+    @keyframes spin {
+        from { transform: rotate(0deg); }
+        to { transform: rotate(360deg); }
+    }
+</style>
 {% endblock %}
 
 {% block header %}
@@ -182,7 +228,22 @@
                             <script class="script-data" type="application/json" data-command="{{ script.command | e }}">{{ script.source_code | tojson }}</script>
                             {% endif %}
                             {% if script.source_code_url %}
-                            Pulled from: <a href="{{ script.source_code_url }}" target="_blank" rel="noopener noreferrer">{{ script.source_code_url }}</a>
+                            <div class="source-url-container">
+                                Pulled from: <a href="{{ script.source_code_url }}" target="_blank" rel="noopener noreferrer">{{ script.source_code_url }}</a>
+                                {% if is_broadcaster %}
+                                <button 
+                                    class="btn-refresh-source" 
+                                    data-script-name="{{ script.command | e }}"
+                                    title="Refresh source code from URL"
+                                    aria-label="Refresh source code for {{ script.command | e }}">
+                                    <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true">
+                                        <path d="M8 3a5 5 0 1 0 4.546 2.914.5.5 0 0 1 .908-.417A6 6 0 1 1 8 2v1z"/>
+                                        <path d="M8 4.466V.534a.25.25 0 0 1 .41-.192l2.36 1.966c.12.1.12.284 0 .384L8.41 4.658A.25.25 0 0 1 8 4.466z"/>
+                                    </svg>
+                                    Refresh
+                                </button>
+                                {% endif %}
+                            </div>
                             {% endif %}
                         </td>
                     </tr>
@@ -292,5 +353,54 @@
 <script type="module">
   import { wireScriptsTab } from "/static/js/scripts_tab.bundle.js";
   document.addEventListener("DOMContentLoaded", wireScriptsTab);
+</script>
+
+<!-- Refresh source code buttons -->
+<script>
+  document.addEventListener("DOMContentLoaded", () => {
+    // Add click handlers to all refresh buttons
+    document.querySelectorAll(".btn-refresh-source").forEach(button => {
+      button.addEventListener("click", async (e) => {
+        e.preventDefault();
+        const scriptName = button.dataset.scriptName;
+        
+        // Disable button and add spinning animation
+        button.disabled = true;
+        button.classList.add("refreshing");
+        
+        try {
+          const response = await fetch(`/api/refresh-source-code/${encodeURIComponent(scriptName)}`, {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json"
+            }
+          });
+          
+          if (response.ok) {
+            // Success - reload the page to show updated source code
+            window.location.reload();
+          } else {
+            // Handle error
+            const errorText = await response.text();
+            let errorMessage = "Failed to refresh source code";
+            try {
+              const errorJson = JSON.parse(errorText);
+              errorMessage = errorJson.detail || errorMessage;
+            } catch {
+              // Keep default error message
+            }
+            alert(errorMessage);
+            button.disabled = false;
+            button.classList.remove("refreshing");
+          }
+        } catch (error) {
+          console.error("Error refreshing source code:", error);
+          alert("Network error while refreshing source code");
+          button.disabled = false;
+          button.classList.remove("refreshing");
+        }
+      });
+    });
+  });
 </script>
 {% endblock %}
