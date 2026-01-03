@@ -30,16 +30,20 @@ from chatbot2k.dependencies import get_templates
 from chatbot2k.types.commands import RetrieveDiscordChatCommand
 from chatbot2k.types.configuration_setting_kind import ConfigurationSettingKind
 from chatbot2k.types.template_contexts import ActivePage
+from chatbot2k.types.template_contexts import AdminContext
+from chatbot2k.types.template_contexts import AdminEntranceSoundsContext
 from chatbot2k.types.template_contexts import AdminGeneralSettingsContext
 from chatbot2k.types.template_contexts import AdminLiveNotificationsContext
 from chatbot2k.types.template_contexts import AdminPendingClipsContext
 from chatbot2k.types.template_contexts import AdminSoundboardContext
 from chatbot2k.types.template_contexts import CommonContext
+from chatbot2k.types.template_contexts import EntranceSound
 from chatbot2k.types.template_contexts import LiveNotificationChannel
 from chatbot2k.types.template_contexts import PendingClip
 from chatbot2k.types.template_contexts import SoundboardCommand
 from chatbot2k.types.user_info import UserInfo
 from chatbot2k.utils.mime_types import get_file_extension_by_mime_type
+from chatbot2k.utils.twitch import get_twitch_user_info_by_ids
 
 router: Final = APIRouter(prefix="/admin", dependencies=[Depends(get_broadcaster_user)])
 
@@ -631,3 +635,46 @@ async def reject_pending_clip(
         raise HTTPException(status_code=404, detail=str(e)) from e
 
     return RedirectResponse(request.url_for("admin_pending_clips"), status_code=303)
+
+
+@router.get("/entrance-sounds", name="admin_entrance_sounds")
+async def admin_entrance_sounds(
+    request: Request,
+    app_state: Annotated[AppState, Depends(get_app_state)],
+    templates: Annotated[Jinja2Templates, Depends(get_templates)],
+    common_context: Annotated[CommonContext, Depends(get_common_context)],
+) -> Response:
+    entry_sounds: Final = app_state.database.get_all_entry_sounds()
+    users_by_id: Final = await get_twitch_user_info_by_ids(
+        user_ids=[entrance_sound.twitch_user_id for entrance_sound in entry_sounds],
+        app_state=app_state,
+    )
+
+    entrance_sounds: Final = sorted(
+        (
+            EntranceSound(
+                twitch_user_id=entrance_sound.twitch_user_id,
+                twitch_display_name=users_by_id[entrance_sound.twitch_user_id].display_name,
+                twitch_url=f"https://twitch.tv/{users_by_id[entrance_sound.twitch_user_id].login}",
+                clip_url=f"/{RELATIVE_SOUNDBOARD_FILES_DIRECTORY.as_posix()}/{entrance_sound.filename}",
+            )
+            for entrance_sound in entry_sounds
+        ),
+        key=lambda entry: entry.twitch_display_name,
+    )
+
+    admin_context: Final = AdminContext(
+        **common_context.model_dump(),
+        active_page=ActivePage.ENTRANCE_SOUNDS,
+    )
+
+    context: Final = AdminEntranceSoundsContext(
+        **admin_context.model_dump(),
+        entrance_sounds=entrance_sounds,
+    )
+
+    return templates.TemplateResponse(
+        request=request,
+        name="admin/entrance_sounds.html",
+        context=context.model_dump(),
+    )
