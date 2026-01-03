@@ -143,43 +143,55 @@ class MonitoredStreamsManager:
             thumbnail_url=None,
         )
 
+    async def _get_broadcaster_id(self) -> Optional[str]:
+        broadcaster_name: Final = self._app_state.config.twitch_channel
+        user: Final = await first(self._twitch.get_users(logins=[broadcaster_name]))
+        if user is None:
+            logger.error(f"User '{broadcaster_name}' not found on Twitch.")
+            return None
+        return user.id
+
     async def _setup_subscriptions(self) -> None:
         """Set up EventSub subscriptions for all channels in the database."""
         channels: Final = self._app_state.database.get_live_notification_channels()
-        if not channels:
-            logger.info("No channels to monitor for live notifications.")
-            return
+
         requested_broadcaster_ids: Final = {channel.broadcaster_id for channel in channels}
+
+        # In addition to the explicitly monitored channels, we also monitor the broadcaster's own channel.
+        # This is needed for the entrance sounds (which have to be reset when the broadcaster goes live).
+        broadcaster_id: Final = await self._get_broadcaster_id()
+        if broadcaster_id is not None:
+            requested_broadcaster_ids.add(broadcaster_id)
+            # TODO: We could also add subscriptions for other events here, e.g. subscriptions, raids, etc.
+        else:
+            logger.error("Cannot set up EventSub subscriptions without broadcaster ID.")
+
         subscribed_broadcaster_ids: Final = {subscription.broadcaster_id for subscription in self._active_subscriptions}
         broadcaster_ids_to_remove: Final = subscribed_broadcaster_ids - requested_broadcaster_ids
         broadcaster_ids_to_add: Final = requested_broadcaster_ids - subscribed_broadcaster_ids
 
-        for broadcaster_id in broadcaster_ids_to_remove:
+        for id_ in broadcaster_ids_to_remove:
             subscription = next(
-                (
-                    subscription
-                    for subscription in self._active_subscriptions
-                    if subscription.broadcaster_id == broadcaster_id
-                ),
+                (subscription for subscription in self._active_subscriptions if subscription.broadcaster_id == id_),
                 None,
             )
             if subscription is None:
-                logger.error(f"Subscription for broadcaster ID '{broadcaster_id}' not found.")
+                logger.error(f"Subscription for broadcaster ID '{id_}' not found.")
                 continue
             result = await self._eventsub.unsubscribe_topic(subscription.subscription_id)
             if not result:
-                logger.error(f"Failed to unsubscribe from EventSub for broadcaster ID '{broadcaster_id}'.")
+                logger.error(f"Failed to unsubscribe from EventSub for broadcaster ID '{id_}'.")
                 continue
             self._active_subscriptions.remove(subscription)
-            logger.info(f"Unsubscribed from EventSub for broadcaster ID '{broadcaster_id}'.")
+            logger.info(f"Unsubscribed from EventSub for broadcaster ID '{id_}'.")
 
-        for broadcaster_id in broadcaster_ids_to_add:
+        for id_ in broadcaster_ids_to_add:
             channel = next(
-                (channel for channel in channels if channel.broadcaster_id == broadcaster_id),
+                (channel for channel in channels if channel.broadcaster_id == id_),
                 None,
             )
             if channel is None:
-                logger.error(f"Channel with broadcaster ID '{broadcaster_id}' not found.")
+                logger.error(f"Channel with broadcaster ID '{id_}' not found.")
                 continue
 
             id_ = channel.broadcaster_id

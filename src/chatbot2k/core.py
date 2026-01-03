@@ -32,6 +32,31 @@ class Sentinel:
     pass
 
 
+async def _handle_channel_going_live(
+    app_state: AppState,
+    event: StreamLiveEvent,
+    chats: Sequence[Chat],
+) -> None:
+    logger.info(f"Stream has gone live: {event.broadcaster_name} (ID = {event.broadcaster_id})")
+    channels: Final = app_state.database.get_live_notification_channels()
+    notification_channel: Final = next(
+        (channel for channel in channels if channel.broadcaster_id == event.broadcaster_id),
+        None,
+    )
+    if notification_channel is None:
+        logger.error(f"No target channel found for broadcaster {event.broadcaster_name}")
+        return
+    notification: Final = LiveNotification(
+        event=event,
+        target_channel=notification_channel.target_channel,
+        text_template=LiveNotificationTextTemplate(notification_channel.text_template),
+    )
+    for chat in chats:
+        if not chat.feature_flags.can_post_live_notifications:
+            continue
+        await chat.post_live_notification(notification)
+
+
 async def run_main_loop(app_state: AppState) -> None:
     chats: Final[list[Chat]] = [
         await TwitchChat.create(app_state),
@@ -56,24 +81,7 @@ async def run_main_loop(app_state: AppState) -> None:
             await queue.put((i, Sentinel()))
 
     async def _on_channel_live(event: StreamLiveEvent) -> None:
-        logger.info(f"Stream has gone live: {event.broadcaster_name} (ID = {event.broadcaster_id})")
-        channels: Final = app_state.database.get_live_notification_channels()
-        notification_channel: Final = next(
-            (channel for channel in channels if channel.broadcaster_id == event.broadcaster_id),
-            None,
-        )
-        if notification_channel is None:
-            logger.error(f"No target channel found for broadcaster {event.broadcaster_name}")
-            return
-        notification: Final = LiveNotification(
-            event=event,
-            target_channel=notification_channel.target_channel,
-            text_template=LiveNotificationTextTemplate(notification_channel.text_template),
-        )
-        for chat in chats:
-            if not chat.feature_flags.can_post_live_notifications:
-                continue
-            await chat.post_live_notification(notification)
+        await _handle_channel_going_live(app_state, event, chats)
 
     async def _handle_commands() -> None:
         while True:
