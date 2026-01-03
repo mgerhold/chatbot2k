@@ -27,6 +27,7 @@ from chatbot2k.dependencies import get_common_context
 from chatbot2k.dependencies import get_templates
 from chatbot2k.types.configuration_setting_kind import ConfigurationSettingKind
 from chatbot2k.types.template_contexts import ActivePage
+from chatbot2k.types.template_contexts import AdminConstantsContext
 from chatbot2k.types.template_contexts import AdminContext
 from chatbot2k.types.template_contexts import AdminEntranceSoundsContext
 from chatbot2k.types.template_contexts import AdminGeneralSettingsContext
@@ -34,6 +35,7 @@ from chatbot2k.types.template_contexts import AdminLiveNotificationsContext
 from chatbot2k.types.template_contexts import AdminPendingClipsContext
 from chatbot2k.types.template_contexts import AdminSoundboardContext
 from chatbot2k.types.template_contexts import CommonContext
+from chatbot2k.types.template_contexts import Constant
 from chatbot2k.types.template_contexts import EntranceSound
 from chatbot2k.types.template_contexts import LiveNotificationChannel
 from chatbot2k.types.template_contexts import PendingClip
@@ -176,6 +178,100 @@ async def update_general_settings(
     )
 
     return RedirectResponse(request.url_for("admin_general_settings"), status_code=303)
+
+
+@router.get("/constants", name="admin_constants")
+async def admin_constants(
+    request: Request,
+    app_state: Annotated[AppState, Depends(get_app_state)],
+    templates: Annotated[Jinja2Templates, Depends(get_templates)],
+    common_context: Annotated[CommonContext, Depends(get_common_context)],
+) -> Response:
+    admin_context: Final = AdminContext(
+        **common_context.model_dump(),
+        active_page=ActivePage.CONSTANTS,
+    )
+    constants: Final = sorted(
+        (
+            Constant(
+                name=constant.name,
+                text=constant.text,
+            )
+            for constant in app_state.database.get_constants()
+        ),
+        key=lambda c: c.name,
+    )
+    context: Final = AdminConstantsContext(
+        **admin_context.model_dump(),
+        constants=constants,
+    )
+
+    return templates.TemplateResponse(
+        request=request,
+        name="admin/constants.html",
+        context=context.model_dump(),
+    )
+
+
+@router.post("/constants/add", name="add_constant")
+async def add_constant(
+    request: Request,
+    app_state: Annotated[AppState, Depends(get_app_state)],
+    constant_name: Annotated[str, Form()],
+    constant_text: Annotated[str, Form()],
+) -> Response:
+    """Add a new constant."""
+    try:
+        app_state.database.add_constant(name=constant_name, text=constant_text)
+        logger.info(f"Added constant: {constant_name}")
+    except ValueError as e:
+        logger.error(f"Failed to add constant: {e}")
+        raise HTTPException(status_code=400, detail=str(e)) from e
+    return RedirectResponse(
+        url=request.app.url_path_for("admin_constants"),
+        status_code=303,
+    )
+
+
+@router.post("/constants/{old_constant_name}/update", name="update_constant")
+async def update_constant(
+    request: Request,
+    app_state: Annotated[AppState, Depends(get_app_state)],
+    old_constant_name: str,
+    constant_name: Annotated[str, Form()],
+    constant_text: Annotated[str, Form()],
+) -> Response:
+    """Update an existing constant."""
+    try:
+        app_state.database.remove_constant(name=old_constant_name)
+        app_state.database.add_constant(name=constant_name, text=constant_text)
+        logger.info(f"Renamed constant: {old_constant_name} -> {constant_name}")
+    except (ValueError, KeyError) as e:
+        logger.error(f"Failed to update constant: {e}")
+        raise HTTPException(status_code=400, detail=str(e)) from e
+    return RedirectResponse(
+        url=request.app.url_path_for("admin_constants"),
+        status_code=303,
+    )
+
+
+@router.post("/constants/{constant_name}/delete", name="delete_constant")
+async def delete_constant(
+    request: Request,
+    app_state: Annotated[AppState, Depends(get_app_state)],
+    constant_name: str,
+) -> Response:
+    """Delete a constant."""
+    try:
+        app_state.database.remove_constant(name=constant_name)
+        logger.info(f"Deleted constant: {constant_name}")
+    except KeyError as e:
+        logger.error(f"Failed to delete constant: {e}")
+        raise HTTPException(status_code=404, detail=str(e)) from e
+    return RedirectResponse(
+        url=request.app.url_path_for("admin_constants"),
+        status_code=303,
+    )
 
 
 @router.get("/live-notifications", name="admin_live_notifications")

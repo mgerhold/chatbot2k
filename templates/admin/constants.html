@@ -1,0 +1,278 @@
+{% extends "admin/base.html" %}
+
+{% block title %}{{ bot_name }} — Constants{% endblock %}
+
+{% block head_extra %}
+{{ super() }}
+<style>
+    .add-section {
+        margin-bottom: 2rem;
+        padding: 1.5rem;
+        background: rgba(96, 165, 250, 0.05);
+        border: 1px solid var(--border);
+        border-radius: var(--radius);
+    }
+
+    .add-section h2 {
+        margin: 0 0 1rem 0;
+        font-size: 1.25rem;
+    }
+
+    .form-group {
+        margin-bottom: 1rem;
+    }
+
+    .form-group label {
+        display: block;
+        margin-bottom: 0.5rem;
+        font-weight: 500;
+        color: var(--text);
+    }
+
+    .form-group input[type="text"],
+    .form-group textarea {
+        width: 100%;
+        padding: 0.75rem;
+        background: rgba(255, 255, 255, 0.05);
+        border: 1px solid var(--border);
+        border-radius: 4px;
+        color: var(--text);
+        font-family: inherit;
+    }
+
+    .form-group textarea {
+        resize: vertical;
+        min-height: 100px;
+    }
+
+    .form-group input[type="text"]:focus,
+    .form-group textarea:focus {
+        outline: 2px solid var(--accent);
+        outline-offset: 1px;
+        background: rgba(255, 255, 255, 0.08);
+    }
+
+    .form-group small {
+        display: block;
+        margin-top: 0.25rem;
+        color: var(--muted);
+        font-size: 0.875rem;
+    }
+
+    .btn {
+        padding: 0.5rem 1rem;
+        border: none;
+        border-radius: 4px;
+        cursor: pointer;
+        font-weight: 500;
+        transition: all 0.2s ease;
+        text-decoration: none;
+        display: inline-block;
+    }
+
+    .btn-primary {
+        background: var(--accent);
+        color: white;
+        padding: 0.75rem 1.5rem;
+    }
+
+    .btn-primary:hover {
+        background: var(--link-hover);
+    }
+
+    .btn-danger {
+        background: #ef4444;
+        color: white;
+        padding: 0.5rem 1rem;
+        font-size: 0.875rem;
+    }
+
+    .btn-danger:hover {
+        background: #dc2626;
+    }
+
+    .table-container {
+        border: 1px solid var(--border);
+        border-radius: var(--radius);
+        background: rgba(255, 255, 255, 0.02);
+        overflow: auto;
+    }
+
+    .data-table {
+        width: 100%;
+        border-collapse: collapse;
+        font-size: 0.95rem;
+    }
+
+    .data-table th,
+    .data-table td {
+        padding: 0.75rem 1rem;
+        text-align: left;
+        border-bottom: 1px solid var(--border);
+    }
+
+    .data-table thead th {
+        background: rgba(255, 255, 255, 0.03);
+        font-weight: 600;
+        color: var(--text);
+        position: sticky;
+        top: 0;
+    }
+
+    .data-table tbody tr:last-child td {
+        border-bottom: none;
+    }
+
+    .data-table tbody tr:hover {
+        background: rgba(96, 165, 250, 0.05);
+    }
+
+    .data-table td.empty {
+        text-align: center;
+        color: var(--muted);
+        padding: 2rem 1rem;
+    }
+
+    .data-table th:last-child,
+    .data-table td:last-child {
+        width: 1px;
+        white-space: nowrap;
+    }
+
+    .data-table td:nth-child(1) {
+        width: 250px;
+    }
+
+    .edit-input {
+        width: 100%;
+        padding: 0.5rem;
+        background: rgba(255, 255, 255, 0.05);
+        border: 1px solid var(--border);
+        border-radius: 4px;
+        color: var(--text);
+        font-family: 'Courier New', monospace;
+        font-size: 0.9rem;
+    }
+
+    .edit-textarea {
+        width: 100%;
+        padding: 0.5rem;
+        background: rgba(255, 255, 255, 0.05);
+        border: 1px solid var(--border);
+        border-radius: 4px;
+        color: var(--text);
+        font-family: inherit;
+        font-size: 0.9rem;
+        resize: vertical;
+        min-height: 120px;
+    }
+
+    .edit-input:focus,
+    .edit-textarea:focus {
+        outline: 2px solid var(--accent);
+        outline-offset: 1px;
+        background: rgba(255, 255, 255, 0.08);
+    }
+
+    .action-buttons {
+        display: flex;
+        gap: 0.5rem;
+        margin: 0;
+    }
+
+    .action-buttons .btn-primary {
+        padding: 0.5rem 1rem;
+        font-size: 0.875rem;
+        background: #22c55e;
+    }
+
+    .action-buttons .btn-primary:hover {
+        background: #16a34a;
+    }
+</style>
+{% endblock %}
+
+{% block dashboard_content %}
+<div class="dashboard-header">
+    <h1>Constants</h1>
+    <p>Manage constants used in the chatbot</p>
+</div>
+
+<!-- Add New Constant Form -->
+<section class="add-section">
+    <h2>Add New Constant</h2>
+    <form action="{{ request.app.url_path_for('add_constant') }}" method="post">
+        <div class="form-group">
+            <label for="constant_name">Constant Name</label>
+            <input type="text" id="constant_name" name="constant_name" placeholder="e.g., MY_CONSTANT" required>
+            <small>Use uppercase with underscores for constant names</small>
+        </div>
+        <div class="form-group">
+            <label for="constant_text">Text</label>
+            <textarea id="constant_text" name="constant_text" placeholder="Enter constant text..." required></textarea>
+        </div>
+        <button type="submit" class="btn btn-primary">Add Constant</button>
+    </form>
+</section>
+
+<section>
+    <h2>Existing Constants</h2>
+    <div class="table-container" role="region" aria-labelledby="constants-heading" tabindex="0">
+        <h3 id="constants-heading" class="sr-only">Constants</h3>
+        <table class="data-table">
+            <caption class="sr-only">Constants</caption>
+            <thead>
+            <tr>
+                <th scope="col">Name</th>
+                <th scope="col">Text</th>
+                <th scope="col">Actions</th>
+            </tr>
+            </thead>
+            <tbody>
+            {% for constant in constants %}
+            <tr>
+                <td>
+                    <input 
+                        type="text" 
+                        name="constant_name" 
+                        value="{{ constant.name }}" 
+                        class="edit-input"
+                        required
+                        placeholder="Constant name"
+                        form="save-form-{{ loop.index }}"
+                    >
+                </td>
+                <td>
+                    <textarea 
+                        name="constant_text" 
+                        class="edit-textarea"
+                        required
+                        placeholder="Constant text"
+                        form="save-form-{{ loop.index }}"
+                    >{{ constant.text }}</textarea>
+                </td>
+                <td>
+                    <div class="action-buttons">
+                        <form 
+                            id="save-form-{{ loop.index }}"
+                            action="{{ request.app.url_path_for('update_constant', old_constant_name=constant.name) }}" 
+                            method="post"
+                        >
+                            <button type="submit" class="btn btn-primary">Save</button>
+                        </form>
+                        <form action="{{ request.app.url_path_for('delete_constant', constant_name=constant.name) }}" method="post" onsubmit="return confirm('Are you sure you want to delete this constant?');">
+                            <button type="submit" class="btn btn-danger">Delete</button>
+                        </form>
+                    </div>
+                </td>
+            </tr>
+            {% else %}
+            <tr>
+                <td colspan="3" class="empty">No constants available.</td>
+            </tr>
+            {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</section>
+{% endblock %}

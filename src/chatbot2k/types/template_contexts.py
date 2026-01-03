@@ -85,6 +85,7 @@ class MainPageContext(CommonContext):
 @final
 class ActivePage(StrEnum):
     GENERAL_SETTINGS = "general_settings"
+    CONSTANTS = "constants"
     LIVE_NOTIFICATIONS = "live_notifications"
     SOUNDBOARD = "soundboard"
     PENDING_CLIPS = "pending_clips"
@@ -110,6 +111,13 @@ class AdminGeneralSettingsContext(AdminContext):
     current_broadcaster_email_address: Optional[str]
     available_timezones: list[str]
     available_locales: list[tuple[str, str]]
+
+
+@final
+class AdminConstantsContext(AdminContext):
+    model_config = ConfigDict(frozen=True)
+
+    constants: list[Constant]
 
 
 @final
