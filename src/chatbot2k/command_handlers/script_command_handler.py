@@ -12,6 +12,7 @@ from chatbot2k.scripting_engine.types.ast import Script
 from chatbot2k.scripting_engine.types.script_caller import ScriptCaller
 from chatbot2k.types.chat_command import ChatCommand
 from chatbot2k.types.chat_response import ChatResponse
+from chatbot2k.types.configuration_setting_kind import ConfigurationSettingKind
 from chatbot2k.types.permission_level import PermissionLevel
 
 logger: Final = logging.getLogger(__name__)
@@ -20,8 +21,6 @@ logger: Final = logging.getLogger(__name__)
 @final
 class ScriptCommandHandler(CommandHandler):
     """Command handler that executes a stored script."""
-
-    _EXECUTION_TIMEOUT_SECONDS: Final = 30.0
 
     def __init__(
         self,
@@ -39,10 +38,17 @@ class ScriptCommandHandler(CommandHandler):
 
     @override
     async def handle_command(self, chat_command: ChatCommand) -> Optional[list[ChatResponse]]:
+        timeout_string: Final = self._app_state.database.retrieve_configuration_setting(
+            ConfigurationSettingKind.SCRIPT_EXECUTION_TIMEOUT
+        )
+        if timeout_string is None or not timeout_string or not timeout_string.isdigit():
+            raise AssertionError("Invalid script timeout configuration - this should never happen")
+        timeout_seconds: Final = int(timeout_string)
+
         # Execute the script with a timeout to prevent abuse.
         start_time: Final = asyncio.get_event_loop().time()
         try:
-            timeout_task: Final = asyncio.create_task(asyncio.sleep(ScriptCommandHandler._EXECUTION_TIMEOUT_SECONDS))
+            timeout_task: Final = asyncio.create_task(asyncio.sleep(timeout_seconds))
             execution_task: Final = asyncio.create_task(
                 self._script.execute(
                     self._persistent_store,
@@ -59,10 +65,7 @@ class ScriptCommandHandler(CommandHandler):
                 execution_task.cancel()
                 return [
                     ChatResponse(
-                        text=(
-                            f"Script '!{self._name}' execution timed out "
-                            + f"(exceeded {self._EXECUTION_TIMEOUT_SECONDS}s)"
-                        ),
+                        text=(f"Script '!{self._name}' execution timed out " + f"(exceeded {timeout_seconds}s)"),
                         chat_message=chat_command.source_message,
                     )
                 ]

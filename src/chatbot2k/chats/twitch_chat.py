@@ -120,7 +120,7 @@ class TwitchChat(Chat):
             logging.warning("Twitch chat client is not ready. Cannot send broadcast message.")
             return
         if not await self._is_channel_live():
-            truncated: Final = f"{message.text[:20]}{'...' if len(message.text) > 20 else '.'}"
+            truncated: Final = f"'{message.text[:20]}'{'...' if len(message.text) > 20 else '.'}"
             logging.warning(
                 f"Channel '{self._channel}' is not live. Will not send broadcast message with contents {truncated}"
             )

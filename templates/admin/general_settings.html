@@ -239,6 +239,21 @@
         <span class="help-text">Email address of the broadcaster used for notifications.</span>
     </div>
 
+    <div class="form-group">
+        <label for="script_execution_timeout">Time limit (in seconds) for script execution.</label>
+        <input
+            type="number"
+            id="script_execution_timeout"
+            name="script_execution_timeout"
+            value="{{ current_script_execution_timeout | e if current_script_execution_timeout else '30' }}"
+            required
+            min="1"
+            step="1"
+            placeholder="Enter script execution timeout"
+        >
+        <span class="help-text">Maximum duration for executing any single script (in seconds).</span>
+    </div>
+
     <div class="form-actions">
         <button type="submit" class="btn btn-primary">Save Settings</button>
     </div>
