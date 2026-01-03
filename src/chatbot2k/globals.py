@@ -36,6 +36,7 @@ class Globals(AppState):
         self._translations_manager: Final = TranslationsManager(self.database)
         self._entrance_sound_handler: Final = EntranceSoundHandler(self)
         self._command_queue: Final = asyncio.Queue[Command]()
+        self._is_shutting_down: Final = asyncio.Event()
 
     @property
     @override
@@ -102,6 +103,11 @@ class Globals(AppState):
         """Reload all command handlers from the database."""
         self._command_handlers.clear()
         self._command_handlers.update(self._reload_command_handlers())
+
+    @property
+    @override
+    def is_shutting_down(self) -> asyncio.Event:
+        return self._is_shutting_down
 
     def _reload_command_handlers(self) -> dict[str, CommandHandler]:
         command_handlers: Final = load_commands(self)

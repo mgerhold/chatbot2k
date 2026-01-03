@@ -32,6 +32,9 @@ async def overlay(
     )
 
 
+_SSE_KEEP_ALIVE_INTERVAL = 1.0
+
+
 @router.get("/overlay/events", name="overlay_events")
 async def overlay_events(
     request: Request,
@@ -43,10 +46,13 @@ async def overlay_events(
         app_state.soundboard_clips_url_queues[uuid] = asyncio.Queue()
         try:
             while True:
-                if await request.is_disconnected():
+                if app_state.is_shutting_down.is_set() or await request.is_disconnected():
                     break
                 try:
-                    clip_url = await asyncio.wait_for(app_state.soundboard_clips_url_queues[uuid].get(), timeout=2.0)
+                    clip_url = await asyncio.wait_for(
+                        app_state.soundboard_clips_url_queues[uuid].get(),
+                        timeout=_SSE_KEEP_ALIVE_INTERVAL,
+                    )
                 except TimeoutError:
                     # No new soundboard clips--we send a comment message as keep-alive and continue waiting.
                     yield b": keep-alive\r\n\r\n"

@@ -146,6 +146,11 @@ class _MockAppState(AppState):
     def reload_command_handlers(self) -> None:
         raise NotImplementedError
 
+    @property
+    @override
+    def is_shutting_down(self) -> asyncio.Event:
+        raise NotImplementedError
+
     def _on_commands_changed(self) -> None:
         raise NotImplementedError
 
