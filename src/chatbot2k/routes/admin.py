@@ -2,8 +2,10 @@ import asyncio
 import logging
 from typing import Annotated
 from typing import Final
+from typing import Literal
 from typing import Optional
 from typing import cast
+from typing import final
 from uuid import uuid4
 from zoneinfo import available_timezones
 
@@ -13,6 +15,7 @@ from fastapi import File
 from fastapi import Form
 from fastapi import HTTPException
 from fastapi import UploadFile
+from pydantic import BaseModel
 from starlette.requests import Request
 from starlette.responses import RedirectResponse
 from starlette.responses import Response
@@ -30,16 +33,21 @@ from chatbot2k.dependencies import get_templates
 from chatbot2k.types.commands import RetrieveDiscordChatCommand
 from chatbot2k.types.configuration_setting_kind import ConfigurationSettingKind
 from chatbot2k.types.template_contexts import ActivePage
+from chatbot2k.types.template_contexts import AdminContext
+from chatbot2k.types.template_contexts import AdminEntranceSoundsContext
 from chatbot2k.types.template_contexts import AdminGeneralSettingsContext
 from chatbot2k.types.template_contexts import AdminLiveNotificationsContext
 from chatbot2k.types.template_contexts import AdminPendingClipsContext
 from chatbot2k.types.template_contexts import AdminSoundboardContext
 from chatbot2k.types.template_contexts import CommonContext
+from chatbot2k.types.template_contexts import EntranceSound
 from chatbot2k.types.template_contexts import LiveNotificationChannel
 from chatbot2k.types.template_contexts import PendingClip
 from chatbot2k.types.template_contexts import SoundboardCommand
 from chatbot2k.types.user_info import UserInfo
 from chatbot2k.utils.mime_types import get_file_extension_by_mime_type
+from chatbot2k.utils.twitch import get_twitch_user_info_by_ids
+from chatbot2k.utils.twitch import get_twitch_user_info_by_logins
 
 router: Final = APIRouter(prefix="/admin", dependencies=[Depends(get_broadcaster_user)])
 
@@ -631,3 +639,162 @@ async def reject_pending_clip(
         raise HTTPException(status_code=404, detail=str(e)) from e
 
     return RedirectResponse(request.url_for("admin_pending_clips"), status_code=303)
+
+
+@router.get("/entrance-sounds", name="admin_entrance_sounds")
+async def admin_entrance_sounds(
+    request: Request,
+    app_state: Annotated[AppState, Depends(get_app_state)],
+    templates: Annotated[Jinja2Templates, Depends(get_templates)],
+    common_context: Annotated[CommonContext, Depends(get_common_context)],
+) -> Response:
+    entry_sounds: Final = app_state.database.get_all_entry_sounds()
+    users_by_id: Final = await get_twitch_user_info_by_ids(
+        user_ids=[entrance_sound.twitch_user_id for entrance_sound in entry_sounds],
+        app_state=app_state,
+    )
+
+    entrance_sounds: Final = sorted(
+        (
+            EntranceSound(
+                twitch_user_id=entrance_sound.twitch_user_id,
+                twitch_display_name=users_by_id[entrance_sound.twitch_user_id].display_name,
+                twitch_profile_image_url=users_by_id[entrance_sound.twitch_user_id].profile_image_url,
+                twitch_url=f"https://twitch.tv/{users_by_id[entrance_sound.twitch_user_id].login}",
+                clip_url=f"/{RELATIVE_SOUNDBOARD_FILES_DIRECTORY.as_posix()}/{entrance_sound.filename}",
+            )
+            for entrance_sound in entry_sounds
+        ),
+        key=lambda entry: entry.twitch_display_name,
+    )
+
+    admin_context: Final = AdminContext(
+        **common_context.model_dump(),
+        active_page=ActivePage.ENTRANCE_SOUNDS,
+    )
+
+    context: Final = AdminEntranceSoundsContext(
+        **admin_context.model_dump(),
+        entrance_sounds=entrance_sounds,
+    )
+
+    return templates.TemplateResponse(
+        request=request,
+        name="admin/entrance_sounds.html",
+        context=context.model_dump(),
+    )
+
+
+@final
+class _ValidateTwitchUserSuccessResponse(BaseModel):
+    valid: Literal[True] = True
+    user_id: str
+    profile_image_url: str
+
+
+@final
+class _ValidateTwitchUserErrorResponse(BaseModel):
+    valid: Literal[False] = False
+    error: str
+
+
+@router.get("/api/validate-twitch-user", name="validate_twitch_user")
+async def validate_twitch_user(
+    username: str,
+    app_state: Annotated[AppState, Depends(get_app_state)],
+) -> _ValidateTwitchUserSuccessResponse | _ValidateTwitchUserErrorResponse:
+    """Validate a Twitch username and return user ID if found."""
+    login: Final = username.lower()
+    users: Final = await get_twitch_user_info_by_logins([login], app_state)
+    if len(users) != 1:
+        return _ValidateTwitchUserErrorResponse(
+            valid=False,
+            error="User not found",
+        )
+    user: Final = next(iter(users.values()))
+    return _ValidateTwitchUserSuccessResponse(
+        valid=True,
+        user_id=user.id,
+        profile_image_url=user.profile_image_url,
+    )
+
+
+@router.post("/entrance-sounds/upload", name="upload_entrance_sound")
+async def upload_entrance_sound(
+    request: Request,
+    app_state: Annotated[AppState, Depends(get_app_state)],
+    twitch_user_id: Annotated[str, Form()],
+    file: Annotated[UploadFile, File()],
+) -> Response:
+    """Upload a new entrance sound for a user."""
+    try:
+        contents: Final = await file.read()
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to read file: {e}") from e
+
+    detected_extension: Final = await get_file_extension_by_mime_type(contents)
+    if detected_extension is None:
+        raise HTTPException(
+            status_code=400,
+            detail="Unsupported file format.",
+        )
+
+    unique_filename: Final = f"{uuid4()}{detected_extension}"
+    file_path: Final = SOUNDBOARD_FILES_DIRECTORY / unique_filename
+
+    SOUNDBOARD_FILES_DIRECTORY.mkdir(parents=True, exist_ok=True)
+
+    try:
+        with open(file_path, "wb") as f:
+            f.write(contents)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to save file: {e}") from e
+
+    try:
+        app_state.database.add_entrance_sound(
+            twitch_user_id=twitch_user_id,
+            filename=unique_filename,
+        )
+    except ValueError as e:
+        # If database insertion fails, clean up the file.
+        file_path.unlink(missing_ok=True)
+        raise HTTPException(status_code=400, detail=str(e)) from e
+
+    return RedirectResponse(request.url_for("admin_entrance_sounds"), status_code=303)
+
+
+@router.post("/entrance-sounds/{twitch_user_id}/delete", name="delete_entrance_sound")
+async def delete_entrance_sound(
+    request: Request,
+    twitch_user_id: str,
+    app_state: Annotated[AppState, Depends(get_app_state)],
+) -> Response:
+    """Delete an entrance sound for a specific user."""
+    entrance_sound: Final = app_state.database.get_entrance_sound_by_twitch_user_id(twitch_user_id=twitch_user_id)
+    if entrance_sound is None:
+        raise HTTPException(
+            status_code=400,
+            detail="Failed to delete entrance sound because it does not exist.",
+        )
+    file_path: Final = SOUNDBOARD_FILES_DIRECTORY / entrance_sound.filename
+    try:
+        file_path.unlink(missing_ok=True)
+    except Exception as e:
+        logger.exception(f"Warning: Failed to delete file {file_path}: {e}")
+
+    try:
+        app_state.database.delete_entrance_sound(twitch_user_id=twitch_user_id)
+    except Exception as e:
+        logger.exception(f"Failed to delete entrance sound from database: {e}")
+        raise HTTPException(status_code=500, detail="Failed to delete entrance sound from database") from e
+
+    return RedirectResponse(request.url_for("admin_entrance_sounds"), status_code=303)
+
+
+@router.post("/entrance-sounds/reset-session", name="reset_entry_sounds_session")
+async def reset_entry_sounds_session(
+    request: Request,
+    app_state: Annotated[AppState, Depends(get_app_state)],
+) -> Response:
+    app_state.entrance_sound_handler.reset_entrance_sounds_session()
+    return RedirectResponse(request.url_for("admin_entrance_sounds"), status_code=303)

@@ -88,6 +88,7 @@ class ActivePage(StrEnum):
     LIVE_NOTIFICATIONS = "live_notifications"
     SOUNDBOARD = "soundboard"
     PENDING_CLIPS = "pending_clips"
+    ENTRANCE_SOUNDS = "entrance_sounds"
 
 
 class AdminContext(CommonContext):
@@ -156,6 +157,24 @@ class AdminPendingClipsContext(AdminContext):
 
     pending_clips: list[PendingClip]
     existing_commands: list[str]
+
+
+@final
+class EntranceSound(BaseModel):
+    model_config = ConfigDict(frozen=True)
+
+    twitch_user_id: str
+    twitch_display_name: str
+    twitch_profile_image_url: str
+    twitch_url: str
+    clip_url: str
+
+
+@final
+class AdminEntranceSoundsContext(AdminContext):
+    model_config = ConfigDict(frozen=True)
+
+    entrance_sounds: list[EntranceSound]
 
 
 class ViewerContext(CommonContext):

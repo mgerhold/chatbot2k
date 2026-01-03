@@ -1,0 +1,507 @@
+{% extends "admin/base.html" %}
+
+{% block title %}{{ bot_name }} — Entrance Sounds{% endblock %}
+
+{% block head_extra %}
+{{ super() }}
+<style>
+    .add-section {
+        margin-bottom: 2rem;
+        padding: 1.5rem;
+        background: rgba(96, 165, 250, 0.05);
+        border: 1px solid var(--border);
+        border-radius: var(--radius);
+    }
+
+    .add-section h2 {
+        margin: 0 0 1rem 0;
+        font-size: 1.25rem;
+    }
+
+    .form-group {
+        margin-bottom: 1rem;
+    }
+
+    .form-group label {
+        display: block;
+        margin-bottom: 0.5rem;
+        font-weight: 500;
+        color: var(--text);
+    }
+
+    .form-group input[type="text"],
+    .form-group input[type="file"] {
+        width: 100%;
+        padding: 0.75rem;
+        background: rgba(255, 255, 255, 0.05);
+        border: 1px solid var(--border);
+        border-radius: 4px;
+        color: var(--text);
+        font-family: inherit;
+    }
+
+    .form-group input[type="file"] {
+        padding: 0.6rem 0.75rem;
+    }
+
+    .form-group input[type="text"]:focus,
+    .form-group input[type="file"]:focus {
+        outline: 2px solid var(--accent);
+        outline-offset: 1px;
+        background: rgba(255, 255, 255, 0.08);
+    }
+
+    .form-group small {
+        display: block;
+        margin-top: 0.25rem;
+        color: var(--muted);
+        font-size: 0.875rem;
+    }
+
+    .user-validation {
+        display: none;
+        margin-top: 0.5rem;
+        padding: 0.5rem;
+        border-radius: 4px;
+        font-size: 0.875rem;
+        font-weight: 500;
+    }
+
+    .user-validation.success {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        background: rgba(34, 197, 94, 0.1);
+        border: 1px solid rgba(34, 197, 94, 0.3);
+        color: #22c55e;
+    }
+
+    .user-validation.success .user-info {
+        display: flex;
+        align-items: center;
+        gap: 0.75rem;
+        flex: 1;
+    }
+
+    .user-validation.success .profile-image {
+        width: 32px;
+        height: 32px;
+        border-radius: 50%;
+        border: 2px solid rgba(34, 197, 94, 0.5);
+    }
+
+    .user-validation.success .user-details {
+        display: flex;
+        flex-direction: column;
+        gap: 0.125rem;
+    }
+
+    .user-validation.success .user-found-text {
+        font-weight: 600;
+    }
+
+    .user-validation.success .user-id {
+        font-size: 0.75rem;
+        opacity: 0.8;
+        font-family: 'Courier New', monospace;
+    }
+
+    .user-validation.error {
+        display: block;
+        background: rgba(239, 68, 68, 0.1);
+        border: 1px solid rgba(239, 68, 68, 0.3);
+        color: #ef4444;
+    }
+
+    .user-validation.loading {
+        display: block;
+        background: rgba(96, 165, 250, 0.1);
+        border: 1px solid rgba(96, 165, 250, 0.3);
+        color: #60a5fa;
+    }
+
+    .checkmark {
+        display: inline-block;
+        width: 16px;
+        height: 16px;
+        font-size: 16px;
+    }
+
+    .table-container {
+        border: 1px solid var(--border);
+        border-radius: var(--radius);
+        background: rgba(255, 255, 255, 0.02);
+        overflow: auto;
+    }
+
+    .data-table {
+        width: 100%;
+        border-collapse: collapse;
+        font-size: 0.95rem;
+    }
+
+    .data-table th,
+    .data-table td {
+        padding: 0.75rem 1rem;
+        text-align: left;
+        border-bottom: 1px solid var(--border);
+    }
+
+    .data-table thead th {
+        background: rgba(255, 255, 255, 0.03);
+        font-weight: 600;
+        color: var(--text);
+        position: sticky;
+        top: 0;
+    }
+
+    .data-table tbody tr:last-child td {
+        border-bottom: none;
+    }
+
+    .data-table tbody tr:hover {
+        background: rgba(96, 165, 250, 0.05);
+    }
+
+    .data-table td.empty {
+        text-align: center;
+        color: var(--muted);
+        padding: 2rem 1rem;
+    }
+
+    .data-table th:last-child,
+    .data-table td:last-child {
+        width: 1px;
+        white-space: nowrap;
+    }
+
+    .data-table td:nth-child(2) {
+        max-width: 400px;
+    }
+
+    .data-table audio,
+    .data-table video {
+        max-width: 100%;
+        height: auto;
+        display: inline-block;
+        min-height: 32px;
+    }
+
+    .data-table audio {
+        min-width: 200px;
+    }
+
+    .clip-preview {
+        max-height: 200px;
+    }
+
+    .btn {
+        padding: 0.5rem 1rem;
+        border: none;
+        border-radius: 4px;
+        cursor: pointer;
+        font-weight: 500;
+        transition: all 0.2s ease;
+        text-decoration: none;
+        display: inline-block;
+    }
+
+    .btn-primary {
+        background: #22c55e;
+        color: white;
+        padding: 0.5rem 1rem;
+        font-size: 0.875rem;
+    }
+
+    .btn-primary:hover {
+        background: #16a34a;
+    }
+
+    .btn-primary:disabled {
+        opacity: 0.5;
+        cursor: not-allowed;
+        background: #6b7280;
+    }
+
+    .btn-primary:disabled:hover {
+        background: #6b7280;
+    }
+
+    .btn-danger {
+        background: #ef4444;
+        color: white;
+        padding: 0.5rem 1rem;
+        font-size: 0.875rem;
+    }
+
+    .btn-danger:hover {
+        background: #dc2626;
+    }
+
+    .twitch-user-link {
+        color: var(--link);
+        text-decoration: none;
+    }
+
+    .twitch-user-link:hover {
+        color: var(--link-hover);
+        text-decoration: underline;
+    }
+
+    .dashboard-header {
+        margin-bottom: 2rem;
+    }
+
+    .dashboard-header-title {
+        display: flex;
+        align-items: center;
+        gap: 1rem;
+        margin-bottom: 0.5rem;
+    }
+
+    .dashboard-header-title h1 {
+        margin: 0;
+    }
+
+    .dashboard-header p {
+        margin: 0;
+    }
+
+    .reset-button {
+        background: none;
+        border: 1px solid var(--border);
+        color: var(--text);
+        padding: 0.5rem 0.75rem;
+        border-radius: 4px;
+        cursor: pointer;
+        transition: all 0.2s ease;
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        font-size: 0.875rem;
+    }
+
+    .reset-button:hover {
+        background: rgba(96, 165, 250, 0.1);
+        border-color: var(--accent);
+        color: var(--accent);
+    }
+
+    .reset-button svg {
+        width: 20px;
+        height: 20px;
+    }
+
+    .user-cell {
+        display: flex;
+        align-items: center;
+        gap: 0.75rem;
+    }
+
+    .user-cell .profile-pic {
+        width: 40px;
+        height: 40px;
+        border-radius: 50%;
+        border: 2px solid var(--border);
+        flex-shrink: 0;
+    }
+</style>
+<script>
+    let userValidationTimeout = null;
+    let currentTwitchUserId = null;
+
+    async function validateTwitchUser(username) {
+        const validationElement = document.getElementById('user-validation');
+        const submitButton = document.getElementById('upload-submit');
+        
+        if (!username.trim()) {
+            validationElement.className = 'user-validation';
+            submitButton.disabled = true;
+            currentTwitchUserId = null;
+            return;
+        }
+
+        validationElement.className = 'user-validation loading';
+        validationElement.textContent = 'Checking user...';
+        submitButton.disabled = true;
+
+        try {
+            const response = await fetch(`{{ request.app.url_path_for('validate_twitch_user') }}?username=${encodeURIComponent(username)}`);
+            const data = await response.json();
+
+            if (data.valid) {
+                validationElement.className = 'user-validation success';
+                validationElement.innerHTML = `
+                    <span class="checkmark">✓</span>
+                    <div class="user-info">
+                        <img src="${data.profile_image_url}" alt="Profile" class="profile-image">
+                        <div class="user-details">
+                            <span class="user-found-text">User found</span>
+                            <span class="user-id">ID: ${data.user_id}</span>
+                        </div>
+                    </div>
+                `;
+                submitButton.disabled = false;
+                currentTwitchUserId = data.user_id;
+            } else {
+                validationElement.className = 'user-validation error';
+                validationElement.textContent = data.error || 'User not found';
+                submitButton.disabled = true;
+                currentTwitchUserId = null;
+            }
+        } catch (error) {
+            validationElement.className = 'user-validation error';
+            validationElement.textContent = 'Error checking user. Please try again.';
+            submitButton.disabled = true;
+            currentTwitchUserId = null;
+        }
+    }
+
+    document.addEventListener('DOMContentLoaded', function() {
+        const usernameInput = document.getElementById('twitch_username');
+        const userIdInput = document.getElementById('twitch_user_id');
+
+        usernameInput.addEventListener('input', function() {
+            clearTimeout(userValidationTimeout);
+            userValidationTimeout = setTimeout(() => {
+                validateTwitchUser(this.value);
+            }, 500);
+        });
+
+        // Update hidden input before form submission
+        document.getElementById('upload-form').addEventListener('submit', function(e) {
+            if (currentTwitchUserId) {
+                userIdInput.value = currentTwitchUserId;
+            } else {
+                e.preventDefault();
+            }
+        });
+    });
+</script>
+{% endblock %}
+
+{% block dashboard_content %}
+<div class="dashboard-header">
+    <div class="dashboard-header-title">
+        <h1>Entrance Sounds</h1>
+        <form action="{{ request.app.url_path_for('reset_entry_sounds_session') }}" method="post" onsubmit="return confirm('Are you sure you want to reset the entrance sounds session? This will clear the playback history.');">
+            <button type="submit" class="reset-button" title="Reset entrance sounds session">
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                </svg>
+                <span>Reset Session</span>
+            </button>
+        </form>
+    </div>
+    <p>Manage user entrance sounds (audio/video clips that play when a user joins the channel)</p>
+</div>
+
+<!-- Upload Form -->
+<section class="add-section">
+    <h2>Add New Entrance Sound</h2>
+    <form id="upload-form" action="{{ request.app.url_path_for('upload_entrance_sound') }}" method="post" enctype="multipart/form-data">
+        <div class="form-group">
+            <label for="twitch_username">Twitch Username</label>
+            <input type="text" id="twitch_username" name="twitch_username" placeholder="e.g., streamer_name" required autocomplete="off">
+            <input type="hidden" id="twitch_user_id" name="twitch_user_id">
+            <div id="user-validation" class="user-validation"></div>
+        </div>
+        <div class="form-group">
+            <label for="file">Audio/Video File</label>
+            <input type="file" id="file" name="file" accept="audio/*,video/*" required>
+        </div>
+        <button type="submit" id="upload-submit" class="btn btn-primary" disabled>Upload Entrance Sound</button>
+    </form>
+</section>
+
+<section>
+    <h2>User Entrance Sounds</h2>
+    <div class="table-container" role="region" aria-labelledby="entrance-sounds-heading" tabindex="0">
+        <h3 id="entrance-sounds-heading" class="sr-only">Entrance Sounds</h3>
+        <table class="data-table">
+            <caption class="sr-only">Entrance sounds by user</caption>
+            <thead>
+            <tr>
+                <th scope="col">Twitch User</th>
+                <th scope="col">Clip Preview</th>
+                <th scope="col">Actions</th>
+            </tr>
+            </thead>
+            <tbody>
+            {% for entrance_sound in entrance_sounds %}
+            {% set lower = (entrance_sound.clip_url|lower) %}
+            {% set base = lower.split('?')[0] %}
+            <tr>
+                <td>
+                    <div class="user-cell">
+                        <img src="{{ entrance_sound.twitch_profile_image_url }}" alt="{{ entrance_sound.twitch_display_name }}" class="profile-pic">
+                        <a href="{{ entrance_sound.twitch_url }}" target="_blank" rel="noopener noreferrer" class="twitch-user-link">
+                            {{ entrance_sound.twitch_display_name }}
+                        </a>
+                    </div>
+                </td>
+                <td>
+                    {% if base.endswith('.mp3') %}
+                    <audio controls preload="metadata" src="{{ entrance_sound.clip_url }}" type="audio/mpeg">
+                        Your browser can't play this clip. <a href="{{ entrance_sound.clip_url }}" target="_blank" rel="noopener noreferrer">Open</a>.
+                    </audio>
+                    {% elif base.endswith('.wav') %}
+                    <audio controls preload="metadata" src="{{ entrance_sound.clip_url }}" type="audio/wav">
+                        Your browser can't play this clip. <a href="{{ entrance_sound.clip_url }}" target="_blank" rel="noopener noreferrer">Open</a>.
+                    </audio>
+                    {% elif base.endswith('.ogg') or base.endswith('.opus') %}
+                    <audio controls preload="metadata" src="{{ entrance_sound.clip_url }}" type="audio/ogg">
+                        Your browser can't play this clip. <a href="{{ entrance_sound.clip_url }}" target="_blank" rel="noopener noreferrer">Open</a>.
+                    </audio>
+                    {% elif base.endswith('.flac') %}
+                    <audio controls preload="metadata" src="{{ entrance_sound.clip_url }}" type="audio/flac">
+                        Your browser can't play this clip. <a href="{{ entrance_sound.clip_url }}" target="_blank" rel="noopener noreferrer">Open</a>.
+                    </audio>
+                    {% elif base.endswith('.aac') %}
+                    <audio controls preload="metadata" src="{{ entrance_sound.clip_url }}" type="audio/aac">
+                        Your browser can't play this clip. <a href="{{ entrance_sound.clip_url }}" target="_blank" rel="noopener noreferrer">Open</a>.
+                    </audio>
+                    {% elif base.endswith('.m4a') %}
+                    <audio controls preload="metadata" src="{{ entrance_sound.clip_url }}" type="audio/mp4">
+                        Your browser can't play this clip. <a href="{{ entrance_sound.clip_url }}" target="_blank" rel="noopener noreferrer">Open</a>.
+                    </audio>
+                    {% elif base.endswith('.mp4') or base.endswith('.m4v') %}
+                    <video controls preload="metadata" playsinline class="clip-preview" src="{{ entrance_sound.clip_url }}" type="video/mp4">
+                        Your browser can't play this clip. <a href="{{ entrance_sound.clip_url }}" target="_blank" rel="noopener noreferrer">Open</a>.
+                    </video>
+                    {% elif base.endswith('.webm') %}
+                    <video controls preload="metadata" playsinline class="clip-preview" src="{{ entrance_sound.clip_url }}" type="video/webm">
+                        Your browser can't play this clip. <a href="{{ entrance_sound.clip_url }}" target="_blank" rel="noopener noreferrer">Open</a>.
+                    </video>
+                    {% elif base.endswith('.mov') %}
+                    <video controls preload="metadata" playsinline class="clip-preview" src="{{ entrance_sound.clip_url }}" type="video/quicktime">
+                        Your browser can't play this clip. <a href="{{ entrance_sound.clip_url }}" target="_blank" rel="noopener noreferrer">Open</a>.
+                    </video>
+                    {% elif base.endswith('.mkv') %}
+                    <video controls preload="metadata" playsinline class="clip-preview" src="{{ entrance_sound.clip_url }}" type="video/x-matroska">
+                        Your browser can't play this clip. <a href="{{ entrance_sound.clip_url }}" target="_blank" rel="noopener noreferrer">Open</a>.
+                    </video>
+                    {% else %}
+                    <a href="{{ entrance_sound.clip_url }}" target="_blank" rel="noopener noreferrer">Open clip</a>
+                    {% endif %}
+                </td>
+                <td>
+                    <form 
+                        action="{{ request.app.url_path_for('delete_entrance_sound', twitch_user_id=entrance_sound.twitch_user_id) }}" 
+                        method="post" 
+                        onsubmit="return confirm('Are you sure you want to delete the entrance sound for {{ entrance_sound.twitch_display_name }}?');"
+                    >
+                        <button type="submit" class="btn btn-danger">Delete</button>
+                    </form>
+                </td>
+            </tr>
+            {% else %}
+            <tr>
+                <td colspan="3" class="empty">No entrance sounds configured yet.</td>
+            </tr>
+            {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</section>
+{% endblock %}

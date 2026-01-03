@@ -133,6 +133,11 @@
                         {% endif %}
                     </a>
                 </li>
+                <li>
+                    <a href="{{ request.app.url_path_for('admin_entrance_sounds') }}" class="{% if active_page == 'entrance_sounds' %}active{% endif %}">
+                        Entrance Sounds
+                    </a>
+                </li>
             </ul>
         </nav>
     </aside>

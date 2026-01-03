@@ -20,6 +20,7 @@ from chatbot2k.database.tables import Broadcast
 from chatbot2k.database.tables import ConfigurationSetting
 from chatbot2k.database.tables import Constant
 from chatbot2k.database.tables import DictionaryEntry
+from chatbot2k.database.tables import EntranceSound
 from chatbot2k.database.tables import LiveNotificationChannel
 from chatbot2k.database.tables import Parameter
 from chatbot2k.database.tables import ParameterizedCommand
@@ -633,3 +634,44 @@ class Database:
                     .order_by(PendingSoundboardClip.name)
                 ).all()
             )
+
+    def add_entrance_sound(
+        self,
+        *,
+        twitch_user_id: str,
+        filename: str,
+    ) -> None:
+        """Add an entrance sound for a Twitch user."""
+        with self._session() as s:
+            existing: Final = s.exec(
+                select(EntranceSound).where(EntranceSound.twitch_user_id == twitch_user_id)
+            ).one_or_none()
+            if existing is not None:
+                raise ValueError(f"EntranceSound for Twitch user ID '{twitch_user_id}' already exists")
+            entrance_sound: Final = EntranceSound(
+                twitch_user_id=twitch_user_id,
+                filename=filename,
+            )
+            s.add(entrance_sound)
+            s.commit()
+
+    def get_all_entry_sounds(self) -> list[EntranceSound]:
+        """Get all entrance sounds."""
+        with self._session() as s:
+            return list(s.exec(select(EntranceSound)).all())
+
+    def get_entrance_sound_by_twitch_user_id(self, *, twitch_user_id: str) -> Optional[EntranceSound]:
+        """Get an entrance sound for a specific Twitch user ID."""
+        with self._session() as s:
+            return s.exec(select(EntranceSound).where(EntranceSound.twitch_user_id == twitch_user_id)).one_or_none()
+
+    def delete_entrance_sound(self, *, twitch_user_id: str) -> None:
+        """Delete an entrance sound for a Twitch user."""
+        with self._session() as s:
+            entrance_sound: Final = s.exec(
+                select(EntranceSound).where(EntranceSound.twitch_user_id == twitch_user_id)
+            ).one_or_none()
+            if entrance_sound is None:
+                raise KeyError(f"EntranceSound for Twitch user ID '{twitch_user_id}' not found")
+            s.delete(entrance_sound)
+            s.commit()

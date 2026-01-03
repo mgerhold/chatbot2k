@@ -28,8 +28,39 @@ logger: Final = logging.getLogger(__name__)
 
 
 @final
-class Sentinel:
+class _Sentinel:
     pass
+
+
+async def _handle_channel_going_live(
+    app_state: AppState,
+    event: StreamLiveEvent,
+    chats: Sequence[Chat],
+) -> None:
+    logger.info(f"Stream has gone live: {event.broadcaster_name} (ID = {event.broadcaster_id})")
+
+    # If this channel is the channel of our broadcaster (which we monitor automatically), we
+    # have to reset the entrance sounds session.
+    if event.broadcaster_login.lower() == app_state.config.twitch_channel.lower():
+        app_state.entrance_sound_handler.reset_entrance_sounds_session()
+
+    channels: Final = app_state.database.get_live_notification_channels()
+    notification_channel: Final = next(
+        (channel for channel in channels if channel.broadcaster_id == event.broadcaster_id),
+        None,
+    )
+    if notification_channel is None:
+        logger.error(f"No target channel found for broadcaster {event.broadcaster_name}")
+        return
+    notification: Final = LiveNotification(
+        event=event,
+        target_channel=notification_channel.target_channel,
+        text_template=LiveNotificationTextTemplate(notification_channel.text_template),
+    )
+    for chat in chats:
+        if not chat.feature_flags.can_post_live_notifications:
+            continue
+        await chat.post_live_notification(notification)
 
 
 async def run_main_loop(app_state: AppState) -> None:
@@ -38,7 +69,7 @@ async def run_main_loop(app_state: AppState) -> None:
         await DiscordChat.create(app_state),
     ]
 
-    queue: Final[asyncio.Queue[tuple[int, ChatMessage | BroadcastMessage | Sentinel]]] = asyncio.Queue()
+    queue: Final[asyncio.Queue[tuple[int, ChatMessage | BroadcastMessage | _Sentinel]]] = asyncio.Queue()
     active_participant_indices: Final[set[int]] = set(range(len(chats) + len(app_state.broadcasters)))
 
     async def _producer(i: int, chat_or_broadcaster: Chat | Broadcaster) -> None:
@@ -53,27 +84,10 @@ async def run_main_loop(app_state: AppState) -> None:
         finally:
             # Either the chat or broadcaster finished or an error occurred,
             # we signal that it is done.
-            await queue.put((i, Sentinel()))
+            await queue.put((i, _Sentinel()))
 
     async def _on_channel_live(event: StreamLiveEvent) -> None:
-        logger.info(f"Stream has gone live: {event.broadcaster_name} (ID = {event.broadcaster_id})")
-        channels: Final = app_state.database.get_live_notification_channels()
-        notification_channel: Final = next(
-            (channel for channel in channels if channel.broadcaster_id == event.broadcaster_id),
-            None,
-        )
-        if notification_channel is None:
-            logger.error(f"No target channel found for broadcaster {event.broadcaster_name}")
-            return
-        notification: Final = LiveNotification(
-            event=event,
-            target_channel=notification_channel.target_channel,
-            text_template=LiveNotificationTextTemplate(notification_channel.text_template),
-        )
-        for chat in chats:
-            if not chat.feature_flags.can_post_live_notifications:
-                continue
-            await chat.post_live_notification(notification)
+        await _handle_channel_going_live(app_state, event, chats)
 
     async def _handle_commands() -> None:
         while True:
@@ -104,9 +118,12 @@ async def run_main_loop(app_state: AppState) -> None:
             i, chat_message = await queue.get()
 
             match chat_message:
-                case Sentinel():
+                case _Sentinel():
                     active_participant_indices.discard(i)
                 case ChatMessage():
+                    if chats[i].feature_flags.can_trigger_entrance_sounds:
+                        await app_state.entrance_sound_handler.trigger_entrance_sounds(chat_message)
+
                     # Notify broadcasters about the chat message so they can react to it,
                     # e.g. by delaying the next broadcast if it was already triggered by
                     # a regular chat message.

@@ -17,6 +17,7 @@ from chatbot2k.command_handlers.soundboard_handlers import SoundboardHandler
 from chatbot2k.config import Config
 from chatbot2k.database.engine import Database
 from chatbot2k.dictionary import Dictionary
+from chatbot2k.entrance_sounds import EntranceSoundHandler
 from chatbot2k.translations_manager import TranslationsManager
 from chatbot2k.types.commands import Command
 
@@ -33,6 +34,7 @@ class Globals(AppState):
         self._broadcasters: Final = Globals._load_broadcasters(self)
         self._dictionary: Final = Globals._load_dictionary(self.database)
         self._translations_manager: Final = TranslationsManager(self.database)
+        self._entrance_sound_handler: Final = EntranceSoundHandler(self)
         self._command_queue: Final = asyncio.Queue[Command]()
 
     @property
@@ -84,6 +86,11 @@ class Globals(AppState):
     @override
     def is_soundboard_enabled(self, value: bool) -> None:
         self._is_soundboard_enabled = value
+
+    @property
+    @override
+    def entrance_sound_handler(self) -> EntranceSoundHandler:
+        return self._entrance_sound_handler
 
     @property
     @override
