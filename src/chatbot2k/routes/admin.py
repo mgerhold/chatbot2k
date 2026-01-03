@@ -726,7 +726,39 @@ async def upload_entrance_sound(
     file: Annotated[UploadFile, File()],
 ) -> Response:
     """Upload a new entrance sound for a user."""
-    # TODO: Implement entrance sound upload logic
+    try:
+        contents: Final = await file.read()
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to read file: {e}") from e
+
+    detected_extension: Final = await get_file_extension_by_mime_type(contents)
+    if detected_extension is None:
+        raise HTTPException(
+            status_code=400,
+            detail="Unsupported file format.",
+        )
+
+    unique_filename: Final = f"{uuid4()}{detected_extension}"
+    file_path: Final = SOUNDBOARD_FILES_DIRECTORY / unique_filename
+
+    SOUNDBOARD_FILES_DIRECTORY.mkdir(parents=True, exist_ok=True)
+
+    try:
+        with open(file_path, "wb") as f:
+            f.write(contents)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to save file: {e}") from e
+
+    try:
+        app_state.database.add_entrance_sound(
+            twitch_user_id=twitch_user_id,
+            filename=unique_filename,
+        )
+    except ValueError as e:
+        # If database insertion fails, clean up the file.
+        file_path.unlink(missing_ok=True)
+        raise HTTPException(status_code=400, detail=str(e)) from e
+
     return RedirectResponse(request.url_for("admin_entrance_sounds"), status_code=303)
 
 
