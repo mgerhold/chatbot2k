@@ -20,6 +20,7 @@ from chatbot2k.dictionary import Dictionary
 from chatbot2k.entrance_sounds import EntranceSoundHandler
 from chatbot2k.translations_manager import TranslationsManager
 from chatbot2k.types.commands import Command
+from chatbot2k.types.commands import ReloadBroadcastersCommand
 
 
 @final
@@ -103,6 +104,16 @@ class Globals(AppState):
         """Reload all command handlers from the database."""
         self._command_handlers.clear()
         self._command_handlers.update(self._reload_command_handlers())
+
+    @override
+    async def reload_broadcasters(self) -> None:
+        """
+        Reload all broadcasters from the database and send a command into
+        the command queue that triggers reloading inside the main loop.
+        """
+        self._broadcasters.clear()
+        self._broadcasters.extend(self._load_broadcasters(self))
+        await self._command_queue.put(ReloadBroadcastersCommand())
 
     @property
     @override

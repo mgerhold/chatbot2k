@@ -1,13 +1,10 @@
-import asyncio
 import logging
 from typing import Annotated
 from typing import Final
 from typing import Literal
-from typing import Optional
 from typing import cast
 from typing import final
 from uuid import uuid4
-from zoneinfo import available_timezones
 
 from fastapi import APIRouter
 from fastapi import Depends
@@ -20,100 +17,43 @@ from starlette.requests import Request
 from starlette.responses import RedirectResponse
 from starlette.responses import Response
 from starlette.templating import Jinja2Templates
-from twitchAPI.twitch import Twitch
 
 from chatbot2k.app_state import AppState
-from chatbot2k.chats.discord_chat import DiscordChat
 from chatbot2k.constants import RELATIVE_SOUNDBOARD_FILES_DIRECTORY
 from chatbot2k.constants import SOUNDBOARD_FILES_DIRECTORY
 from chatbot2k.dependencies import get_app_state
 from chatbot2k.dependencies import get_broadcaster_user
 from chatbot2k.dependencies import get_common_context
 from chatbot2k.dependencies import get_templates
-from chatbot2k.types.commands import RetrieveDiscordChatCommand
 from chatbot2k.types.configuration_setting_kind import ConfigurationSettingKind
 from chatbot2k.types.template_contexts import ActivePage
+from chatbot2k.types.template_contexts import AdminBroadcastsContext
+from chatbot2k.types.template_contexts import AdminConstantsContext
 from chatbot2k.types.template_contexts import AdminContext
 from chatbot2k.types.template_contexts import AdminEntranceSoundsContext
 from chatbot2k.types.template_contexts import AdminGeneralSettingsContext
 from chatbot2k.types.template_contexts import AdminLiveNotificationsContext
 from chatbot2k.types.template_contexts import AdminPendingClipsContext
 from chatbot2k.types.template_contexts import AdminSoundboardContext
+from chatbot2k.types.template_contexts import Broadcast
 from chatbot2k.types.template_contexts import CommonContext
+from chatbot2k.types.template_contexts import Constant
 from chatbot2k.types.template_contexts import EntranceSound
 from chatbot2k.types.template_contexts import LiveNotificationChannel
 from chatbot2k.types.template_contexts import PendingClip
 from chatbot2k.types.template_contexts import SoundboardCommand
 from chatbot2k.types.user_info import UserInfo
+from chatbot2k.utils.discord import get_available_discord_text_channels
 from chatbot2k.utils.mime_types import get_file_extension_by_mime_type
+from chatbot2k.utils.time_and_locale import get_common_locales
+from chatbot2k.utils.time_and_locale import get_common_timezones
+from chatbot2k.utils.twitch import get_twitch_user_by_login
 from chatbot2k.utils.twitch import get_twitch_user_info_by_ids
 from chatbot2k.utils.twitch import get_twitch_user_info_by_logins
 
 router: Final = APIRouter(prefix="/admin", dependencies=[Depends(get_broadcaster_user)])
 
 logger: Final = logging.getLogger(__name__)
-
-
-def _get_common_timezones() -> list[str]:
-    """Return a curated list of commonly used timezones."""
-    all_timezones: Final = available_timezones()
-    # Filter to common zones (exclude deprecated and uncommon ones)
-    common_prefixes: Final = {
-        "America/",
-        "Europe/",
-        "Asia/",
-        "Australia/",
-        "Pacific/",
-        "Africa/",
-    }
-    timezones: Final = sorted(
-        tz for tz in all_timezones if any(tz.startswith(prefix) for prefix in common_prefixes) or tz == "UTC"
-    )
-    # Put UTC first.
-    if "UTC" in timezones:
-        timezones.remove("UTC")
-        timezones.insert(0, "UTC")
-    return timezones
-
-
-def _get_common_locales() -> list[tuple[str, str]]:
-    """Return a list of common locales as (code, display_name) tuples."""
-    return [
-        ("de_DE.UTF-8", "German (Germany)"),
-        ("de_AT.UTF-8", "German (Austria)"),
-        ("de_CH.UTF-8", "German (Switzerland)"),
-        ("en_US.UTF-8", "English (United States)"),
-        ("en_GB.UTF-8", "English (United Kingdom)"),
-        ("en_CA.UTF-8", "English (Canada)"),
-        ("en_AU.UTF-8", "English (Australia)"),
-        ("fr_FR.UTF-8", "French (France)"),
-        ("fr_CA.UTF-8", "French (Canada)"),
-        ("fr_BE.UTF-8", "French (Belgium)"),
-        ("fr_CH.UTF-8", "French (Switzerland)"),
-        ("es_ES.UTF-8", "Spanish (Spain)"),
-        ("es_MX.UTF-8", "Spanish (Mexico)"),
-        ("es_AR.UTF-8", "Spanish (Argentina)"),
-        ("it_IT.UTF-8", "Italian (Italy)"),
-        ("pt_PT.UTF-8", "Portuguese (Portugal)"),
-        ("pt_BR.UTF-8", "Portuguese (Brazil)"),
-        ("nl_NL.UTF-8", "Dutch (Netherlands)"),
-        ("nl_BE.UTF-8", "Dutch (Belgium)"),
-        ("pl_PL.UTF-8", "Polish (Poland)"),
-        ("ru_RU.UTF-8", "Russian (Russia)"),
-        ("ja_JP.UTF-8", "Japanese (Japan)"),
-        ("ko_KR.UTF-8", "Korean (South Korea)"),
-        ("zh_CN.UTF-8", "Chinese (Simplified, China)"),
-        ("zh_TW.UTF-8", "Chinese (Traditional, Taiwan)"),
-        ("sv_SE.UTF-8", "Swedish (Sweden)"),
-        ("da_DK.UTF-8", "Danish (Denmark)"),
-        ("no_NO.UTF-8", "Norwegian (Norway)"),
-        ("fi_FI.UTF-8", "Finnish (Finland)"),
-        ("tr_TR.UTF-8", "Turkish (Turkey)"),
-        ("ar_SA.UTF-8", "Arabic (Saudi Arabia)"),
-        ("he_IL.UTF-8", "Hebrew (Israel)"),
-        ("hi_IN.UTF-8", "Hindi (India)"),
-        ("th_TH.UTF-8", "Thai (Thailand)"),
-    ]
 
 
 @router.get("/", name="admin_general_settings")
@@ -148,8 +88,8 @@ async def admin_general_settings(
         current_max_pending_soundboard_clips=max_pending_soundboard_clips,
         current_max_pending_soundboard_clips_per_user=max_pending_soundboard_clips_per_user,
         current_broadcaster_email_address=broadcaster_email_address,
-        available_timezones=_get_common_timezones(),
-        available_locales=_get_common_locales(),
+        available_timezones=get_common_timezones(),
+        available_locales=get_common_locales(),
     )
 
     return templates.TemplateResponse(
@@ -242,25 +182,242 @@ async def update_general_settings(
     return RedirectResponse(request.url_for("admin_general_settings"), status_code=303)
 
 
-async def _get_available_discord_text_channels(app_state: AppState) -> Optional[list[str]]:
-    on_callback_called: Final = asyncio.Event()
-    available_channels: Final[list[str]] = []
+@router.get("/constants", name="admin_constants")
+async def admin_constants(
+    request: Request,
+    app_state: Annotated[AppState, Depends(get_app_state)],
+    templates: Annotated[Jinja2Templates, Depends(get_templates)],
+    common_context: Annotated[CommonContext, Depends(get_common_context)],
+) -> Response:
+    admin_context: Final = AdminContext(
+        **common_context.model_dump(),
+        active_page=ActivePage.CONSTANTS,
+    )
+    constants: Final = sorted(
+        (
+            Constant(
+                name=constant.name,
+                text=constant.text,
+            )
+            for constant in app_state.database.get_constants()
+        ),
+        key=lambda c: c.name,
+    )
+    context: Final = AdminConstantsContext(
+        **admin_context.model_dump(),
+        constants=constants,
+    )
 
-    async def _callback(discord_chat: DiscordChat) -> None:
-        nonlocal on_callback_called
-        nonlocal available_channels
+    return templates.TemplateResponse(
+        request=request,
+        name="admin/constants.html",
+        context=context.model_dump(),
+    )
 
-        text_channels: Final = discord_chat.get_writable_text_channels(force_refresh=True)
-        available_channels.extend(text_channels)
-        on_callback_called.set()
 
-    await app_state.command_queue.put(RetrieveDiscordChatCommand(_callback))
+@router.post("/constants/add", name="add_constant")
+async def add_constant(
+    request: Request,
+    app_state: Annotated[AppState, Depends(get_app_state)],
+    constant_name: Annotated[str, Form()],
+    constant_text: Annotated[str, Form()],
+) -> Response:
+    """Add a new constant."""
     try:
-        await asyncio.wait_for(on_callback_called.wait(), timeout=1.0)
-    except TimeoutError:
-        return None
+        app_state.database.add_constant(name=constant_name, text=constant_text)
+        logger.info(f"Added constant: {constant_name}")
+    except ValueError as e:
+        logger.error(f"Failed to add constant: {e}")
+        raise HTTPException(status_code=400, detail=str(e)) from e
+    return RedirectResponse(
+        url=request.app.url_path_for("admin_constants"),
+        status_code=303,
+    )
 
-    return available_channels
+
+@router.post("/constants/{old_constant_name}/update", name="update_constant")
+async def update_constant(
+    request: Request,
+    app_state: Annotated[AppState, Depends(get_app_state)],
+    old_constant_name: str,
+    constant_name: Annotated[str, Form()],
+    constant_text: Annotated[str, Form()],
+) -> Response:
+    """Update an existing constant."""
+    try:
+        app_state.database.remove_constant(name=old_constant_name)
+        app_state.database.add_constant(name=constant_name, text=constant_text)
+        logger.info(f"Renamed constant: {old_constant_name} -> {constant_name}")
+    except (ValueError, KeyError) as e:
+        logger.error(f"Failed to update constant: {e}")
+        raise HTTPException(status_code=400, detail=str(e)) from e
+    return RedirectResponse(
+        url=request.app.url_path_for("admin_constants"),
+        status_code=303,
+    )
+
+
+@router.post("/constants/{constant_name}/delete", name="delete_constant")
+async def delete_constant(
+    request: Request,
+    app_state: Annotated[AppState, Depends(get_app_state)],
+    constant_name: str,
+) -> Response:
+    """Delete a constant."""
+    try:
+        app_state.database.remove_constant(name=constant_name)
+        logger.info(f"Deleted constant: {constant_name}")
+    except KeyError as e:
+        logger.error(f"Failed to delete constant: {e}")
+        raise HTTPException(status_code=404, detail=str(e)) from e
+    return RedirectResponse(
+        url=request.app.url_path_for("admin_constants"),
+        status_code=303,
+    )
+
+
+@router.get("/broadcasts", name="admin_broadcasts")
+async def admin_broadcasts(
+    request: Request,
+    app_state: Annotated[AppState, Depends(get_app_state)],
+    templates: Annotated[Jinja2Templates, Depends(get_templates)],
+    common_context: Annotated[CommonContext, Depends(get_common_context)],
+) -> Response:
+    """Admin dashboard page for managing broadcasts."""
+    admin_context: Final = AdminContext(
+        **common_context.model_dump(),
+        active_page=ActivePage.BROADCASTS,
+    )
+    broadcasts: Final = sorted(
+        (
+            Broadcast(
+                id=broadcast.id,
+                interval_seconds=broadcast.interval_seconds,
+                message=broadcast.message,
+                alias_command=broadcast.alias_command,
+            )
+            for broadcast in app_state.database.get_broadcasts()
+            if broadcast.id is not None
+        ),
+        key=lambda b: b.id,
+    )
+    static_commands: Final = sorted([f"!{cmd.name}" for cmd in app_state.database.get_static_commands()])
+    context: Final = AdminBroadcastsContext(
+        **admin_context.model_dump(),
+        broadcasts=broadcasts,
+        static_commands=static_commands,
+    )
+
+    return templates.TemplateResponse(
+        request=request,
+        name="admin/broadcasts.html",
+        context=context.model_dump(),
+    )
+
+
+@router.post("/broadcasts/add", name="add_broadcast")
+async def add_broadcast(
+    request: Request,
+    app_state: Annotated[AppState, Depends(get_app_state)],
+    interval_seconds: Annotated[int, Form()],
+    message: Annotated[str, Form()],
+    alias_command: Annotated[str, Form()] = "",
+    enable_alias: Annotated[str, Form()] = "",
+) -> Response:
+    """Add a new broadcast."""
+    try:
+        if interval_seconds < 1:
+            raise HTTPException(status_code=400, detail="Interval must be at least 1 second")
+
+        # Only set alias_command if checkbox is enabled and a command is selected.
+        final_alias_command: Final = alias_command.strip() if enable_alias and alias_command.strip() else None
+
+        if final_alias_command is not None and (
+            not final_alias_command.startswith("!")
+            or not any(
+                final_alias_command.removeprefix("!") == command.name
+                for command in app_state.database.get_static_commands()
+            )
+        ):
+            raise HTTPException(status_code=400, detail="Invalid alias command selected")
+
+        app_state.database.add_broadcast(
+            interval_seconds=interval_seconds,
+            message=message,
+            alias_command=final_alias_command,
+        )
+        logger.info(f"Added broadcast with interval {interval_seconds}s")
+    except ValueError as e:
+        logger.error(f"Failed to add broadcast: {e}")
+        raise HTTPException(status_code=400, detail=str(e)) from e
+    await app_state.reload_broadcasters()
+    return RedirectResponse(
+        url=request.app.url_path_for("admin_broadcasts"),
+        status_code=303,
+    )
+
+
+@router.post("/broadcasts/{broadcast_id}/update", name="update_broadcast")
+async def update_broadcast(
+    request: Request,
+    app_state: Annotated[AppState, Depends(get_app_state)],
+    broadcast_id: int,
+    interval_seconds: Annotated[int, Form()],
+    message: Annotated[str, Form()],
+    alias_command: Annotated[str, Form()] = "",
+) -> Response:
+    """Update an existing broadcast."""
+    try:
+        if interval_seconds < 1:
+            raise HTTPException(status_code=400, detail="Interval must be at least 1 second")
+
+        # Empty string means no alias.
+        final_alias_command = alias_command.strip() if alias_command.strip() else None
+
+        if final_alias_command is not None and (
+            not final_alias_command.startswith("!")
+            or not any(
+                final_alias_command.removeprefix("!") == command.name
+                for command in app_state.database.get_static_commands()
+            )
+        ):
+            raise HTTPException(status_code=400, detail="Invalid alias command selected")
+
+        app_state.database.update_broadcast(
+            id_=broadcast_id,
+            interval_seconds=interval_seconds,
+            message=message,
+            alias_command=final_alias_command,
+        )
+        logger.info(f"Updated broadcast {broadcast_id}")
+    except (ValueError, KeyError) as e:
+        logger.error(f"Failed to update broadcast: {e}")
+        raise HTTPException(status_code=400, detail=str(e)) from e
+    await app_state.reload_broadcasters()
+    return RedirectResponse(
+        url=request.app.url_path_for("admin_broadcasts"),
+        status_code=303,
+    )
+
+
+@router.post("/broadcasts/{broadcast_id}/delete", name="delete_broadcast")
+async def delete_broadcast(
+    request: Request,
+    app_state: Annotated[AppState, Depends(get_app_state)],
+    broadcast_id: int,
+) -> Response:
+    """Delete a broadcast."""
+    try:
+        app_state.database.remove_broadcast(id_=broadcast_id)
+        logger.info(f"Deleted broadcast {broadcast_id}")
+    except KeyError as e:
+        logger.error(f"Failed to delete broadcast: {e}")
+        raise HTTPException(status_code=404, detail=str(e)) from e
+    await app_state.reload_broadcasters()
+    return RedirectResponse(
+        url=request.app.url_path_for("admin_broadcasts"),
+        status_code=303,
+    )
 
 
 @router.get("/live-notifications", name="admin_live_notifications")
@@ -281,7 +438,7 @@ async def admin_live_notifications(
         )
         for channel in app_state.database.get_live_notification_channels()
     ]
-    discord_text_channels: Final = await _get_available_discord_text_channels(app_state)
+    discord_text_channels: Final = await get_available_discord_text_channels(app_state)
 
     context: Final = AdminLiveNotificationsContext(
         **common_context.model_dump(),
@@ -297,16 +454,6 @@ async def admin_live_notifications(
     )
 
 
-async def _find_broadcaster_id_by_name(name: str, app_state: AppState) -> Optional[str]:
-    client: Final = await Twitch(
-        app_state.config.twitch_client_id,
-        app_state.config.twitch_client_secret,
-    )
-    async for user in client.get_users(logins=[name]):
-        return user.id
-    return None
-
-
 @router.post("/live-notifications/add", name="add_live_notification_channel")
 async def add_live_notification_channel(
     request: Request,
@@ -316,13 +463,13 @@ async def add_live_notification_channel(
     target_channel: Annotated[str, Form()],
 ) -> Response:
     """Add a new live notification channel."""
-    broadcaster_id: Final = await _find_broadcaster_id_by_name(broadcaster_name, app_state)
-    if broadcaster_id is None:
+    broadcaster: Final = await get_twitch_user_by_login(broadcaster_name.lower(), app_state)
+    if broadcaster is None:
         raise HTTPException(status_code=400, detail="Broadcaster not found")
     try:
         app_state.database.add_live_notification_channel(
             broadcaster_name=broadcaster_name,
-            broadcaster_id=broadcaster_id,
+            broadcaster_id=broadcaster.id,
             text_template=text_template,
             target_channel=target_channel,
         )
@@ -342,14 +489,14 @@ async def update_live_notification_channel(
     target_channel: Annotated[str, Form()],
 ) -> Response:
     """Update an existing live notification channel."""
-    broadcaster_id: Final = await _find_broadcaster_id_by_name(broadcaster_name, app_state)
-    if broadcaster_id is None:
+    broadcaster: Final = await get_twitch_user_by_login(broadcaster_name.lower(), app_state)
+    if broadcaster is None:
         raise HTTPException(status_code=400, detail="Broadcaster not found")
     try:
         app_state.database.update_live_notification_channel(
             id_=channel_id,
             broadcaster_name=broadcaster_name,
-            broadcaster_id=broadcaster_id,
+            broadcaster_id=broadcaster.id,
             text_template=text_template,
             target_channel=target_channel,
         )

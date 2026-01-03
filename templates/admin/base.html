@@ -116,6 +116,16 @@
                     </a>
                 </li>
                 <li>
+                    <a href="{{ request.app.url_path_for('admin_constants') }}" class="{% if active_page == 'constants' %}active{% endif %}">
+                        Constants
+                    </a>
+                </li>
+                <li>
+                    <a href="{{ request.app.url_path_for('admin_broadcasts') }}" class="{% if active_page == 'broadcasts' %}active{% endif %}">
+                        Broadcasts
+                    </a>
+                </li>
+                <li>
                     <a href="{{ request.app.url_path_for('admin_live_notifications') }}" class="{% if active_page == 'live_notifications' %}active{% endif %}">
                         Live Notifications
                     </a>

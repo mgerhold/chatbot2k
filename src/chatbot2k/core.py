@@ -3,6 +3,7 @@ import logging
 from collections.abc import Awaitable
 from collections.abc import Callable
 from collections.abc import Sequence
+from contextlib import suppress
 from typing import Final
 from typing import final
 
@@ -16,6 +17,7 @@ from chatbot2k.types.broadcast_message import BroadcastMessage
 from chatbot2k.types.chat_command import ChatCommand
 from chatbot2k.types.chat_message import ChatMessage
 from chatbot2k.types.chat_response import ChatResponse
+from chatbot2k.types.commands import ReloadBroadcastersCommand
 from chatbot2k.types.commands import RetrieveDiscordChatCommand
 from chatbot2k.types.feature_flags import FormattingSupport
 from chatbot2k.types.live_notification import LiveNotification
@@ -89,6 +91,10 @@ async def run_main_loop(app_state: AppState) -> None:
     async def _on_channel_live(event: StreamLiveEvent) -> None:
         await _handle_channel_going_live(app_state, event, chats)
 
+    # The broadcaster tasks can not be part of the task group further below,
+    # because they have to be cancelled and recreated when the configuration changes.
+    broadcaster_tasks: Final[list[asyncio.Task[None]]] = []
+
     async def _handle_commands() -> None:
         while True:
             command = await app_state.command_queue.get()
@@ -99,6 +105,17 @@ async def run_main_loop(app_state: AppState) -> None:
                         logger.error("No Discord chat available to retrieve.")
                         continue
                     await command.execute(discord_chat)
+                case ReloadBroadcastersCommand():
+                    logger.info("Reloading broadcasters. Cancelling existing broadcaster tasks...")
+                    for task in broadcaster_tasks:
+                        task.cancel()
+                    logger.info("Awaiting existing broadcaster tasks to finish...")
+                    with suppress(asyncio.CancelledError):
+                        await asyncio.gather(*broadcaster_tasks)
+                    logger.info("Cleared existing broadcaster tasks. Reloading broadcasters from configuration...")
+                    broadcaster_tasks.clear()
+                    for i, broadcaster in enumerate(app_state.broadcasters):
+                        broadcaster_tasks.append(asyncio.create_task(_producer(i + len(chats), broadcaster)))
 
     monitored_streams: Final = await MonitoredStreamsManager.try_create(app_state, _on_channel_live)
 
@@ -109,7 +126,7 @@ async def run_main_loop(app_state: AppState) -> None:
             task_group.create_task(_producer(i, chat))
 
         for i, broadcaster in enumerate(app_state.broadcasters):
-            task_group.create_task(_producer(i + len(chats), broadcaster))
+            broadcaster_tasks.append(asyncio.create_task(_producer(i + len(chats), broadcaster)))
 
         if monitored_streams is not None:
             task_group.create_task(monitored_streams.run())
@@ -151,6 +168,9 @@ async def run_main_loop(app_state: AppState) -> None:
                             continue
                         preprocessed = _preprocess_outbound_messages_for_chat([chat_message], chat)[0]
                         await chat.send_broadcast(preprocessed)
+    for task in broadcaster_tasks:
+        task.cancel()
+    await asyncio.gather(*broadcaster_tasks)
 
 
 async def _process_chat_message(
