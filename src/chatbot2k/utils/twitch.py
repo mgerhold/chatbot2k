@@ -1,5 +1,6 @@
 from typing import Final
 from typing import NamedTuple
+from typing import Optional
 from typing import final
 
 from cachetools import TTLCache
@@ -53,6 +54,11 @@ async def get_twitch_user_info_by_ids(
         _USERS_BY_LOGIN_CACHE[user.login] = user
 
     return users
+
+
+async def get_twitch_user_by_login(login: str, app_state: AppState) -> Optional[TwitchUserInfo]:
+    users: Final = await get_twitch_user_info_by_logins([login], app_state)
+    return users.get(login)
 
 
 async def get_twitch_user_info_by_logins(

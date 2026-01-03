@@ -2,7 +2,6 @@ import logging
 from typing import Annotated
 from typing import Final
 from typing import Literal
-from typing import Optional
 from typing import cast
 from typing import final
 from uuid import uuid4
@@ -18,7 +17,6 @@ from starlette.requests import Request
 from starlette.responses import RedirectResponse
 from starlette.responses import Response
 from starlette.templating import Jinja2Templates
-from twitchAPI.twitch import Twitch
 
 from chatbot2k.app_state import AppState
 from chatbot2k.constants import RELATIVE_SOUNDBOARD_FILES_DIRECTORY
@@ -45,6 +43,7 @@ from chatbot2k.utils.discord import get_available_discord_text_channels
 from chatbot2k.utils.mime_types import get_file_extension_by_mime_type
 from chatbot2k.utils.time_and_locale import get_common_locales
 from chatbot2k.utils.time_and_locale import get_common_timezones
+from chatbot2k.utils.twitch import get_twitch_user_by_login
 from chatbot2k.utils.twitch import get_twitch_user_info_by_ids
 from chatbot2k.utils.twitch import get_twitch_user_info_by_logins
 
@@ -213,16 +212,6 @@ async def admin_live_notifications(
     )
 
 
-async def _find_broadcaster_id_by_name(name: str, app_state: AppState) -> Optional[str]:
-    client: Final = await Twitch(
-        app_state.config.twitch_client_id,
-        app_state.config.twitch_client_secret,
-    )
-    async for user in client.get_users(logins=[name]):
-        return user.id
-    return None
-
-
 @router.post("/live-notifications/add", name="add_live_notification_channel")
 async def add_live_notification_channel(
     request: Request,
@@ -232,13 +221,13 @@ async def add_live_notification_channel(
     target_channel: Annotated[str, Form()],
 ) -> Response:
     """Add a new live notification channel."""
-    broadcaster_id: Final = await _find_broadcaster_id_by_name(broadcaster_name, app_state)
-    if broadcaster_id is None:
+    broadcaster: Final = await get_twitch_user_by_login(broadcaster_name.lower(), app_state)
+    if broadcaster is None:
         raise HTTPException(status_code=400, detail="Broadcaster not found")
     try:
         app_state.database.add_live_notification_channel(
             broadcaster_name=broadcaster_name,
-            broadcaster_id=broadcaster_id,
+            broadcaster_id=broadcaster.id,
             text_template=text_template,
             target_channel=target_channel,
         )
@@ -258,14 +247,14 @@ async def update_live_notification_channel(
     target_channel: Annotated[str, Form()],
 ) -> Response:
     """Update an existing live notification channel."""
-    broadcaster_id: Final = await _find_broadcaster_id_by_name(broadcaster_name, app_state)
-    if broadcaster_id is None:
+    broadcaster: Final = await get_twitch_user_by_login(broadcaster_name.lower(), app_state)
+    if broadcaster is None:
         raise HTTPException(status_code=400, detail="Broadcaster not found")
     try:
         app_state.database.update_live_notification_channel(
             id_=channel_id,
             broadcaster_name=broadcaster_name,
-            broadcaster_id=broadcaster_id,
+            broadcaster_id=broadcaster.id,
             text_template=text_template,
             target_channel=target_channel,
         )
