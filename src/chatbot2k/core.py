@@ -38,6 +38,12 @@ async def _handle_channel_going_live(
     chats: Sequence[Chat],
 ) -> None:
     logger.info(f"Stream has gone live: {event.broadcaster_name} (ID = {event.broadcaster_id})")
+
+    # If this channel is the channel of our broadcaster (which we monitor automatically), we
+    # have to reset the entrance sounds session.
+    if event.broadcaster_login.lower() == app_state.config.twitch_channel.lower():
+        app_state.entrance_sound_handler.reset_entrance_sounds_session()
+
     channels: Final = app_state.database.get_live_notification_channels()
     notification_channel: Final = next(
         (channel for channel in channels if channel.broadcaster_id == event.broadcaster_id),
