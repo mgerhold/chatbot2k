@@ -40,8 +40,6 @@ def _permission_level_to_string(permission_level: PermissionLevel) -> str:
             return "Moderator"
         case PermissionLevel.ADMIN:
             return "Administrator"
-        case _:
-            return "Unknown"
 
 
 def _looks_like_url(text: str) -> bool:
