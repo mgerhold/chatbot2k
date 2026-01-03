@@ -17,6 +17,7 @@ from sqlmodel import desc
 from sqlmodel import select
 
 from chatbot2k.database.tables import Broadcast
+from chatbot2k.database.tables import CachedSourceCode
 from chatbot2k.database.tables import ConfigurationSetting
 from chatbot2k.database.tables import Constant
 from chatbot2k.database.tables import DictionaryEntry
@@ -674,4 +675,32 @@ class Database:
             if entrance_sound is None:
                 raise KeyError(f"EntranceSound for Twitch user ID '{twitch_user_id}' not found")
             s.delete(entrance_sound)
+            s.commit()
+
+    def add_or_update_cached_source_code(self, *, url: str, source_code: str) -> None:
+        """Add or update cached source code for a URL."""
+        with self._session() as s:
+            entry = s.exec(select(CachedSourceCode).where(CachedSourceCode.url == url)).one_or_none()
+            if entry is None:
+                entry = CachedSourceCode(url=url, source_code=source_code)
+            else:
+                entry.source_code = source_code
+            s.add(entry)
+            s.commit()
+
+    def get_cached_source_code(self, *, url: str) -> Optional[str]:
+        """Get cached source code for a URL."""
+        with self._session() as s:
+            entry = s.exec(select(CachedSourceCode).where(CachedSourceCode.url == url)).one_or_none()
+            if entry is None:
+                return None
+            return entry.source_code
+
+    def delete_cached_source_code(self, *, url: str) -> None:
+        """Delete cached source code for a URL."""
+        with self._session() as s:
+            entry = s.exec(select(CachedSourceCode).where(CachedSourceCode.url == url)).one_or_none()
+            if entry is None:
+                raise KeyError(f"CachedSourceCode for URL '{url}' not found")
+            s.delete(entry)
             s.commit()

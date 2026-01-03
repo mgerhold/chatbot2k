@@ -166,3 +166,11 @@ class EntranceSound(SQLModel, table=True):
 
     twitch_user_id: str = Field(primary_key=True)
     filename: str
+
+
+@final
+class CachedSourceCode(SQLModel, table=True):
+    """Represents cached source code for scripts to optimize performance."""
+
+    url: str = Field(primary_key=True)
+    source_code: str
