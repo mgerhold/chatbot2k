@@ -3,6 +3,7 @@ import logging
 from collections.abc import Awaitable
 from collections.abc import Callable
 from typing import Final
+from typing import NamedTuple
 from typing import Optional
 from typing import Self
 from typing import final
@@ -14,10 +15,15 @@ from twitchAPI.twitch import Twitch
 
 from chatbot2k.app_state import AppState
 from chatbot2k.config import Environment
-from chatbot2k.database.tables import LiveNotificationChannel
 from chatbot2k.types.live_notification import StreamLiveEvent
 
 logger: Final = logging.getLogger(__name__)
+
+
+@final
+class _ActiveSubscription(NamedTuple):
+    broadcaster_id: str
+    subscription_id: str  # Also known as "subscription topic".
 
 
 @final
@@ -39,6 +45,7 @@ class MonitoredStreamsManager:
         self._eventsub: Final = eventsub
         self._callback: Final = callback
         self._app_state: Final = app_state
+        self._active_subscriptions: Final[set[_ActiveSubscription]] = set()
 
     @classmethod
     async def try_create(
@@ -47,6 +54,9 @@ class MonitoredStreamsManager:
         callback: Callable[[StreamLiveEvent], Awaitable[None]],
     ) -> Optional[Self]:
         if app_state.config.environment != Environment.PRODUCTION:
+            # Twitch needs a publicly accessible URL supporting HTTPS for EventSub webhooks. We cannot
+            # provide that in non-production environments (usually local development setups), so we
+            # disable live notifications there.
             logger.warning(f"Live notifications are disabled in {app_state.config.environment} environment.")
             return None
 
@@ -75,7 +85,7 @@ class MonitoredStreamsManager:
             app_state,
             cls._Passkey(),
         )
-        await instance._setup_subscriptions(app_state.database.get_live_notification_channels())
+        await instance._setup_subscriptions()
         return instance
 
     async def run(self) -> None:
@@ -84,7 +94,7 @@ class MonitoredStreamsManager:
                 await self._app_state.monitored_channels_changed.wait()
                 self._app_state.monitored_channels_changed.clear()
                 logger.info("Monitored channels changed, updating EventSub subscriptions...")
-                await self._setup_subscriptions(channels=self._app_state.database.get_live_notification_channels())
+                await self._setup_subscriptions()
         finally:
             await self.close()
 
@@ -133,18 +143,45 @@ class MonitoredStreamsManager:
             thumbnail_url=None,
         )
 
-    async def _setup_subscriptions(
-        self,
-        channels: list[LiveNotificationChannel],
-    ) -> None:
+    async def _setup_subscriptions(self) -> None:
         """Set up EventSub subscriptions for all channels in the database."""
-        logger.info("Removing all active EventSub subscriptions...")
-        await self._eventsub.unsubscribe_all()
+        channels: Final = self._app_state.database.get_live_notification_channels()
         if not channels:
             logger.info("No channels to monitor for live notifications.")
             return
-        logger.info("Setting up EventSub subscriptions for monitored channels...")
-        for channel in channels:
+        requested_broadcaster_ids: Final = {channel.broadcaster_id for channel in channels}
+        subscribed_broadcaster_ids: Final = {subscription.broadcaster_id for subscription in self._active_subscriptions}
+        broadcaster_ids_to_remove: Final = subscribed_broadcaster_ids - requested_broadcaster_ids
+        broadcaster_ids_to_add: Final = requested_broadcaster_ids - subscribed_broadcaster_ids
+
+        for broadcaster_id in broadcaster_ids_to_remove:
+            subscription = next(
+                (
+                    subscription
+                    for subscription in self._active_subscriptions
+                    if subscription.broadcaster_id == broadcaster_id
+                ),
+                None,
+            )
+            if subscription is None:
+                logger.error(f"Subscription for broadcaster ID '{broadcaster_id}' not found.")
+                continue
+            result = await self._eventsub.unsubscribe_topic(subscription.subscription_id)
+            if not result:
+                logger.error(f"Failed to unsubscribe from EventSub for broadcaster ID '{broadcaster_id}'.")
+                continue
+            self._active_subscriptions.remove(subscription)
+            logger.info(f"Unsubscribed from EventSub for broadcaster ID '{broadcaster_id}'.")
+
+        for broadcaster_id in broadcaster_ids_to_add:
+            channel = next(
+                (channel for channel in channels if channel.broadcaster_id == broadcaster_id),
+                None,
+            )
+            if channel is None:
+                logger.error(f"Channel with broadcaster ID '{broadcaster_id}' not found.")
+                continue
+
             id_ = channel.broadcaster_id
             user = await first(self._twitch.get_users(user_ids=[id_]))
             if user is None:
@@ -156,6 +193,13 @@ class MonitoredStreamsManager:
             except Exception as e:
                 logger.exception(f"Failed to set up listener for user '{channel.broadcaster_name}': {e}")
                 continue
+
+            self._active_subscriptions.add(
+                _ActiveSubscription(
+                    broadcaster_id=channel.broadcaster_id,
+                    subscription_id=subscription_id,
+                )
+            )
             logger.info(
                 f"Successfully set up listener for user '{channel.broadcaster_name}', "
                 + f"subscription ID: {subscription_id}"
