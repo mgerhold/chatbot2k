@@ -141,6 +141,75 @@
         color: var(--muted);
     }
 
+    .user-validation {
+        display: none;
+        margin-top: 0.5rem;
+        padding: 0.5rem;
+        border-radius: 4px;
+        font-size: 0.875rem;
+        font-weight: 500;
+    }
+
+    .user-validation.success {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        background: rgba(34, 197, 94, 0.1);
+        border: 1px solid rgba(34, 197, 94, 0.3);
+        color: #22c55e;
+    }
+
+    .user-validation.success .user-info {
+        display: flex;
+        align-items: center;
+        gap: 0.75rem;
+        flex: 1;
+    }
+
+    .user-validation.success .profile-image {
+        width: 32px;
+        height: 32px;
+        border-radius: 50%;
+        border: 2px solid rgba(34, 197, 94, 0.5);
+    }
+
+    .user-validation.success .user-details {
+        display: flex;
+        flex-direction: column;
+        gap: 0.125rem;
+    }
+
+    .user-validation.success .user-found-text {
+        font-weight: 600;
+    }
+
+    .user-validation.success .user-id {
+        font-size: 0.75rem;
+        opacity: 0.8;
+        font-family: 'Courier New', monospace;
+    }
+
+    .user-validation.error {
+        display: block;
+        background: rgba(239, 68, 68, 0.1);
+        border: 1px solid rgba(239, 68, 68, 0.3);
+        color: #ef4444;
+    }
+
+    .user-validation.loading {
+        display: block;
+        background: rgba(96, 165, 250, 0.1);
+        border: 1px solid rgba(96, 165, 250, 0.3);
+        color: #60a5fa;
+    }
+
+    .checkmark {
+        display: inline-block;
+        width: 16px;
+        height: 16px;
+        font-size: 16px;
+    }
+
     /* External link icon for broadcaster links */
     .channel-card a[href^="http"]::after {
         content: "";
@@ -158,6 +227,68 @@
         opacity: 1;
     }
 </style>
+<script>
+    let userValidationTimeout = null;
+    let currentTwitchUserId = null;
+
+    async function validateTwitchUser(username) {
+        const validationElement = document.getElementById('user-validation');
+        const submitButton = document.getElementById('add-channel-submit');
+        
+        if (!username.trim()) {
+            validationElement.className = 'user-validation';
+            submitButton.disabled = true;
+            currentTwitchUserId = null;
+            return;
+        }
+
+        validationElement.className = 'user-validation loading';
+        validationElement.textContent = 'Checking user...';
+        submitButton.disabled = true;
+
+        try {
+            const response = await fetch(`{{ request.app.url_path_for('validate_twitch_user') }}?username=${encodeURIComponent(username)}`);
+            const data = await response.json();
+
+            if (data.valid) {
+                validationElement.className = 'user-validation success';
+                validationElement.innerHTML = `
+                    <span class="checkmark">✓</span>
+                    <div class="user-info">
+                        <img src="${data.profile_image_url}" alt="Profile" class="profile-image">
+                        <div class="user-details">
+                            <span class="user-found-text">User found</span>
+                            <span class="user-id">ID: ${data.user_id}</span>
+                        </div>
+                    </div>
+                `;
+                submitButton.disabled = false;
+                currentTwitchUserId = data.user_id;
+            } else {
+                validationElement.className = 'user-validation error';
+                validationElement.textContent = data.error || 'User not found';
+                submitButton.disabled = true;
+                currentTwitchUserId = null;
+            }
+        } catch (error) {
+            validationElement.className = 'user-validation error';
+            validationElement.textContent = 'Error checking user. Please try again.';
+            submitButton.disabled = true;
+            currentTwitchUserId = null;
+        }
+    }
+
+    document.addEventListener('DOMContentLoaded', function() {
+        const usernameInput = document.getElementById('broadcaster_name');
+
+        usernameInput.addEventListener('input', function() {
+            clearTimeout(userValidationTimeout);
+            userValidationTimeout = setTimeout(() => {
+                validateTwitchUser(this.value);
+            }, 500);
+        });
+    });
+</script>
 {% endblock %}
 
 {% block dashboard_content %}
@@ -171,7 +302,8 @@
     <form method="post" action="{{ request.app.url_path_for('add_live_notification_channel') }}">
         <div class="form-group">
             <label for="broadcaster_name">Broadcaster Name</label>
-            <input type="text" id="broadcaster_name" name="broadcaster_name" placeholder="e.g., twitchusername" required>
+            <input type="text" id="broadcaster_name" name="broadcaster_name" placeholder="e.g., twitchusername" required autocomplete="off">
+            <div id="user-validation" class="user-validation"></div>
         </div>
         <div class="form-group">
             <label for="text_template">Text Template</label>
@@ -190,7 +322,7 @@
             <input type="text" id="target_channel" name="target_channel" placeholder="e.g., bot-test" required>
             {% endif %}
         </div>
-        <button type="submit" class="btn btn-primary">Add Channel</button>
+        <button type="submit" id="add-channel-submit" class="btn btn-primary" disabled>Add Channel</button>
     </form>
 </section>
 
