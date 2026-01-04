@@ -225,6 +225,10 @@ class MonitoredStreamsManager:
             sub_type="stream.online",
             target_token=AuthType.APP,  # For webhook subscriptions (not websocket).
         )
+
+        for existing_subscription in existing_subscriptions.data:
+            logging.info(f"Existing subscription: {existing_subscription}")
+
         for existing_subscription in existing_subscriptions.data:
             if existing_subscription.type != "stream.online":
                 logger.error(
