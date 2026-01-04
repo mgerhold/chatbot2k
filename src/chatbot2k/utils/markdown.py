@@ -72,7 +72,7 @@ def markdown_to_sanitized_html(text: Optional[str]) -> Markup:
     # Optional: also convert any bare URLs that Markdown didn't catch
     linkified = bleach.linkify(cleaned)  # no callbacks needed now
     final = _force_new_tab(linkified)
-    return Markup("{}").format(final)
+    return Markup(final)  # noqa: S704
 
 
 # Match inline code (`...`) or fenced blocks (```...```)

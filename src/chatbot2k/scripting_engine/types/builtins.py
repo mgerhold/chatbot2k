@@ -628,7 +628,7 @@ class _RandomFunction(BuiltinFunction):
 
     @override
     async def execute(self, *args: "Expression", context: "ExecutionContext") -> str:
-        if not len(args) == 2:
+        if len(args) != 2:
             raise AssertionError
         values: Final = [await arg.evaluate(context) for arg in args]
         for i, val in enumerate(values):
@@ -659,7 +659,7 @@ class _TimestampFunction(BuiltinFunction):
 
     @override
     async def execute(self, *args: "Expression", context: "ExecutionContext") -> str:
-        if not len(args) == 0:
+        if len(args) != 0:
             raise AssertionError
         timestamp: Final = datetime.now(UTC).timestamp()
         return _format_number(timestamp)
@@ -681,7 +681,7 @@ class _DateFunction(BuiltinFunction):
 
     @override
     async def execute(self, *args: "Expression", context: "ExecutionContext") -> str:
-        if not len(args) == 1:
+        if len(args) != 1:
             raise AssertionError
         format_value: Final = await args[0].evaluate(context)
         if not isinstance(format_value, StringValue):
@@ -708,7 +708,7 @@ class _ReadFileFunction(BuiltinFunction):
 
     @override
     async def execute(self, *args: "Expression", context: "ExecutionContext") -> str:
-        if not len(args) == 1:
+        if len(args) != 1:
             raise AssertionError
         path_value: Final = await args[0].evaluate(context)
         if not isinstance(path_value, StringValue):
