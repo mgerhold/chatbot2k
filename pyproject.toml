@@ -64,9 +64,18 @@ preview = false
 
 [tool.ruff.lint]
 preview = true
-select = ["E", "W", "F", "I", "B", "C4", "UP", "E401", "ISC001", "ISC002"]
+select = ["E", "W", "F", "I", "B", "C4", "UP", "E401", "ISC001", "ISC002", "ERA", "FAST", "YTT", "ANN", "S"]
 # https://docs.astral.sh/ruff/formatter/#conflicting-lint-rules
 ignore = ["W191", "E111", "E114", "E117", "D206", "D300", "Q000", "Q001", "Q002", "Q003", "COM812", "COM819", "UP045"]
+
+[tool.ruff.lint.per-file-ignores]
+# Allow assert statements (S101), temporary paths (S108), and hard-coded passwords (S105, S106) in test files.
+"**/src/test/test_*.py" = ["S101", "S108", "S105", "S106"]
+# Allow temporary paths (S108) in conftest files.
+"**/src/test/conftest.py" = ["S108"]
+# Allow use of `subprocess` module in utility scripts.
+"scripts/check.py" = ["S404", "S603"]
+"src/chatbot2k/__init__.py" = ["S404", "S603", "S607"]
 
 [tool.ruff.lint.isort]
 force-single-line = true

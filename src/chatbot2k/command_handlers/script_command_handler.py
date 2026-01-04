@@ -69,7 +69,8 @@ class ScriptCommandHandler(CommandHandler):
                         chat_message=chat_command.source_message,
                     )
                 ]
-            assert execution_task.done()
+            if not execution_task.done():
+                raise AssertionError
             output: Final = execution_task.result()
         except Exception as e:
             return [

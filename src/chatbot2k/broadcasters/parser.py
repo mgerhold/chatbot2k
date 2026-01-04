@@ -13,7 +13,8 @@ def _stable_key(b: Broadcast) -> tuple[int, str]:
     # Hash the message (or alias) to avoid depending on input order.
     # Use sha1 -> int for cross-process stability (Python's built-in hash is salted).
     key_src = b.alias_command or b.message
-    h = int(hashlib.sha1(key_src.encode("utf-8")).hexdigest(), 16)
+    # Error in the next line is ignored because this is not used for security purposes.
+    h = int(hashlib.sha1(key_src.encode("utf-8")).hexdigest(), 16)  # noqa: S324
     return (h, key_src)
 
 

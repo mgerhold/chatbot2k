@@ -25,7 +25,7 @@ class SimpleBroadcaster(Broadcaster):
         phase_offset_seconds: float,
         app_state: AppState,
         alias_command: Optional[str] = None,
-    ):
+    ) -> None:
         self._interval_seconds = interval_seconds
         self._message = message
         self._phase_offset_seconds = phase_offset_seconds

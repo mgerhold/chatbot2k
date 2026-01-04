@@ -20,7 +20,7 @@ class MockChat(Chat):
     @override
     async def get_message_stream(self) -> AsyncGenerator[ChatMessage]:
         for i in range(5):
-            await sleep(random.uniform(0.1, 0.5))
+            await sleep(random.uniform(0.1, 0.5))  # noqa: S311
             yield ChatMessage(
                 text=f"Mock message {i + 1}",
                 sender_name="mock_user",

@@ -93,7 +93,8 @@ class Dictionary:
         return {entry.word: entry.explanation for entry in self._entries}
 
     def add_entry(self, *, word: str, explanation: str) -> None:
-        assert not any(entry.word.lower() == word.lower() for entry in self._entries)
+        if any(entry.word.lower() == word.lower() for entry in self._entries):
+            raise AssertionError
         new_entry: Final = self._InternalEntry(
             word=word,
             pattern=Dictionary._build_regex(word),

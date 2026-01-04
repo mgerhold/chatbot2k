@@ -75,7 +75,7 @@ class MonitoredStreamsManager:
             callback_url=app_state.config.twitch_eventsub_public_url,
             port=app_state.config.twitch_eventsub_listen_port,
             twitch=twitch,
-            host_binding="0.0.0.0",
+            host_binding="0.0.0.0",  # noqa: S104 # This should be okay here.
             callback_loop=asyncio.get_running_loop(),
         )
         eventsub.secret = app_state.config.twitch_eventsub_secret

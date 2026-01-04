@@ -28,7 +28,7 @@ if TYPE_CHECKING:
     from chatbot2k.scripting_engine.types.execution_context import ExecutionContext
     from chatbot2k.scripting_engine.types.expressions import Expression
 
-_random: Final = Random()
+_random: Final = Random()  # noqa: S311
 
 
 def _format_number(value: float) -> str:
@@ -98,7 +98,8 @@ class _TypeFunction(BuiltinFunction):
 
     @override
     async def execute(self, *args: "Expression", context: "ExecutionContext") -> str:
-        assert len(args) == 1
+        if len(args) != 1:
+            raise AssertionError
         return str(args[0].get_data_type())
 
 
@@ -118,7 +119,8 @@ class _LengthFunction(BuiltinFunction):
 
     @override
     async def execute(self, *args: "Expression", context: "ExecutionContext") -> str:
-        assert len(args) == 1
+        if len(args) != 1:
+            raise AssertionError
         value: Final = await args[0].evaluate(context)
         match value:
             case StringValue():
@@ -146,7 +148,8 @@ class _UpperFunction(BuiltinFunction):
 
     @override
     async def execute(self, *args: "Expression", context: "ExecutionContext") -> str:
-        assert len(args) == 1
+        if len(args) != 1:
+            raise AssertionError
         value: Final = await args[0].evaluate(context)
         if not isinstance(value, StringValue):
             msg: Final = f"'upper' requires a string argument, got '{value.get_data_type()}'"
@@ -170,7 +173,8 @@ class _LowerFunction(BuiltinFunction):
 
     @override
     async def execute(self, *args: "Expression", context: "ExecutionContext") -> str:
-        assert len(args) == 1
+        if len(args) != 1:
+            raise AssertionError
         value: Final = await args[0].evaluate(context)
         if not isinstance(value, StringValue):
             msg: Final = f"'lower' requires a string argument, got '{value.get_data_type()}'"
@@ -194,7 +198,8 @@ class _TrimFunction(BuiltinFunction):
 
     @override
     async def execute(self, *args: "Expression", context: "ExecutionContext") -> str:
-        assert len(args) == 1
+        if len(args) != 1:
+            raise AssertionError
         value: Final = await args[0].evaluate(context)
         if not isinstance(value, StringValue):
             msg: Final = f"'trim' requires a string argument, got '{value.get_data_type()}'"
@@ -218,7 +223,8 @@ class _ReplaceFunction(BuiltinFunction):
 
     @override
     async def execute(self, *args: "Expression", context: "ExecutionContext") -> str:
-        assert len(args) == 3
+        if len(args) != 3:
+            raise AssertionError
         text_value: Final = await args[0].evaluate(context)
         if not isinstance(text_value, StringValue):
             msg = (
@@ -260,7 +266,8 @@ class _ContainsFunction(BuiltinFunction):
 
     @override
     async def execute(self, *args: "Expression", context: "ExecutionContext") -> str:
-        assert len(args) == 2
+        if len(args) != 2:
+            raise AssertionError
         haystack: Final = await args[0].evaluate(context)
         needle: Final = await args[1].evaluate(context)
         match needle, haystack:
@@ -321,7 +328,8 @@ class _StartsWithFunction(BuiltinFunction):
 
     @override
     async def execute(self, *args: "Expression", context: "ExecutionContext") -> str:
-        assert len(args) == 2
+        if len(args) != 2:
+            raise AssertionError
         text_value: Final = await args[0].evaluate(context)
         prefix_value: Final = await args[1].evaluate(context)
         if not isinstance(text_value, StringValue) or not isinstance(prefix_value, StringValue):
@@ -350,7 +358,8 @@ class _EndsWithFunction(BuiltinFunction):
 
     @override
     async def execute(self, *args: "Expression", context: "ExecutionContext") -> str:
-        assert len(args) == 2
+        if len(args) != 2:
+            raise AssertionError
         text_value: Final = await args[0].evaluate(context)
         suffix_value: Final = await args[1].evaluate(context)
         if not isinstance(text_value, StringValue) or not isinstance(suffix_value, StringValue):
@@ -379,7 +388,8 @@ class _AbsFunction(BuiltinFunction):
 
     @override
     async def execute(self, *args: "Expression", context: "ExecutionContext") -> str:
-        assert len(args) == 1
+        if len(args) != 1:
+            raise AssertionError
         value: Final = await args[0].evaluate(context)
         if not isinstance(value, NumberValue):
             msg: Final = f"'abs' requires a number argument, got {value.get_data_type()}"
@@ -403,13 +413,15 @@ class _MinFunction(BuiltinFunction):
 
     @override
     async def execute(self, *args: "Expression", context: "ExecutionContext") -> str:
-        assert len(args) >= 1
+        if len(args) < 1:
+            raise AssertionError
         values: Final = [await arg.evaluate(context) for arg in args]
 
         first_element: Final = values[0]
         if len(values) == 1 and isinstance(first_element, ListValue):
             element_type: Final = first_element.get_data_type()
-            assert isinstance(element_type, ListType)
+            if not isinstance(element_type, ListType):
+                raise AssertionError
             if not isinstance(element_type.of_type, NumberType):
                 msg = f"'min' requires number arguments, got list of {element_type.of_type}"
                 raise ExecutionError(msg)
@@ -442,13 +454,15 @@ class _MaxFunction(BuiltinFunction):
 
     @override
     async def execute(self, *args: "Expression", context: "ExecutionContext") -> str:
-        assert len(args) >= 1
+        if len(args) < 1:
+            raise AssertionError
         values: Final = [await arg.evaluate(context) for arg in args]
 
         first_element: Final = values[0]
         if len(values) == 1 and isinstance(first_element, ListValue):
             element_type: Final = first_element.get_data_type()
-            assert isinstance(element_type, ListType)
+            if not isinstance(element_type, ListType):
+                raise AssertionError
             if not isinstance(element_type.of_type, NumberType):
                 msg = f"'max' requires number arguments, got list of {element_type.of_type}"
                 raise ExecutionError(msg)
@@ -481,7 +495,8 @@ class _RoundFunction(BuiltinFunction):
 
     @override
     async def execute(self, *args: "Expression", context: "ExecutionContext") -> str:
-        assert len(args) == 1
+        if len(args) != 1:
+            raise AssertionError
         value: Final = await args[0].evaluate(context)
         if not isinstance(value, NumberValue):
             msg: Final = f"'round' requires a number argument, got {value.get_data_type()}"
@@ -505,7 +520,8 @@ class _FloorFunction(BuiltinFunction):
 
     @override
     async def execute(self, *args: "Expression", context: "ExecutionContext") -> str:
-        assert len(args) == 1
+        if len(args) != 1:
+            raise AssertionError
         value: Final = await args[0].evaluate(context)
         if not isinstance(value, NumberValue):
             msg: Final = f"'floor' requires a number argument, got {value.get_data_type()}"
@@ -529,7 +545,8 @@ class _CeilFunction(BuiltinFunction):
 
     @override
     async def execute(self, *args: "Expression", context: "ExecutionContext") -> str:
-        assert len(args) == 1
+        if len(args) != 1:
+            raise AssertionError
         value: Final = await args[0].evaluate(context)
         if not isinstance(value, NumberValue):
             msg: Final = f"'ceil' requires a number argument, got {value.get_data_type()}"
@@ -553,7 +570,8 @@ class _SqrtFunction(BuiltinFunction):
 
     @override
     async def execute(self, *args: "Expression", context: "ExecutionContext") -> str:
-        assert len(args) == 1
+        if len(args) != 1:
+            raise AssertionError
         value: Final = await args[0].evaluate(context)
         if not isinstance(value, NumberValue):
             msg: Final = f"'sqrt' requires a number argument, got {value.get_data_type()}"
@@ -580,7 +598,8 @@ class _PowFunction(BuiltinFunction):
 
     @override
     async def execute(self, *args: "Expression", context: "ExecutionContext") -> str:
-        assert len(args) == 2
+        if len(args) != 2:
+            raise AssertionError
         values: Final = [await arg.evaluate(context) for arg in args]
         for i, val in enumerate(values):
             if not isinstance(val, NumberValue):
@@ -588,8 +607,8 @@ class _PowFunction(BuiltinFunction):
                 raise ExecutionError(error_msg)
         base: Final = values[0]
         exponent: Final = values[1]
-        assert isinstance(base, NumberValue)
-        assert isinstance(exponent, NumberValue)
+        if not isinstance(base, NumberValue) or not isinstance(exponent, NumberValue):
+            raise AssertionError
         return _format_number(base.value**exponent.value)
 
 
@@ -609,7 +628,8 @@ class _RandomFunction(BuiltinFunction):
 
     @override
     async def execute(self, *args: "Expression", context: "ExecutionContext") -> str:
-        assert len(args) == 2
+        if len(args) != 2:
+            raise AssertionError
         values: Final = [await arg.evaluate(context) for arg in args]
         for i, val in enumerate(values):
             if not isinstance(val, NumberValue):
@@ -617,8 +637,8 @@ class _RandomFunction(BuiltinFunction):
                 raise ExecutionError(error_msg)
         min_val: Final = values[0]
         max_val: Final = values[1]
-        assert isinstance(min_val, NumberValue)
-        assert isinstance(max_val, NumberValue)
+        if not isinstance(min_val, NumberValue) or not isinstance(max_val, NumberValue):
+            raise AssertionError
         result: Final = _random.uniform(min_val.value, max_val.value)
         return _format_number(result)
 
@@ -639,7 +659,8 @@ class _TimestampFunction(BuiltinFunction):
 
     @override
     async def execute(self, *args: "Expression", context: "ExecutionContext") -> str:
-        assert len(args) == 0
+        if len(args) != 0:
+            raise AssertionError
         timestamp: Final = datetime.now(UTC).timestamp()
         return _format_number(timestamp)
 
@@ -660,7 +681,8 @@ class _DateFunction(BuiltinFunction):
 
     @override
     async def execute(self, *args: "Expression", context: "ExecutionContext") -> str:
-        assert len(args) == 1
+        if len(args) != 1:
+            raise AssertionError
         format_value: Final = await args[0].evaluate(context)
         if not isinstance(format_value, StringValue):
             msg = f"'date' requires a string argument, got {format_value.get_data_type()}"
@@ -686,7 +708,8 @@ class _ReadFileFunction(BuiltinFunction):
 
     @override
     async def execute(self, *args: "Expression", context: "ExecutionContext") -> str:
-        assert len(args) == 1
+        if len(args) != 1:
+            raise AssertionError
         path_value: Final = await args[0].evaluate(context)
         if not isinstance(path_value, StringValue):
             msg = f"'read_file' requires a string argument for the file path, got {path_value.get_data_type()}"

@@ -20,7 +20,7 @@ class ClipHandler(CommandHandler):
         filename: str,
         uploader_twitch_login: Optional[str] = None,
         uploader_twitch_display_name: Optional[str] = None,
-    ):
+    ) -> None:
         super().__init__(app_state, name=name)
         self._clip_url = f"/{RELATIVE_SOUNDBOARD_FILES_DIRECTORY.as_posix()}/{filename}"
         self._uploader_twitch_login = uploader_twitch_login

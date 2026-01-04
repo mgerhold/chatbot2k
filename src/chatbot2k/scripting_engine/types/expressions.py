@@ -641,7 +641,8 @@ class TernaryOperationExpression(BaseExpression):
         if predicate.get_data_type() != BoolType():
             msg = f"Ternary condition must be a boolean, got {predicate.get_data_type()}"
             raise ExecutionError(msg)
-        assert isinstance(predicate, BoolValue)
+        if not isinstance(predicate, BoolValue):
+            raise AssertionError
         if predicate.value:
             return await self.true_expression.evaluate(context)
         return await self.false_expression.evaluate(context)
@@ -1130,7 +1131,7 @@ class SortExpression(BaseExpression):
             left = await async_merge_sort(elements[:mid])
             right = await async_merge_sort(elements[mid:])
 
-            # Conquer (merge)
+            # Conquer (merge)  # noqa: ERA001 (false positive)
             result: list[Value] = []
             i = 0
             j = 0

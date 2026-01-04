@@ -132,6 +132,6 @@ class GiveawayCommand(CommandHandler):
                 "No participants have entered the giveaway yet or there is no one left to pick.", source_message
             )
 
-        winner: Final = random.choice(list(GiveawayCommand._state.picked))
+        winner: Final = random.choice(list(GiveawayCommand._state.picked))  # noqa: S311 # This is not security-sensitive.
         GiveawayCommand._state.picked.remove(winner)
         return ChatResponse(f"The winner of the giveaway is: {winner.identifier}!", source_message)
