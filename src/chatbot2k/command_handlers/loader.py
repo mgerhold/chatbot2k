@@ -15,7 +15,8 @@ from chatbot2k.scripting_engine.types.execution_error import ExecutionError
 def load_commands(app_state: AppState) -> dict[str, CommandHandler]:
     result: dict[str, CommandHandler] = {}
     for static_command in app_state.database.get_static_commands():
-        assert static_command.name.lower() not in (name.lower() for name in result)
+        if static_command.name.lower() in (name.lower() for name in result):
+            raise AssertionError
         logging.info(f"Loaded static command: !{static_command.name}")
         result[static_command.name] = StaticResponseCommand(
             app_state=app_state,
@@ -24,7 +25,8 @@ def load_commands(app_state: AppState) -> dict[str, CommandHandler]:
         )
 
     for parameterized_command in app_state.database.get_parameterized_commands():
-        assert parameterized_command.name.lower() not in (name.lower() for name in result)
+        if parameterized_command.name.lower() in (name.lower() for name in result):
+            raise AssertionError
         logging.info(
             f"Loaded parameterized command: !{parameterized_command.name} "
             + f"{' '.join(f'{parameter}' for parameter in parameterized_command.parameters)}"
@@ -37,7 +39,8 @@ def load_commands(app_state: AppState) -> dict[str, CommandHandler]:
         )
 
     for soundboard_command in app_state.database.get_soundboard_commands():
-        assert soundboard_command.name.lower() not in (name.lower() for name in result)
+        if soundboard_command.name.lower() in (name.lower() for name in result):
+            raise AssertionError
         logging.info(f"Loaded soundboard command: !{soundboard_command.name}")
         result[soundboard_command.name] = ClipHandler(
             app_state=app_state,
@@ -69,7 +72,8 @@ def load_commands(app_state: AppState) -> dict[str, CommandHandler]:
         return script_output
 
     for script in app_state.database.get_scripts():
-        assert script.command.lower() not in (name.lower() for name in result)
+        if script.command.lower() in (name.lower() for name in result):
+            raise AssertionError
         logging.info(f"Loaded script command: !{script.command}")
         result[script.command] = ScriptCommandHandler(
             app_state=app_state,

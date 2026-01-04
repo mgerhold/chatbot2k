@@ -4,7 +4,6 @@ from typing import Optional
 
 import bleach
 from bs4 import BeautifulSoup
-from bs4.element import Tag
 from markdown_it import MarkdownIt
 from markupsafe import Markup
 
@@ -49,16 +48,17 @@ def _force_new_tab(html: str) -> str:
     soup = BeautifulSoup(html, "html.parser")
     for a in soup.find_all("a", href=True):
         href = a["href"]  # type: ignore[unsupported-operation]
-        assert isinstance(href, str)
+        if not isinstance(href, str):
+            raise AssertionError
         # Only touch absolute http(s) (adjust if you want mailto: too)
         if href.startswith(("http://", "https://", "//")):
             a["target"] = "_blank"  # type: ignore[unsupported-operation]
-            assert isinstance(a, Tag)
             rel = a.get("rel", "")
             # BeautifulSoup may give rel as list or string; normalize to set
             if isinstance(rel, str):
                 rel = rel.split()
-            assert rel is not None
+            if rel is None:
+                raise AssertionError
             a["rel"] = " ".join(sorted(set(rel) | {"noopener", "noreferrer", "nofollow"}))
     return str(soup)
 
@@ -71,9 +71,8 @@ def markdown_to_sanitized_html(text: Optional[str]) -> Markup:
     cleaned = _cleaner.clean(html)
     # Optional: also convert any bare URLs that Markdown didn't catch
     linkified = bleach.linkify(cleaned)  # no callbacks needed now
-    assert isinstance(linkified, str)
     final = _force_new_tab(linkified)
-    return Markup(final)
+    return Markup("{}").format(final)
 
 
 # Match inline code (`...`) or fenced blocks (```...```)
@@ -202,7 +201,6 @@ def markdown_to_text(markdown: Optional[str]) -> str:
         for tag in soup.find_all(BLOCK_TAGS):
             # newline before and after block to avoid gluing paragraphs/lists
             tag.insert_before("\n")
-            assert isinstance(tag, Tag)
             tag.append("\n")
 
         # Extract text with *no* separator so inline nodes don't get split

@@ -80,7 +80,8 @@ class TwitchChat(Chat):
             # hint on `authenticate()`. However, in the doc string, it mentions that it
             # returns either `None` or a tuple containing both tokens (as `str` values).
             auth_response: Final = cast(Optional[tuple[str, str]], await auth.authenticate())
-            assert auth_response is not None
+            if auth_response is None:
+                raise AssertionError
             access_token, refresh_token = auth_response
             print(f"Obtained tokens: {access_token}, {refresh_token}")
         else:

@@ -750,7 +750,8 @@ class Parser:
             return ListOfEmptyListsLiteralExpression(
                 nested_empty_lists=cast(list[ListOfEmptyListsLiteralExpression], elements)
             )
-        assert inferred_element_type is not None, "The check above this line catches this."
+        if inferred_element_type is None:
+            raise AssertionError("The check above this line catches this.")
 
         if any(isinstance(element, ListOfEmptyListsLiteralExpression) for element in temp_elements) and not isinstance(
             inferred_element_type, ListType
@@ -764,7 +765,8 @@ class Parser:
         for temp_element in temp_elements:
             match temp_element:
                 case ListOfEmptyListsLiteralExpression():
-                    assert isinstance(inferred_element_type, ListType), "We checked this above."
+                    if not isinstance(inferred_element_type, ListType):
+                        raise AssertionError("We checked this above.")
                     # Promote to empty list of known type.
                     inferred_elements.append(_reify_list_of_empty_lists(temp_element, data_type=inferred_element_type))
                 case _:

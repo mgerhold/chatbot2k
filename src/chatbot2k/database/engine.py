@@ -73,9 +73,6 @@ class Database:
                 finally:
                     cursor.close()
 
-        # Uncomment the following line to create tables automatically if they don't exist. We use migrations instead.
-        # SQLModel.metadata.create_all(self._engine)
-
     @contextmanager
     def _session(self) -> Generator[Session]:
         with Session(self._engine) as session:
