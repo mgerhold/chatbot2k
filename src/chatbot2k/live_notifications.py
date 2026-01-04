@@ -244,7 +244,10 @@ class MonitoredStreamsManager:
                     + " (expected: webhook)"
                 )
                 continue
-            if existing_subscription.transport.get("callback") != self._app_state.config.twitch_eventsub_public_url:
+            if (
+                existing_subscription.transport.get("callback")
+                != f"{self._app_state.config.twitch_eventsub_public_url}/callback"
+            ):
                 # Maybe caused by a previous instance of the bot running with a different public URL, just ignore.
                 continue
 
