@@ -140,6 +140,23 @@
         padding: 3rem 1rem;
         color: var(--muted);
     }
+
+    /* External link icon for broadcaster links */
+    .channel-card a[href^="http"]::after {
+        content: "";
+        display: inline-block;
+        width: 0.9em;
+        height: 0.9em;
+        margin-left: 0.25em;
+        opacity: 0.75;
+        -webkit-mask: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'><path fill='%23000' d='M14 3h7v7h-2V6.41l-9.29 9.3-1.42-1.42 9.3-9.29H14V3zM19 19H5V5h7V3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2v-7h-2v7z'/></svg>") no-repeat 50% 50%;
+        mask: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'><path fill='%23000' d='M14 3h7v7h-2V6.41l-9.29 9.3-1.42-1.42 9.3-9.29H14V3zM19 19H5V5h7V3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2v-7h-2v7z'/></svg>") no-repeat 50% 50%;
+        background: currentColor;
+    }
+
+    .channel-card a[href^="http"]:hover::after {
+        opacity: 1;
+    }
 </style>
 {% endblock %}
 
@@ -148,6 +165,34 @@
     <h1>Live Notifications</h1>
     <p>Manage live notifications for Twitch channels.</p>
 </div>
+
+<section class="add-section">
+    <h3>Add New Channel</h3>
+    <form method="post" action="{{ request.app.url_path_for('add_live_notification_channel') }}">
+        <div class="form-group">
+            <label for="broadcaster_name">Broadcaster Name</label>
+            <input type="text" id="broadcaster_name" name="broadcaster_name" placeholder="e.g., twitchusername" required>
+        </div>
+        <div class="form-group">
+            <label for="text_template">Text Template</label>
+            <input type="text" id="text_template" name="text_template" placeholder="e.g., {broadcaster} is now live! https://twitch.tv/{broadcaster}" required>
+        </div>
+        <div class="form-group">
+            <label for="target_channel">Target Channel</label>
+            {% if discord_text_channels %}
+            <select id="target_channel" name="target_channel" required>
+                <option value="">Select a channel...</option>
+                {% for discord_channel in discord_text_channels %}
+                <option value="{{ discord_channel | e }}">{{ discord_channel | e }}</option>
+                {% endfor %}
+            </select>
+            {% else %}
+            <input type="text" id="target_channel" name="target_channel" placeholder="e.g., bot-test" required>
+            {% endif %}
+        </div>
+        <button type="submit" class="btn btn-primary">Add Channel</button>
+    </form>
+</section>
 
 <section>
     <h2>Configured Channels</h2>
@@ -158,8 +203,11 @@
         <form method="post" action="{{ request.app.url_path_for('update_live_notification_channel', channel_id=channel.notification_channel_id) }}">
             <div class="form-row">
                 <div class="form-group">
-                    <label for="broadcaster_name_{{ channel.notification_channel_id }}">Broadcaster Name</label>
-                    <input type="text" id="broadcaster_name_{{ channel.notification_channel_id }}" name="broadcaster_name" value="{{ channel.broadcaster_name | e }}" required>
+                    <label>Broadcaster</label>
+                    <div style="font-weight: 600; color: var(--text); margin-top: 0.25rem; display: flex; align-items: center; gap: 0.75rem;">
+                        <img src="{{ channel.broadcaster_profile_image_url | e }}" alt="{{ channel.broadcaster_name | e }}" style="width: 32px; height: 32px; border-radius: 50%;">
+                        <span><a href="{{ channel.broadcaster_twitch_url | e }}" target="_blank" rel="noopener noreferrer">{{ channel.broadcaster_name | e }}</a> <span style="font-weight: 400; color: var(--muted);">({{ channel.broadcaster_id | e }})</span></span>
+                    </div>
                 </div>
                 <div class="form-group">
                     <label for="target_channel_{{ channel.notification_channel_id }}">Target Channel</label>
@@ -197,31 +245,4 @@
     {% endif %}
 </section>
 
-<section class="add-section">
-    <h3>Add New Channel</h3>
-    <form method="post" action="{{ request.app.url_path_for('add_live_notification_channel') }}">
-        <div class="form-group">
-            <label for="broadcaster_name">Broadcaster Name</label>
-            <input type="text" id="broadcaster_name" name="broadcaster_name" placeholder="e.g., twitchusername" required>
-        </div>
-        <div class="form-group">
-            <label for="text_template">Text Template</label>
-            <input type="text" id="text_template" name="text_template" placeholder="e.g., {broadcaster} is now live! https://twitch.tv/{broadcaster}" required>
-        </div>
-        <div class="form-group">
-            <label for="target_channel">Target Channel</label>
-            {% if discord_text_channels %}
-            <select id="target_channel" name="target_channel" required>
-                <option value="">Select a channel...</option>
-                {% for discord_channel in discord_text_channels %}
-                <option value="{{ discord_channel | e }}">{{ discord_channel | e }}</option>
-                {% endfor %}
-            </select>
-            {% else %}
-            <input type="text" id="target_channel" name="target_channel" placeholder="e.g., bot-test" required>
-            {% endif %}
-        </div>
-        <button type="submit" class="btn btn-primary">Add Channel</button>
-    </form>
-</section>
 {% endblock %}

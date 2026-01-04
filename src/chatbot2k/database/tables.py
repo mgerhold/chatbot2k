@@ -142,7 +142,6 @@ class LiveNotificationChannel(SQLModel, table=True):
     """Represents a Twitch channel to be monitored for notifications when going live."""
 
     id: Optional[int] = Field(default=None, primary_key=True)
-    broadcaster_name: str
     broadcaster_id: str
     text_template: str
     target_channel: str  # Name of the channel (usually on Discord) to send the notification to.

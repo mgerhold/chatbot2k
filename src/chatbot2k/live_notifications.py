@@ -347,16 +347,15 @@ class MonitoredStreamsManager:
             id_ = channel.broadcaster_id
             user = await first(self._twitch.get_users(user_ids=[id_]))
             if user is None:
-                logger.error(f"User '{channel.broadcaster_name}' not found on Twitch.")
+                logger.error(f"User with '{id_}' not found on Twitch.")
                 continue
-            logger.info(f"Setting up stream online listener for user '{channel.broadcaster_name}' (ID: {user.id})")
+            logger.info(f"Setting up stream online listener for user '{user.display_name}' (ID: {user.id})")
             try:
                 subscription_id = await self._eventsub.listen_stream_online(user.id, self._on_stream_live)
             except Exception as e:
-                logger.exception(f"Failed to set up listener for user '{channel.broadcaster_name}': {e}")
+                logger.exception(f"Failed to set up listener for user '{user.display_name}': {e}")
                 continue
 
             logger.info(
-                f"Successfully set up listener for user '{channel.broadcaster_name}', "
-                + f"subscription ID: {subscription_id}"
+                f"Successfully set up listener for user '{user.display_name}', " + f"subscription ID: {subscription_id}"
             )

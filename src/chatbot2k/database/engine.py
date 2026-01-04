@@ -519,7 +519,6 @@ class Database:
     def add_live_notification_channel(
         self,
         *,
-        broadcaster_name: str,
         broadcaster_id: str,
         text_template: str,
         target_channel: str,
@@ -532,13 +531,9 @@ class Database:
                 )
             ).one_or_none()
             if existing is not None:
-                msg: Final = (
-                    f"Live notification channel for broadcaster '{broadcaster_name}' "
-                    + f"(ID = {broadcaster_id}) already exists"
-                )
+                msg: Final = f"Live notification channel for broadcaster ID '{broadcaster_id}' already exists."
                 raise ValueError(msg)
             live_notification_channel: Final = LiveNotificationChannel(
-                broadcaster_name=broadcaster_name,
                 broadcaster_id=broadcaster_id,
                 text_template=text_template,
                 target_channel=target_channel,
@@ -555,8 +550,6 @@ class Database:
         self,
         *,
         id_: int,
-        broadcaster_name: str,
-        broadcaster_id: str,
         text_template: str,
         target_channel: str,
     ) -> None:
@@ -567,8 +560,6 @@ class Database:
             ).one_or_none()
             if channel is None:
                 raise KeyError(f"Live notification channel with id '{id_}' not found")
-            channel.broadcaster_name = broadcaster_name
-            channel.broadcaster_id = broadcaster_id
             channel.text_template = text_template
             channel.target_channel = target_channel
             s.add(channel)

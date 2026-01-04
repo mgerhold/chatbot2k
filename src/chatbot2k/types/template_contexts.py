@@ -147,6 +147,8 @@ class LiveNotificationChannel(BaseModel):
     notification_channel_id: int
     broadcaster_name: str
     broadcaster_id: str
+    broadcaster_profile_image_url: str
+    broadcaster_twitch_url: str
     text_template: str
     target_channel: str
 
