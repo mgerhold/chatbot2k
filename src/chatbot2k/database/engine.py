@@ -1,17 +1,22 @@
 from collections.abc import Generator
 from collections.abc import Iterable
 from contextlib import contextmanager
+from datetime import UTC
+from datetime import datetime
+from datetime import timedelta
 from pathlib import Path
 from typing import Final
 from typing import NamedTuple
 from typing import Optional
 from typing import final
 
+from sqlalchemy import delete
 from sqlalchemy import event
 from sqlalchemy import func
 from sqlalchemy.engine.interfaces import DBAPIConnection
 from sqlalchemy.pool.base import ConnectionPoolEntry
 from sqlmodel import Session
+from sqlmodel import col
 from sqlmodel import create_engine
 from sqlmodel import desc
 from sqlmodel import select
@@ -26,6 +31,7 @@ from chatbot2k.database.tables import LiveNotificationChannel
 from chatbot2k.database.tables import Parameter
 from chatbot2k.database.tables import ParameterizedCommand
 from chatbot2k.database.tables import PendingSoundboardClip
+from chatbot2k.database.tables import ReceivedTwitchMessage
 from chatbot2k.database.tables import Script
 from chatbot2k.database.tables import ScriptStore
 from chatbot2k.database.tables import SoundboardCommand
@@ -513,7 +519,6 @@ class Database:
     def add_live_notification_channel(
         self,
         *,
-        broadcaster_name: str,
         broadcaster_id: str,
         text_template: str,
         target_channel: str,
@@ -526,13 +531,9 @@ class Database:
                 )
             ).one_or_none()
             if existing is not None:
-                msg: Final = (
-                    f"Live notification channel for broadcaster '{broadcaster_name}' "
-                    + f"(ID = {broadcaster_id}) already exists"
-                )
+                msg: Final = f"Live notification channel for broadcaster ID '{broadcaster_id}' already exists."
                 raise ValueError(msg)
             live_notification_channel: Final = LiveNotificationChannel(
-                broadcaster_name=broadcaster_name,
                 broadcaster_id=broadcaster_id,
                 text_template=text_template,
                 target_channel=target_channel,
@@ -549,8 +550,6 @@ class Database:
         self,
         *,
         id_: int,
-        broadcaster_name: str,
-        broadcaster_id: str,
         text_template: str,
         target_channel: str,
     ) -> None:
@@ -561,8 +560,6 @@ class Database:
             ).one_or_none()
             if channel is None:
                 raise KeyError(f"Live notification channel with id '{id_}' not found")
-            channel.broadcaster_name = broadcaster_name
-            channel.broadcaster_id = broadcaster_id
             channel.text_template = text_template
             channel.target_channel = target_channel
             s.add(channel)
@@ -710,7 +707,7 @@ class Database:
     def get_cached_source_code(self, *, url: str) -> Optional[str]:
         """Get cached source code for a URL."""
         with self._session() as s:
-            entry = s.exec(select(CachedSourceCode).where(CachedSourceCode.url == url)).one_or_none()
+            entry: Final = s.exec(select(CachedSourceCode).where(CachedSourceCode.url == url)).one_or_none()
             if entry is None:
                 return None
             return entry.source_code
@@ -718,8 +715,44 @@ class Database:
     def delete_cached_source_code(self, *, url: str) -> None:
         """Delete cached source code for a URL."""
         with self._session() as s:
-            entry = s.exec(select(CachedSourceCode).where(CachedSourceCode.url == url)).one_or_none()
+            entry: Final = s.exec(select(CachedSourceCode).where(CachedSourceCode.url == url)).one_or_none()
             if entry is None:
                 raise KeyError(f"CachedSourceCode for URL '{url}' not found")
             s.delete(entry)
             s.commit()
+
+    def add_or_update_received_twitch_message(self, *, message_id: str, timestamp: datetime) -> None:
+        """Add a received Twitch message ID with timestamp."""
+        with self._session() as s:
+            message = s.exec(
+                select(ReceivedTwitchMessage).where(ReceivedTwitchMessage.message_id == message_id)
+            ).one_or_none()
+            if message is None:
+                message = ReceivedTwitchMessage(message_id=message_id, timestamp=timestamp)
+            else:
+                message.timestamp = timestamp
+            s.add(message)
+            s.commit()
+
+    def purge_received_twitch_messages(self, *, expiry_minutes: int) -> None:
+        """Purge received Twitch messages older than the specified expiry in minutes."""
+        # > NOTE All timestamps are in RFC3339 format and use nanoseconds instead of milliseconds.
+        # (https://dev.twitch.tv/docs/eventsub/handling-webhook-events/)
+        # However, in the database, we store `datetime` objects.
+        expiry_threshold: Final = datetime.now(UTC) - timedelta(minutes=expiry_minutes)
+
+        with self._session() as s:
+            s.exec(
+                delete(ReceivedTwitchMessage)
+                .where(col(ReceivedTwitchMessage.timestamp) < expiry_threshold)
+                .execution_options(synchronize_session=False)
+            )
+            s.commit()
+
+    def has_twitch_message_been_received(self, *, message_id: str) -> bool:
+        """Check if a Twitch message ID has already been received before."""
+        with self._session() as s:
+            message: Final = s.exec(
+                select(ReceivedTwitchMessage).where(ReceivedTwitchMessage.message_id == message_id)
+            ).one_or_none()
+            return message is not None

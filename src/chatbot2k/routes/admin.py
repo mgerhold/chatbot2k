@@ -456,15 +456,22 @@ async def admin_live_notifications(
     common_context: Annotated[CommonContext, Depends(get_common_context)],
 ) -> Response:
     """Admin dashboard page for managing live notifications."""
+    database_entries: Final = app_state.database.get_live_notification_channels()
+    user_info_by_id: Final = await get_twitch_user_info_by_ids(
+        user_ids=[entry.broadcaster_id for entry in database_entries],
+        app_state=app_state,
+    )
     channels: Final = [
         LiveNotificationChannel(
             notification_channel_id=cast(int, channel.id),  # This can never be `None` here.
-            broadcaster_name=channel.broadcaster_name,
+            broadcaster_name=user_info_by_id[channel.broadcaster_id].display_name,
             broadcaster_id=channel.broadcaster_id,
+            broadcaster_profile_image_url=user_info_by_id[channel.broadcaster_id].profile_image_url,
+            broadcaster_twitch_url=f"https://twitch.tv/{user_info_by_id[channel.broadcaster_id].login}",
             text_template=channel.text_template,
             target_channel=channel.target_channel,
         )
-        for channel in app_state.database.get_live_notification_channels()
+        for channel in database_entries
     ]
     discord_text_channels: Final = await get_available_discord_text_channels(app_state)
 
@@ -496,7 +503,6 @@ async def add_live_notification_channel(
         raise HTTPException(status_code=400, detail="Broadcaster not found")
     try:
         app_state.database.add_live_notification_channel(
-            broadcaster_name=broadcaster_name,
             broadcaster_id=broadcaster.id,
             text_template=text_template,
             target_channel=target_channel,
@@ -512,19 +518,13 @@ async def update_live_notification_channel(
     request: Request,
     channel_id: int,
     app_state: Annotated[AppState, Depends(get_app_state)],
-    broadcaster_name: Annotated[str, Form()],
     text_template: Annotated[str, Form()],
     target_channel: Annotated[str, Form()],
 ) -> Response:
     """Update an existing live notification channel."""
-    broadcaster: Final = await get_twitch_user_by_login(broadcaster_name.lower(), app_state)
-    if broadcaster is None:
-        raise HTTPException(status_code=400, detail="Broadcaster not found")
     try:
         app_state.database.update_live_notification_channel(
             id_=channel_id,
-            broadcaster_name=broadcaster_name,
-            broadcaster_id=broadcaster.id,
             text_template=text_template,
             target_channel=target_channel,
         )

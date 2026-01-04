@@ -1,3 +1,4 @@
+from datetime import datetime
 from typing import Optional
 from typing import final
 
@@ -141,7 +142,6 @@ class LiveNotificationChannel(SQLModel, table=True):
     """Represents a Twitch channel to be monitored for notifications when going live."""
 
     id: Optional[int] = Field(default=None, primary_key=True)
-    broadcaster_name: str
     broadcaster_id: str
     text_template: str
     target_channel: str  # Name of the channel (usually on Discord) to send the notification to.
@@ -174,3 +174,11 @@ class CachedSourceCode(SQLModel, table=True):
 
     url: str = Field(primary_key=True)
     source_code: str
+
+
+@final
+class ReceivedTwitchMessage(SQLModel, table=True):
+    """Represents a record of received Twitch messages to prevent duplicate processing."""
+
+    message_id: str = Field(primary_key=True)
+    timestamp: datetime
