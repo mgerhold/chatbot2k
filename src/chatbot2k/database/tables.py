@@ -181,6 +181,5 @@ class CachedSourceCode(SQLModel, table=True):
 class ReceivedTwitchMessage(SQLModel, table=True):
     """Represents a record of received Twitch messages to prevent duplicate processing."""
 
-    id: Optional[int] = Field(default=None, primary_key=True)
-    message_id: str = Field(index=True)
+    message_id: str = Field(primary_key=True)
     timestamp: datetime

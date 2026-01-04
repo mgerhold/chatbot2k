@@ -730,13 +730,16 @@ class Database:
             s.delete(entry)
             s.commit()
 
-    def add_received_twitch_message(self, *, message_id: str, timestamp: datetime) -> None:
+    def add_or_update_received_twitch_message(self, *, message_id: str, timestamp: datetime) -> None:
         """Add a received Twitch message ID with timestamp."""
         with self._session() as s:
-            message: Final = ReceivedTwitchMessage(
-                message_id=message_id,
-                timestamp=timestamp,
-            )
+            message = s.exec(
+                select(ReceivedTwitchMessage).where(ReceivedTwitchMessage.message_id == message_id)
+            ).one_or_none()
+            if message is None:
+                message = ReceivedTwitchMessage(message_id=message_id, timestamp=timestamp)
+            else:
+                message.timestamp = timestamp
             s.add(message)
             s.commit()
 
