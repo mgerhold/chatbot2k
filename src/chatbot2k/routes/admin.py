@@ -461,18 +461,21 @@ async def admin_live_notifications(
         user_ids=[entry.broadcaster_id for entry in database_entries],
         app_state=app_state,
     )
-    channels: Final = [
-        LiveNotificationChannel(
-            notification_channel_id=cast(int, channel.id),  # This can never be `None` here.
-            broadcaster_name=user_info_by_id[channel.broadcaster_id].display_name,
-            broadcaster_id=channel.broadcaster_id,
-            broadcaster_profile_image_url=user_info_by_id[channel.broadcaster_id].profile_image_url,
-            broadcaster_twitch_url=f"https://twitch.tv/{user_info_by_id[channel.broadcaster_id].login}",
-            text_template=channel.text_template,
-            target_channel=channel.target_channel,
-        )
-        for channel in database_entries
-    ]
+    channels: Final = sorted(
+        (
+            LiveNotificationChannel(
+                notification_channel_id=cast(int, channel.id),  # This can never be `None` here.
+                broadcaster_name=user_info_by_id[channel.broadcaster_id].display_name,
+                broadcaster_id=channel.broadcaster_id,
+                broadcaster_profile_image_url=user_info_by_id[channel.broadcaster_id].profile_image_url,
+                broadcaster_twitch_url=f"https://twitch.tv/{user_info_by_id[channel.broadcaster_id].login}",
+                text_template=channel.text_template,
+                target_channel=channel.target_channel,
+            )
+            for channel in database_entries
+        ),
+        key=lambda entry: entry.broadcaster_name,
+    )
     discord_text_channels: Final = await get_available_discord_text_channels(app_state)
 
     context: Final = AdminLiveNotificationsContext(
