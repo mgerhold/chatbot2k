@@ -1,3 +1,4 @@
+from datetime import datetime
 from typing import Optional
 from typing import final
 
@@ -174,3 +175,12 @@ class CachedSourceCode(SQLModel, table=True):
 
     url: str = Field(primary_key=True)
     source_code: str
+
+
+@final
+class ReceivedTwitchMessage(SQLModel, table=True):
+    """Represents a record of received Twitch messages to prevent duplicate processing."""
+
+    id: Optional[int] = Field(default=None, primary_key=True)
+    message_id: str = Field(index=True)
+    timestamp: datetime

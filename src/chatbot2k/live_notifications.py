@@ -1,7 +1,11 @@
 import asyncio
 import logging
+from asyncio.queues import QueueFull
 from collections.abc import Awaitable
 from collections.abc import Callable
+from contextlib import suppress
+from datetime import UTC
+from datetime import datetime
 from typing import Final
 from typing import NamedTuple
 from typing import Optional
@@ -29,6 +33,7 @@ class _ActiveSubscription(NamedTuple):
 @final
 class MonitoredStreamsManager:
     _FETCH_STREAM_INFO_MAX_NUM_RETRIES = 3
+    _TWITCH_MESSAGE_EXPIRY_MINUTES = 60 * 24  # 24 hours
 
     @final
     class _Passkey: ...
@@ -46,6 +51,8 @@ class MonitoredStreamsManager:
         self._callback: Final = callback
         self._app_state: Final = app_state
         self._active_subscriptions: Final[set[_ActiveSubscription]] = set()
+        self._event_queue: Final[asyncio.Queue[StreamOnlineEvent]] = asyncio.Queue()
+        self._event_handling_task: Final = asyncio.create_task(self._handle_events())
 
     @classmethod
     async def try_create(
@@ -73,6 +80,7 @@ class MonitoredStreamsManager:
             callback_loop=asyncio.get_running_loop(),
         )
         eventsub.secret = app_state.config.twitch_eventsub_secret
+        eventsub.unsubscribe_on_stop = False  # Required to preserve subscriptions across restarts.
 
         await eventsub.unsubscribe_all()
 
@@ -101,9 +109,63 @@ class MonitoredStreamsManager:
     async def close(self) -> None:
         await self._eventsub.stop()
         await self._twitch.close()
+        self._event_handling_task.cancel()
+        with suppress(asyncio.CancelledError):
+            await self._event_handling_task
+
+    async def _handle_events(self) -> None:
+        try:
+            while True:
+                event = await self._event_queue.get()
+                await self._callback(await self._fetch_stream_info_with_retries(event))
+        except asyncio.CancelledError:
+            pass
 
     async def _on_stream_live(self, event: StreamOnlineEvent) -> None:
-        await self._callback(await self._fetch_stream_info_with_retries(event))
+        message_id: Final = event.metadata.message_id
+        message_timestamp: Final = event.metadata.message_timestamp
+
+        # > Make sure the value in the message_timestamp field isn’t older than 10 minutes.
+        # (https://dev.twitch.tv/docs/eventsub/)
+        message_age: Final = datetime.now(UTC) - message_timestamp
+        if message_age.total_seconds() > 10 * 60:
+            logger.warning(
+                f"Ignoring stream live event with message ID '{message_id}' "
+                + f"due to old timestamp ({message_timestamp.isoformat()})"
+            )
+            return
+
+        try:
+            self._app_state.database.purge_received_twitch_messages(
+                expiry_minutes=MonitoredStreamsManager._TWITCH_MESSAGE_EXPIRY_MINUTES
+            )
+        except Exception as e:
+            logger.exception(f"Failed to purge old Twitch messages: {e}")
+            # Proceed anyway.
+
+        # > Make sure you haven’t seen the ID in the message_id field before.
+        # (https://dev.twitch.tv/docs/eventsub/)
+        try:
+            if self._app_state.database.has_twitch_message_been_received(message_id=message_id):
+                # We have already processed this event before, ignore it.
+                return
+        except Exception as e:
+            logger.exception(f"Failed to check if Twitch message has been received: {e}")
+            # We proceed anyway to avoid missing notifications due to transient errors.
+        finally:
+            # In any case, we record that we have received this message to avoid processing it again.
+            self._app_state.database.add_received_twitch_message(
+                message_id=message_id,
+                timestamp=message_timestamp,
+            )
+        try:
+            # We use `put_nowait` here to avoid blocking the EventSub webhook processing. Twitch
+            # expects a quick response to webhook notifications, and blocking here could lead to
+            # timeouts and failed notifications. Events are processed asynchronously in a separate
+            # task.
+            self._event_queue.put_nowait(event)
+        except QueueFull as e:
+            logger.exception(f"Event queue is full, dropping stream live event: {e}")
 
     async def _fetch_stream_info_with_retries(self, event: StreamOnlineEvent) -> StreamLiveEvent:
         broadcaster_id: Final = event.event.broadcaster_user_id
