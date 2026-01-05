@@ -90,7 +90,7 @@ class MonitoredStreamsManager:
             app_state,
             cls._Passkey(),
         )
-        await instance._setup_subscriptions()
+        await instance._setup_subscriptions(initial_startup=True)
         return instance
 
     async def run(self) -> None:
@@ -99,7 +99,7 @@ class MonitoredStreamsManager:
                 await self._app_state.monitored_channels_changed.wait()
                 self._app_state.monitored_channels_changed.clear()
                 logger.info("Monitored channels changed, updating EventSub subscriptions...")
-                await self._setup_subscriptions()
+                await self._setup_subscriptions(initial_startup=False)
         finally:
             await self.close()
 
@@ -215,8 +215,13 @@ class MonitoredStreamsManager:
             return None
         return user.id
 
-    async def _setup_subscriptions(self) -> None:
-        """Set up EventSub subscriptions for all channels in the database."""
+    async def _setup_subscriptions(self, *, initial_startup: bool) -> None:
+        """Set up EventSub subscriptions for all channels in the database.
+
+        Args:
+            initial_startup (bool): Whether this is the initial setup during startup. If True,
+                                    existing subscriptions will be re-activated.
+        """
         logger.info("Checking for already existing EventSub subscriptions...")
 
         # We ask the Twitch API for existing subscriptions to avoid creating duplicates.
@@ -273,6 +278,22 @@ class MonitoredStreamsManager:
                         continue
                     logger.info(f"Unsubscribed from duplicate EventSub subscription ID '{existing_subscription.id}'.")
                     continue
+
+                if initial_startup:
+                    # The API wrapper has no builtin way to “re-activate” or “re-register” existing
+                    # subscriptions. So we manually add the callback and activate it (which internally
+                    # simply marks it as active).
+                    # This is really hacky!
+                    # TODO: Consider contributing a proper way to the twitchAPI library.
+                    self._eventsub._add_callback(  # type: ignore [reportPrivateUsage, reportUnknownMemberType]
+                        c_id=existing_subscription.id,
+                        callback=self._on_stream_live,
+                        event=StreamOnlineEvent,
+                    )
+                    await self._eventsub._activate_callback(  # type: ignore[reportPrivateUsage]
+                        c_id=existing_subscription.id,
+                    )
+
                 active_subscriptions.add(
                     _ActiveSubscription(
                         broadcaster_id=broadcaster_user_id,
