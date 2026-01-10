@@ -103,6 +103,22 @@ class Dictionary:
         self._entries.append(new_entry)
         self._database.add_dictionary_entry(word=new_entry.word, explanation=new_entry.explanation)
 
+    def update_entry(self, *, word: str, new_explanation: str) -> None:
+        for i, entry in enumerate(self._entries):
+            if entry.word.lower() == word.lower():
+                updated_entry = self._InternalEntry(
+                    word=entry.word,
+                    pattern=entry.pattern,
+                    explanation=new_explanation,
+                )
+                self._entries[i] = updated_entry
+                self._database.update_dictionary_entry_case_insensitive(
+                    word=entry.word,
+                    new_explanation=new_explanation,
+                )
+                return
+        raise KeyError(f"Dictionary entry for word '{word}' not found.")
+
     def remove_entry(self, chat_platform: ChatPlatform, word: str) -> None:
         self._entries = [entry for entry in self._entries if entry.word.lower() != word.lower()]
         self._usage_timestamps[chat_platform].pop(word, None)

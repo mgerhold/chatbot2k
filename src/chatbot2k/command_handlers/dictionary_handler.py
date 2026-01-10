@@ -33,6 +33,14 @@ class DictionaryHandler(CommandHandler):
                         chat_message=chat_command.source_message,
                     )
                 ]
+            case "update" if len(chat_command.arguments) == 3:
+                update_result: Final = self._update_dict_entry(chat_command)
+                return [
+                    ChatResponse(
+                        text=update_result,
+                        chat_message=chat_command.source_message,
+                    )
+                ]
             case "remove" if len(chat_command.arguments) == 2:
                 remove_result: Final = self._remove_dict_entry(chat_command)
                 return [
@@ -76,6 +84,20 @@ class DictionaryHandler(CommandHandler):
             explanation=explanation,
         )
         return f"Added '{word}' to the dictionary."
+
+    def _update_dict_entry(
+        self,
+        chat_command: ChatCommand,
+    ) -> str:
+        word: Final = chat_command.arguments[1]
+        explanation: Final = chat_command.arguments[2]
+        if word.lower() not in (other.lower() for other in self._app_state.dictionary.as_dict()):
+            return f"Cannot update '{word}': it does not exist in the dictionary."
+        self._app_state.dictionary.update_entry(
+            word=word,
+            new_explanation=explanation,
+        )
+        return f"Updated '{word}' in the dictionary."
 
     def _remove_dict_entry(
         self,
