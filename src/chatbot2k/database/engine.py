@@ -332,6 +332,17 @@ class Database:
             s.refresh(obj)
             return obj
 
+    def update_dictionary_entry_case_insensitive(self, *, word: str, new_explanation: str) -> None:
+        with self._session() as s:
+            obj: Final = s.exec(
+                select(DictionaryEntry).where(func.lower(DictionaryEntry.word) == word.lower())
+            ).one_or_none()
+            if obj is None:
+                raise KeyError(f"DictionaryEntry '{word}' not found")
+            obj.explanation = new_explanation
+            s.add(obj)
+            s.commit()
+
     def remove_dictionary_entry_case_insensitive(self, *, word: str) -> None:
         with self._session() as s:
             obj: Final = s.exec(
