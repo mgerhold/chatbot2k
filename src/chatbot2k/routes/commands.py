@@ -2,12 +2,14 @@ import logging
 from typing import Annotated
 from typing import Final
 from typing import Optional
+from typing import final
 
 import httpx
 from fastapi import Depends
 from fastapi import HTTPException
 from fastapi import Request
 from fastapi.routing import APIRouter
+from pydantic import BaseModel
 from starlette.responses import Response
 from starlette.templating import Jinja2Templates
 
@@ -73,7 +75,7 @@ async def _fetch_script_source(
         return None
 
 
-@router.get("/")
+@router.get("/", name="main_page")
 async def show_main_page(
     request: Request,
     app_state: Annotated[AppState, Depends(get_app_state)],
@@ -164,6 +166,40 @@ async def show_main_page(
         request=request,
         name="commands.html",
         context=context.model_dump(),
+    )
+
+
+@final
+class _SoundboardCommandsResponseItem(BaseModel):
+    command: str
+    clip_url: str
+    uploader_twitch_display_name: Optional[str]
+
+
+@final
+class _SoundboardCommandResponse(BaseModel):
+    commands: list[_SoundboardCommandsResponseItem]
+
+
+@router.get("/soundboard")
+async def fetch_soundboard_commands_as_json(
+    request: Request,
+    app_state: Annotated[AppState, Depends(get_app_state)],
+) -> _SoundboardCommandResponse:
+    root_url = str(request.url_for("main_page"))
+    while root_url.endswith("/"):
+        root_url = root_url[:-1]
+
+    return _SoundboardCommandResponse(
+        commands=[
+            _SoundboardCommandsResponseItem(
+                command=handler.usage,
+                clip_url=f"{root_url}/{handler.clip_url.removeprefix('/')}",
+                uploader_twitch_display_name=handler.uploader_twitch_display_name,
+            )
+            for handler in app_state.command_handlers.values()
+            if isinstance(handler, ClipHandler)
+        ]
     )
 
 
