@@ -19,6 +19,8 @@ class CommonContext(BaseModel):
     profile_image_url: Optional[str]
     is_broadcaster: bool
     pending_clips_count: int
+    unread_notifications_count: int
+    total_notifications_count: int
 
 
 @final

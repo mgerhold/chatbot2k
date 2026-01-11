@@ -267,6 +267,65 @@
     // Store a set of notification IDs that are currently being processed
     const processingNotifications = new Set();
 
+    function updateBellBadge() {
+        const bellBadge = document.querySelector('.navbar-bell-badge');
+        const viewerNavBadge = document.getElementById('viewer-nav-badge');
+        const cards = document.querySelectorAll('.notification-card');
+        let totalCount = cards.length;
+        let unreadCount = 0;
+
+        cards.forEach(card => {
+            if (card.getAttribute('data-is-read') !== 'true') {
+                unreadCount++;
+            }
+        });
+
+        // Update bell badge in header
+        const bell = document.querySelector('.navbar-bell');
+        if (bell) {
+            // Remove existing badge if present
+            if (bellBadge) {
+                bellBadge.remove();
+            }
+
+            // Add new badge if there are notifications
+            if (totalCount > 0) {
+                const newBadge = document.createElement('span');
+                if (unreadCount > 0) {
+                    newBadge.className = 'navbar-bell-badge';
+                    newBadge.textContent = unreadCount;
+                } else {
+                    newBadge.className = 'navbar-bell-badge read-only';
+                    newBadge.textContent = totalCount;
+                }
+                bell.appendChild(newBadge);
+            }
+        }
+
+        // Update viewer navigation badge
+        const viewerNavLink = document.querySelector('.dashboard-nav a[href*="notifications"]');
+        if (viewerNavLink) {
+            // Remove existing badge if present
+            if (viewerNavBadge) {
+                viewerNavBadge.remove();
+            }
+
+            // Add new badge if there are notifications
+            if (totalCount > 0) {
+                const newNavBadge = document.createElement('span');
+                newNavBadge.id = 'viewer-nav-badge';
+                if (unreadCount > 0) {
+                    newNavBadge.className = 'nav-badge';
+                    newNavBadge.textContent = unreadCount;
+                } else {
+                    newNavBadge.className = 'nav-badge read-only';
+                    newNavBadge.textContent = totalCount;
+                }
+                viewerNavLink.appendChild(newNavBadge);
+            }
+        }
+    }
+
     function formatTimeAgo(sentAt) {
         const now = new Date();
         const sent = new Date(sentAt);
@@ -405,6 +464,7 @@
 
             updateReadIcon(notificationId, true);
             enableNotificationButtons(notificationId);
+            updateBellBadge();
         } catch (error) {
             console.error('Error marking notification as read:', error);
             showError('Failed to mark notification as read. Please try again.');
@@ -436,6 +496,7 @@
 
             updateReadIcon(notificationId, false);
             enableNotificationButtons(notificationId);
+            updateBellBadge();
         } catch (error) {
             console.error('Error marking notification as unread:', error);
             showError('Failed to mark notification as unread. Please try again.');
@@ -472,6 +533,7 @@
                 setTimeout(() => {
                     card.remove();
                     checkIfEmpty();
+                    updateBellBadge();
                 }, 300);
             }
         } catch (error) {
