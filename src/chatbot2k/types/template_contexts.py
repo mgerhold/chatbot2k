@@ -1,3 +1,4 @@
+from datetime import datetime
 from enum import StrEnum
 from typing import Optional
 from typing import final
@@ -209,14 +210,33 @@ class AdminEntranceSoundsContext(AdminContext):
 
 @final
 class ViewerDashboardActivePage(StrEnum):
-    PROFILE = "profile"
+    NOTIFICATIONS = "notifications"
     SOUNDBOARD = "soundboard"
+    PROFILE = "profile"
 
 
 class ViewerContext(CommonContext):
     model_config = ConfigDict(frozen=True)
 
     active_page: ViewerDashboardActivePage
+
+
+@final
+class Notification(BaseModel):
+    model_config = ConfigDict(frozen=True)
+
+    id: int
+    twitch_user_id: str
+    message: str
+    sent_at: datetime
+    has_been_read: bool
+
+
+@final
+class ViewerNotificationsContext(ViewerContext):
+    model_config = ConfigDict(frozen=True)
+
+    notifications: list[Notification]
 
 
 @final

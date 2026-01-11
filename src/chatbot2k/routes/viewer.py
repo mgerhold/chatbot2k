@@ -7,6 +7,7 @@ from typing import Final
 from typing import NamedTuple
 from typing import Optional
 from typing import Self
+from typing import cast
 from typing import final
 from uuid import uuid4
 
@@ -32,10 +33,12 @@ from chatbot2k.dependencies import get_templates
 from chatbot2k.types.configuration_setting_kind import ConfigurationSettingKind
 from chatbot2k.types.template_contexts import CommonContext
 from chatbot2k.types.template_contexts import NewPendingClipEmailContext
+from chatbot2k.types.template_contexts import Notification
 from chatbot2k.types.template_contexts import PendingClip
 from chatbot2k.types.template_contexts import VerifyEmailContext
 from chatbot2k.types.template_contexts import ViewerContext
 from chatbot2k.types.template_contexts import ViewerDashboardActivePage
+from chatbot2k.types.template_contexts import ViewerNotificationsContext
 from chatbot2k.types.template_contexts import ViewerProfileContext
 from chatbot2k.types.template_contexts import ViewerSoundboardContext
 from chatbot2k.types.user_info import UserInfo
@@ -61,9 +64,89 @@ class ProfileMessage(StrEnum):
 @router.get("/", name="viewer_dashboard")
 async def viewer_dashboard(
     request: Request,
+    app_state: Annotated[AppState, Depends(get_app_state)],
+    current_user: Annotated[UserInfo, Depends(get_authenticated_user)],
 ) -> Response:
     """Redirect to viewer soundboard page."""
-    return RedirectResponse(request.url_for("viewer_soundboard"), status_code=303)
+    notifications: Final = app_state.database.get_notifications(twitch_user_id=current_user.id)
+    if notifications:
+        return RedirectResponse(request.url_for("viewer_dashboard_notifications"), status_code=303)
+    else:
+        return RedirectResponse(request.url_for("viewer_soundboard"), status_code=303)
+
+
+@router.get("/notifications", name="viewer_dashboard_notifications")
+async def viewer_dashboard_notifications(
+    request: Request,
+    app_state: Annotated[AppState, Depends(get_app_state)],
+    templates: Annotated[Jinja2Templates, Depends(get_templates)],
+    common_context: Annotated[CommonContext, Depends(get_common_context)],
+    current_user: Annotated[UserInfo, Depends(get_authenticated_user)],
+) -> Response:
+    notifications: Final = app_state.database.get_notifications(twitch_user_id=current_user.id)
+    return templates.TemplateResponse(
+        request=request,
+        name="viewer/notifications.html",
+        context=ViewerNotificationsContext(
+            **common_context.model_dump(),
+            active_page=ViewerDashboardActivePage.NOTIFICATIONS,
+            notifications=[
+                Notification(
+                    id=cast(int, notification.id),  # This cannot be `None` here when coming from the DB.
+                    twitch_user_id=notification.twitch_user_id,
+                    message=notification.message,
+                    sent_at=notification.sent_at,
+                    has_been_read=notification.has_been_read,
+                )
+                for notification in notifications
+            ],
+        ).model_dump(),
+    )
+
+
+@router.post("/notifications/mark-as-read/{notification_id}", name="mark_notifications_as_read")
+async def mark_notifications_as_read(
+    app_state: Annotated[AppState, Depends(get_app_state)],
+    current_user: Annotated[UserInfo, Depends(get_authenticated_user)],
+    notification_id: int,
+) -> Response:
+    """Mark a notification as read (delete it)."""
+    notifications: Final = app_state.database.get_notification(notification_id=notification_id)
+    if notifications is None or notifications.twitch_user_id != current_user.id:
+        raise HTTPException(status_code=404, detail="Notification not found")
+
+    app_state.database.mark_notification_as_read(notification_id=notification_id)
+    return Response(status_code=200)
+
+
+@router.post("/notifications/mark-as-unread/{notification_id}", name="mark_notifications_as_unread")
+async def mark_notifications_as_unread(
+    app_state: Annotated[AppState, Depends(get_app_state)],
+    current_user: Annotated[UserInfo, Depends(get_authenticated_user)],
+    notification_id: int,
+) -> Response:
+    """Mark a notification as unread (re-add it)."""
+    notifications: Final = app_state.database.get_notification(notification_id=notification_id)
+    if notifications is None or notifications.twitch_user_id != current_user.id:
+        raise HTTPException(status_code=404, detail="Notification not found")
+
+    app_state.database.mark_notification_as_unread(notification_id=notification_id)
+    return Response(status_code=200)
+
+
+@router.post("/notifications/delete/{notification_id}", name="delete_notification")
+async def delete_notification(
+    app_state: Annotated[AppState, Depends(get_app_state)],
+    current_user: Annotated[UserInfo, Depends(get_authenticated_user)],
+    notification_id: int,
+) -> Response:
+    """Delete a notification."""
+    notifications: Final = app_state.database.get_notification(notification_id=notification_id)
+    if notifications is None or notifications.twitch_user_id != current_user.id:
+        raise HTTPException(status_code=404, detail="Notification not found")
+
+    app_state.database.delete_notification(notification_id=notification_id)
+    return Response(status_code=200)
 
 
 def _get_message_text(message: ProfileMessage) -> str:

@@ -29,6 +29,7 @@ from chatbot2k.database.tables import DictionaryEntry
 from chatbot2k.database.tables import EmailVerificationToken
 from chatbot2k.database.tables import EntranceSound
 from chatbot2k.database.tables import LiveNotificationChannel
+from chatbot2k.database.tables import Notification
 from chatbot2k.database.tables import Parameter
 from chatbot2k.database.tables import ParameterizedCommand
 from chatbot2k.database.tables import PendingSoundboardClip
@@ -843,4 +844,61 @@ class Database:
                 .where(col(EmailVerificationToken.created_at) < expiry_threshold)
                 .execution_options(synchronize_session=False)
             )
+            s.commit()
+
+    def add_notification(self, *, twitch_user_id: str, message: str, sent_at: datetime) -> None:
+        """Add a notification for a Twitch user."""
+        with self._session() as s:
+            notification: Final = Notification(
+                twitch_user_id=twitch_user_id,
+                message=message,
+                sent_at=sent_at,
+                has_been_read=False,
+            )
+            s.add(notification)
+            s.commit()
+
+    def get_notification(self, *, notification_id: int) -> Optional[Notification]:
+        """Get a notification by its ID."""
+        with self._session() as s:
+            return s.get(Notification, notification_id)
+
+    def get_notifications(self, *, twitch_user_id: str) -> list[Notification]:
+        """Get all notifications for a Twitch user (ordered from newest to oldest)."""
+        with self._session() as s:
+            return list(
+                s.exec(
+                    select(Notification)
+                    .where(Notification.twitch_user_id == twitch_user_id)
+                    .order_by(desc(Notification.sent_at))
+                ).all()
+            )
+
+    def mark_notification_as_read(self, *, notification_id: int) -> None:
+        """Mark a notification as read by its ID."""
+        with self._session() as s:
+            notification: Final = s.get(Notification, notification_id)
+            if notification is None:
+                raise KeyError(f"Notification with ID '{notification_id}' not found")
+            notification.has_been_read = True
+            s.add(notification)
+            s.commit()
+
+    def mark_notification_as_unread(self, *, notification_id: int) -> None:
+        """Mark a notification as unread by its ID."""
+        with self._session() as s:
+            notification: Final = s.get(Notification, notification_id)
+            if notification is None:
+                raise KeyError(f"Notification with ID '{notification_id}' not found")
+            notification.has_been_read = False
+            s.add(notification)
+            s.commit()
+
+    def delete_notification(self, *, notification_id: int) -> None:
+        """Delete a notification by its ID."""
+        with self._session() as s:
+            notification: Final = s.get(Notification, notification_id)
+            if notification is None:
+                raise KeyError(f"Notification with ID '{notification_id}' not found")
+            s.delete(notification)
             s.commit()

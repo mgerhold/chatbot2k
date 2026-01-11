@@ -200,3 +200,14 @@ class EmailVerificationToken(SQLModel, table=True):
     token: str = Field(primary_key=True)
     twitch_user_id: str
     created_at: datetime
+
+
+@final
+class Notification(SQLModel, table=True):
+    """Represents a notification that has been sent to a user."""
+
+    id: Optional[int] = Field(default=None, primary_key=True)
+    twitch_user_id: str
+    message: str
+    sent_at: datetime
+    has_been_read: bool

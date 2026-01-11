@@ -1,0 +1,500 @@
+{% extends "viewer/base.html" %}
+
+{% block title %}{{ bot_name }} — Notifications{% endblock %}
+
+{% block head_extra %}
+{{ super() }}
+<style>
+    .notifications-header {
+        margin-bottom: 2rem;
+    }
+
+    .notifications-header h1 {
+        margin: 0 0 0.5rem 0;
+        font-size: 2rem;
+        font-weight: 700;
+    }
+
+    .notifications-header p {
+        margin: 0;
+        color: var(--muted);
+        font-size: 1.1rem;
+    }
+
+    .notifications-container {
+        display: flex;
+        flex-direction: column;
+        gap: 1rem;
+    }
+
+    .notification-card {
+        padding: 1.5rem;
+        background: rgba(96, 165, 250, 0.05);
+        border: 1px solid var(--border);
+        border-radius: var(--radius);
+        transition: all 0.2s ease;
+        animation: slideIn 0.3s ease-out;
+    }
+
+    .notification-card[data-is-read="true"] {
+        background: rgba(100, 116, 139, 0.05);
+        border-color: rgba(100, 116, 139, 0.15);
+    }
+
+    .notification-card[data-is-read="true"] .notification-message {
+        color: var(--muted);
+    }
+
+    .notification-card[data-is-read="true"] .notification-timestamp {
+        color: rgba(148, 163, 184, 0.6);
+    }
+
+    @keyframes slideIn {
+        from {
+            opacity: 0;
+            transform: translateY(-10px);
+        }
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    }
+
+    .notification-card.removing {
+        animation: slideOut 0.3s ease-out forwards;
+        pointer-events: none;
+    }
+
+    @keyframes slideOut {
+        from {
+            opacity: 1;
+            transform: translateY(0);
+        }
+        to {
+            opacity: 0;
+            transform: translateY(-20px);
+        }
+    }
+
+    .notification-card:hover {
+        border-color: rgba(96, 165, 250, 0.3);
+        background: rgba(96, 165, 250, 0.08);
+    }
+
+    .notification-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+        margin-bottom: 1rem;
+    }
+
+    .notification-timestamp {
+        font-size: 0.875rem;
+        color: var(--muted);
+        white-space: nowrap;
+        margin-left: 1rem;
+        font-style: italic;
+    }
+
+    .notification-message {
+        margin: 0 0 1rem 0;
+        color: var(--text);
+        line-height: 1.6;
+        word-wrap: break-word;
+    }
+
+    .notification-actions {
+        display: flex;
+        gap: 1rem;
+        align-items: center;
+    }
+
+    .notification-icon {
+        width: 24px;
+        height: 24px;
+        cursor: pointer;
+        transition: all 0.2s ease;
+        opacity: 0.8;
+        padding: 0.25rem;
+        border-radius: 4px;
+    }
+
+    .notification-icon:hover:not(.disabled) {
+        opacity: 1;
+        transform: scale(1.1);
+    }
+
+    .notification-icon.disabled {
+        opacity: 0.3;
+        cursor: not-allowed;
+    }
+
+    .icon-read {
+        fill: none;
+        stroke: #22c55e;
+    }
+
+    .icon-read:hover:not(.disabled) {
+        background: rgba(34, 197, 94, 0.1);
+    }
+
+    .icon-unread {
+        fill: none;
+        stroke: #3b82f6;
+    }
+
+    .icon-unread:hover:not(.disabled) {
+        background: rgba(59, 130, 246, 0.1);
+    }
+
+    .icon-delete {
+        fill: none;
+        stroke: #ef4444;
+    }
+
+    .icon-delete:hover:not(.disabled) {
+        background: rgba(239, 68, 68, 0.1);
+    }
+
+    .empty-state {
+        padding: 3rem 2rem;
+        text-align: center;
+        background: rgba(96, 165, 250, 0.05);
+        border: 1px solid var(--border);
+        border-radius: var(--radius);
+    }
+
+    .empty-state h2 {
+        margin: 0 0 0.5rem 0;
+        font-size: 1.5rem;
+        color: var(--text);
+    }
+
+    .empty-state p {
+        margin: 0;
+        color: var(--muted);
+        font-size: 1rem;
+    }
+
+    .error-message {
+        margin-bottom: 1rem;
+        padding: 1rem 1.5rem;
+        background: rgba(239, 68, 68, 0.1);
+        border: 1px solid rgba(239, 68, 68, 0.3);
+        border-radius: var(--radius);
+        color: #ef4444;
+        animation: slideIn 0.3s ease-out;
+    }
+
+    .error-message.hiding {
+        animation: slideOut 0.3s ease-out forwards;
+    }
+
+    @media (max-width: 480px) {
+        .notification-header {
+            flex-direction: column;
+        }
+
+        .notification-timestamp {
+            margin-left: 0;
+            margin-top: 0.5rem;
+        }
+    }
+</style>
+{% endblock %}
+
+{% block dashboard_content %}
+<div class="notifications-header">
+    <h1>Notifications</h1>
+    <p>Manage your notifications</p>
+</div>
+
+<div id="error-container"></div>
+
+<div class="notifications-container" id="notifications-container">
+    {% if notifications %}
+        {% for notification in notifications %}
+        <div class="notification-card" data-notification-id="{{ notification.id }}" data-is-read="{{ 'true' if notification.has_been_read else 'false' }}">
+            <div class="notification-header">
+                <div class="notification-timestamp" data-sent-at="{{ notification.sent_at.isoformat() }}">
+                    {{ notification.sent_at.strftime('%Y-%m-%d %H:%M:%S UTC') }}
+                </div>
+            </div>
+            <p class="notification-message">{{ notification.message }}</p>
+            <div class="notification-actions">
+                <span title="{% if notification.has_been_read %}Mark as unread{% else %}Mark as read{% endif %}">
+                    <svg class="notification-icon icon-read-toggle {% if notification.has_been_read %}icon-read{% else %}icon-unread{% endif %}" 
+                         onclick="toggleReadStatus({{ notification.id }})" 
+                         viewBox="0 0 24 24" 
+                         fill="none" 
+                         stroke-width="2" 
+                         stroke-linecap="round" 
+                         stroke-linejoin="round">
+                        {% if notification.has_been_read %}
+                        <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path>
+                        <polyline points="22 4 12 14.01 9 11.01"></polyline>
+                        {% else %}
+                        <circle cx="12" cy="12" r="10"></circle>
+                        {% endif %}
+                    </svg>
+                </span>
+                <span title="Delete notification">
+                    <svg class="notification-icon icon-delete" 
+                         onclick="deleteNotification({{ notification.id }})" 
+                         viewBox="0 0 24 24" 
+                         fill="none" 
+                         stroke-width="2" 
+                         stroke-linecap="round" 
+                         stroke-linejoin="round">
+                        <polyline points="3 6 5 6 21 6"></polyline>
+                        <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+                        <line x1="10" y1="11" x2="10" y2="17"></line>
+                        <line x1="14" y1="11" x2="14" y2="17"></line>
+                    </svg>
+                </span>
+            </div>
+        </div>
+        {% endfor %}
+    {% else %}
+        <div class="empty-state">
+            <h2>No Notifications</h2>
+            <p>You don't have any notifications at the moment.</p>
+        </div>
+    {% endif %}
+</div>
+
+<script>
+    // Store a set of notification IDs that are currently being processed
+    const processingNotifications = new Set();
+
+    function formatTimeAgo(sentAt) {
+        const now = new Date();
+        const sent = new Date(sentAt);
+        const diffMs = now - sent;
+        const diffSeconds = Math.floor(diffMs / 1000);
+        const diffMinutes = Math.floor(diffSeconds / 60);
+        const diffHours = Math.floor(diffMinutes / 60);
+        const diffDays = Math.floor(diffHours / 24);
+        const diffWeeks = Math.floor(diffDays / 7);
+        const diffMonths = Math.floor(diffDays / 30);
+        const diffYears = Math.floor(diffDays / 365);
+
+        if (diffSeconds < 60) {
+            return diffSeconds <= 1 ? 'just now' : `${diffSeconds} seconds ago`;
+        } else if (diffMinutes < 60) {
+            return diffMinutes === 1 ? '1 minute ago' : `${diffMinutes} minutes ago`;
+        } else if (diffHours < 24) {
+            return diffHours === 1 ? '1 hour ago' : `${diffHours} hours ago`;
+        } else if (diffDays < 7) {
+            return diffDays === 1 ? '1 day ago' : `${diffDays} days ago`;
+        } else if (diffWeeks < 4) {
+            return diffWeeks === 1 ? '1 week ago' : `${diffWeeks} weeks ago`;
+        } else if (diffMonths < 12) {
+            return diffMonths === 1 ? '1 month ago' : `${diffMonths} months ago`;
+        } else {
+            return diffYears === 1 ? '1 year ago' : `${diffYears} years ago`;
+        }
+    }
+
+    function updateTimestamps() {
+        const timestamps = document.querySelectorAll('.notification-timestamp');
+        timestamps.forEach(timestamp => {
+            const sentAt = timestamp.getAttribute('data-sent-at');
+            if (sentAt) {
+                timestamp.textContent = formatTimeAgo(sentAt);
+            }
+        });
+    }
+
+    // Update timestamps immediately on page load
+    updateTimestamps();
+
+    // Update timestamps every 10 seconds
+    setInterval(updateTimestamps, 10000);
+
+    function showError(message) {
+        const errorContainer = document.getElementById('error-container');
+        const errorDiv = document.createElement('div');
+        errorDiv.className = 'error-message';
+        errorDiv.textContent = message;
+        errorContainer.appendChild(errorDiv);
+
+        // Auto-hide after 5 seconds
+        setTimeout(() => {
+            errorDiv.classList.add('hiding');
+            setTimeout(() => {
+                errorDiv.remove();
+            }, 300);
+        }, 5000);
+    }
+
+    function disableNotificationButtons(notificationId) {
+        const card = document.querySelector(`[data-notification-id="${notificationId}"]`);
+        if (card) {
+            const icons = card.querySelectorAll('.notification-icon');
+            icons.forEach(icon => icon.classList.add('disabled'));
+        }
+    }
+
+    function enableNotificationButtons(notificationId) {
+        const card = document.querySelector(`[data-notification-id="${notificationId}"]`);
+        if (card) {
+            const icons = card.querySelectorAll('.notification-icon');
+            icons.forEach(icon => icon.classList.remove('disabled'));
+        }
+    }
+
+    function toggleReadStatus(notificationId) {
+        if (processingNotifications.has(notificationId)) {
+            return;
+        }
+
+        const card = document.querySelector(`[data-notification-id="${notificationId}"]`);
+        const isRead = card.getAttribute('data-is-read') === 'true';
+
+        if (isRead) {
+            markAsUnread(notificationId);
+        } else {
+            markAsRead(notificationId);
+        }
+    }
+
+    function updateReadIcon(notificationId, isRead) {
+        const card = document.querySelector(`[data-notification-id="${notificationId}"]`);
+        if (card) {
+            card.setAttribute('data-is-read', isRead ? 'true' : 'false');
+            const iconContainer = card.querySelector('.icon-read-toggle').parentElement;
+            const icon = card.querySelector('.icon-read-toggle');
+            if (icon && iconContainer) {
+                // Remove old classes and add new ones
+                icon.classList.remove('icon-read', 'icon-unread');
+                icon.classList.add(isRead ? 'icon-read' : 'icon-unread');
+                
+                // Update tooltip
+                iconContainer.title = isRead ? 'Mark as unread' : 'Mark as read';
+                
+                // Update SVG content based on read state
+                if (isRead) {
+                    icon.innerHTML = '<path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline>';
+                } else {
+                    icon.innerHTML = '<circle cx="12" cy="12" r="10"></circle>';
+                }
+            }
+        }
+    }
+
+    async function markAsRead(notificationId) {
+        if (processingNotifications.has(notificationId)) {
+            return;
+        }
+
+        processingNotifications.add(notificationId);
+        disableNotificationButtons(notificationId);
+
+        try {
+            const response = await fetch(`/viewer/notifications/mark-as-read/${notificationId}`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+            });
+
+            if (!response.ok) {
+                throw new Error('Failed to mark notification as read');
+            }
+
+            updateReadIcon(notificationId, true);
+            enableNotificationButtons(notificationId);
+        } catch (error) {
+            console.error('Error marking notification as read:', error);
+            showError('Failed to mark notification as read. Please try again.');
+            enableNotificationButtons(notificationId);
+        } finally {
+            processingNotifications.delete(notificationId);
+        }
+    }
+
+    async function markAsUnread(notificationId) {
+        if (processingNotifications.has(notificationId)) {
+            return;
+        }
+
+        processingNotifications.add(notificationId);
+        disableNotificationButtons(notificationId);
+
+        try {
+            const response = await fetch(`/viewer/notifications/mark-as-unread/${notificationId}`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+            });
+
+            if (!response.ok) {
+                throw new Error('Failed to mark notification as unread');
+            }
+
+            updateReadIcon(notificationId, false);
+            enableNotificationButtons(notificationId);
+        } catch (error) {
+            console.error('Error marking notification as unread:', error);
+            showError('Failed to mark notification as unread. Please try again.');
+            enableNotificationButtons(notificationId);
+        } finally {
+            processingNotifications.delete(notificationId);
+        }
+    }
+
+    async function deleteNotification(notificationId) {
+        if (processingNotifications.has(notificationId)) {
+            return;
+        }
+
+        processingNotifications.add(notificationId);
+        disableNotificationButtons(notificationId);
+
+        try {
+            const response = await fetch(`/viewer/notifications/delete/${notificationId}`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+            });
+
+            if (!response.ok) {
+                throw new Error('Failed to delete notification');
+            }
+
+            // Remove the notification card with animation
+            const card = document.querySelector(`[data-notification-id="${notificationId}"]`);
+            if (card) {
+                card.classList.add('removing');
+                setTimeout(() => {
+                    card.remove();
+                    checkIfEmpty();
+                }, 300);
+            }
+        } catch (error) {
+            console.error('Error deleting notification:', error);
+            showError('Failed to delete notification. Please try again.');
+            enableNotificationButtons(notificationId);
+        } finally {
+            processingNotifications.delete(notificationId);
+        }
+    }
+
+    function checkIfEmpty() {
+        const container = document.getElementById('notifications-container');
+        const cards = container.querySelectorAll('.notification-card');
+        
+        if (cards.length === 0) {
+            container.innerHTML = `
+                <div class="empty-state">
+                    <h2>No Notifications</h2>
+                    <p>You don't have any notifications at the moment.</p>
+                </div>
+            `;
+        }
+    }
+</script>
+{% endblock %}
