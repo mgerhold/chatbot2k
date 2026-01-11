@@ -368,8 +368,8 @@
     // Update timestamps immediately on page load
     updateTimestamps();
 
-    // Update timestamps every 10 seconds
-    setInterval(updateTimestamps, 10000);
+    // Update timestamps every second
+    setInterval(updateTimestamps, 1000);
 
     function showError(message) {
         const errorContainer = document.getElementById('error-container');
