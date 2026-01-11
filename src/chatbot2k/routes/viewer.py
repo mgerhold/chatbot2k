@@ -68,8 +68,12 @@ async def viewer_dashboard(
     current_user: Annotated[UserInfo, Depends(get_authenticated_user)],
 ) -> Response:
     """Redirect to viewer soundboard page."""
-    notifications: Final = app_state.database.get_notifications(twitch_user_id=current_user.id)
-    if notifications:
+    unread_notifications: Final = [
+        notification
+        for notification in app_state.database.get_notifications(twitch_user_id=current_user.id)
+        if not notification.has_been_read
+    ]
+    if unread_notifications:
         return RedirectResponse(request.url_for("viewer_dashboard_notifications"), status_code=303)
     else:
         return RedirectResponse(request.url_for("viewer_soundboard"), status_code=303)
