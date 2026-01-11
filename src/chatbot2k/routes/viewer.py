@@ -95,7 +95,11 @@ async def viewer_dashboard_notifications(
                     id=cast(int, notification.id),  # This cannot be `None` here when coming from the DB.
                     twitch_user_id=notification.twitch_user_id,
                     message=notification.message,
-                    sent_at=notification.sent_at,
+                    sent_at=(
+                        notification.sent_at.replace(tzinfo=UTC)
+                        if notification.sent_at.tzinfo is None
+                        else notification.sent_at
+                    ),
                     has_been_read=notification.has_been_read,
                 )
                 for notification in notifications
