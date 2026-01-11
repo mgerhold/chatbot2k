@@ -870,7 +870,7 @@ class Database:
                 s.exec(
                     select(Notification)
                     .where(Notification.twitch_user_id == twitch_user_id)
-                    .order_by(desc(Notification.sent_at))
+                    .order_by(desc(Notification.id))
                 ).all()
             )
 

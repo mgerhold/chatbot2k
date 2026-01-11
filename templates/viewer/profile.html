@@ -299,8 +299,8 @@
     
     {% if email %}
     <p>
-        Deleting your profile will permanently remove all your personal data from our system,
-        including your email address and any verification status. This action cannot be undone.
+        Deleting your profile will permanently remove your email address from our system.
+        You will not be able to receive any email notifications.
     </p>
     
     <form method="POST" action="{{ request.app.url_path_for('viewer_delete_profile') }}" 

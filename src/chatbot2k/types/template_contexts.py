@@ -281,3 +281,39 @@ class VerifyEmailContext(BaseModel):
     user_name: str
     verification_link: str
     bot_name: str
+
+
+@final
+class ClipApprovedContext(BaseModel):
+    model_config = ConfigDict(frozen=True)
+
+    suggested_command: str
+    approved_command: str
+
+
+@final
+class ClipRejectedContext(BaseModel):
+    model_config = ConfigDict(frozen=True)
+
+    suggested_command: str
+    reason: Optional[str]
+
+
+@final
+class ClipApprovedEmailContext(BaseModel):
+    model_config = ConfigDict(frozen=True)
+
+    user_name: str
+    suggested_command: str
+    approved_command: str
+    bot_name: str
+
+
+@final
+class ClipRejectedEmailContext(BaseModel):
+    model_config = ConfigDict(frozen=True)
+
+    user_name: str
+    suggested_command: str
+    reason: Optional[str]
+    bot_name: str
