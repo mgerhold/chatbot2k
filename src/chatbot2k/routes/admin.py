@@ -836,6 +836,7 @@ async def reject_pending_clip(
     app_state: Annotated[AppState, Depends(get_app_state)],
     templates: Annotated[Jinja2Templates, Depends(get_templates)],
     clip_id: int,
+    reason: Annotated[str, Form()] = "",
 ) -> Response:
     """Reject and delete a pending soundboard clip."""
     all_pending_clips: Final = app_state.database.get_all_pending_soundboard_clips()
@@ -844,20 +845,22 @@ async def reject_pending_clip(
     if pending_clip is None:
         raise HTTPException(status_code=404, detail="Pending clip not found")
 
+    rejection_reason: Final = reason.strip() if reason else None
+
     await notify_user(
         twitch_user_id=pending_clip.uploader_twitch_id,
         templates=templates,
         notification_template_name="notifications/clip_rejected.txt.j2",
         notification_template_context=ClipRejectedContext(
             suggested_command=f"!{pending_clip.name}",
-            reason=None,  # TODO: Allow specifying a reason for rejection in the future.
+            reason=rejection_reason,
         ),
         email_template_name="emails/clip_rejected.txt.j2",
         email_subject="Your soundboard clip has been rejected",
         email_template_context=ClipRejectedEmailContext(
             user_name=pending_clip.uploader_twitch_display_name,
             suggested_command=f"!{pending_clip.name}",
-            reason=None,  # TODO: Allow specifying a reason for rejection in the future.
+            reason=rejection_reason,
             bot_name=app_state.database.retrieve_configuration_setting_or_default(
                 ConfigurationSettingKind.BOT_NAME, f"Chatbot of {app_state.config.twitch_channel}"
             ),
