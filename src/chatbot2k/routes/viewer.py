@@ -1,7 +1,11 @@
 import logging
+from datetime import UTC
+from datetime import datetime
+from enum import StrEnum
 from typing import Annotated
 from typing import Final
 from typing import NamedTuple
+from typing import Optional
 from typing import Self
 from typing import final
 from uuid import uuid4
@@ -11,6 +15,7 @@ from fastapi import Depends
 from fastapi import File
 from fastapi import Form
 from fastapi import HTTPException
+from fastapi import Query
 from fastapi import UploadFile
 from starlette.requests import Request
 from starlette.responses import RedirectResponse
@@ -28,6 +33,10 @@ from chatbot2k.types.configuration_setting_kind import ConfigurationSettingKind
 from chatbot2k.types.template_contexts import CommonContext
 from chatbot2k.types.template_contexts import NewPendingClipEmailContext
 from chatbot2k.types.template_contexts import PendingClip
+from chatbot2k.types.template_contexts import VerifyEmailContext
+from chatbot2k.types.template_contexts import ViewerContext
+from chatbot2k.types.template_contexts import ViewerDashboardActivePage
+from chatbot2k.types.template_contexts import ViewerProfileContext
 from chatbot2k.types.template_contexts import ViewerSoundboardContext
 from chatbot2k.types.user_info import UserInfo
 from chatbot2k.utils.email import send_email
@@ -38,12 +47,168 @@ router: Final = APIRouter(prefix="/viewer", dependencies=[Depends(get_authentica
 logger: Final = logging.getLogger(__name__)
 
 
+@final
+class ProfileMessage(StrEnum):
+    """Messages to display on the profile page."""
+
+    EMAIL_VERIFICATION_SENT = "email_verification_sent"
+    EMAIL_VERIFIED = "email_verified"
+    PROFILE_DELETED = "profile_deleted"
+    PROFILE_UPDATED = "profile_updated"
+    ERROR = "error"
+
+
 @router.get("/", name="viewer_dashboard")
 async def viewer_dashboard(
     request: Request,
 ) -> Response:
     """Redirect to viewer soundboard page."""
     return RedirectResponse(request.url_for("viewer_soundboard"), status_code=303)
+
+
+def _get_message_text(message: ProfileMessage) -> str:
+    match message:
+        case ProfileMessage.EMAIL_VERIFICATION_SENT:
+            return "Please verify your email address. We've sent an email containing a verification link."
+        case ProfileMessage.EMAIL_VERIFIED:
+            return "Your email address has been successfully verified!"
+        case ProfileMessage.PROFILE_DELETED:
+            return "Profile data has been deleted."
+        case ProfileMessage.PROFILE_UPDATED:
+            return "Profile has been updated successfully."
+        case ProfileMessage.ERROR:
+            return "An error occurred while processing your request."
+
+
+@router.get("/profile", name="viewer_dashboard_profile")
+async def viewer_dashboard_profile(
+    request: Request,
+    app_state: Annotated[AppState, Depends(get_app_state)],
+    templates: Annotated[Jinja2Templates, Depends(get_templates)],
+    common_context: Annotated[CommonContext, Depends(get_common_context)],
+    current_user: Annotated[UserInfo, Depends(get_authenticated_user)],
+    message: Annotated[Optional[ProfileMessage], Query()] = None,
+) -> Response:
+    user_profile: Final = app_state.database.get_user_profile(twitch_user_id=current_user.id)
+    viewer_context: Final = ViewerContext(**common_context.model_dump(), active_page=ViewerDashboardActivePage.PROFILE)
+
+    message_text: Final = None if message is None else _get_message_text(message)
+
+    context: Final = ViewerProfileContext(
+        **viewer_context.model_dump(),
+        email=None if user_profile is None else user_profile.email,
+        email_is_verified=False if user_profile is None else user_profile.email_is_verified,
+        message=message_text,
+    )
+    return templates.TemplateResponse(
+        request=request,
+        name="viewer/profile.html",
+        context=context.model_dump(),
+    )
+
+
+@router.post("/profile", name="update_viewer_profile")
+async def update_viewer_profile(
+    request: Request,
+    app_state: Annotated[AppState, Depends(get_app_state)],
+    templates: Annotated[Jinja2Templates, Depends(get_templates)],
+    current_user: Annotated[UserInfo, Depends(get_authenticated_user)],
+    email: Annotated[Optional[str], Form()],
+) -> Response:
+    email = None if email is None else email.strip().lower()
+    if email is None or not email:
+        email = None
+
+    app_state.database.upsert_user_profile(
+        twitch_user_id=current_user.id,
+        email=email,
+    )
+
+    message_type: ProfileMessage
+    if email is not None:
+        token: Final = uuid4().hex
+        app_state.database.add_email_verification_token(
+            token=token,
+            twitch_user_id=current_user.id,
+            created_at=datetime.now(UTC),
+        )
+        await send_email(
+            to_address=email,
+            subject="Verify Your Email Address",
+            template=templates.get_template("emails/verify_email.txt.j2"),  # type: ignore[reportUnknownMemberType]
+            context=VerifyEmailContext(
+                user_name=current_user.display_name,
+                verification_link=str(request.url_for("verify_email", token=token)),
+                bot_name=app_state.database.retrieve_configuration_setting_or_default(
+                    ConfigurationSettingKind.BOT_NAME, f"Chatbot of {app_state.config.twitch_channel}"
+                ),
+            ),
+            settings=app_state.config.smtp_settings,
+        )
+        message_type = ProfileMessage.EMAIL_VERIFICATION_SENT
+    else:
+        message_type = ProfileMessage.PROFILE_UPDATED
+
+    redirect_url: Final = request.url_for("viewer_dashboard_profile").include_query_params(message=message_type)
+    return RedirectResponse(redirect_url, status_code=303)
+
+
+@router.post("/profile/delete", name="viewer_delete_profile")
+async def viewer_delete_profile(
+    request: Request,
+    app_state: Annotated[AppState, Depends(get_app_state)],
+    current_user: Annotated[UserInfo, Depends(get_authenticated_user)],
+) -> Response:
+    app_state.database.delete_user_profile(twitch_user_id=current_user.id)
+
+    redirect_url: Final = request.url_for("viewer_dashboard_profile").include_query_params(
+        message=ProfileMessage.PROFILE_DELETED
+    )
+    return RedirectResponse(redirect_url, status_code=303)
+
+
+@router.get("/verify-email/{token}", name="verify_email", dependencies=[])
+async def verify_email(
+    request: Request,
+    app_state: Annotated[AppState, Depends(get_app_state)],
+    token: str,
+) -> Response:
+    """Verify a user's email address using a verification token."""
+    verification_token: Final = app_state.database.get_email_verification_token(token=token)
+
+    if verification_token is None:
+        error_url: Final = request.url_for("viewer_dashboard_profile").include_query_params(
+            message=ProfileMessage.ERROR
+        )
+        return RedirectResponse(error_url, status_code=303)
+
+    # Ensure created_at is timezone-aware (UTC)
+    created_at: Final = (
+        verification_token.created_at
+        if verification_token.created_at.tzinfo is not None
+        else verification_token.created_at.replace(tzinfo=UTC)
+    )
+    token_age: Final = datetime.now(UTC) - created_at
+    if token_age.total_seconds() > 24 * 60 * 60:  # 24 hours.
+        app_state.database.delete_email_verification_token(token=token)
+        expired_url: Final = request.url_for("viewer_dashboard_profile").include_query_params(
+            message=ProfileMessage.ERROR
+        )
+        return RedirectResponse(expired_url, status_code=303)
+
+    try:
+        app_state.database.mark_email_as_verified(twitch_user_id=verification_token.twitch_user_id)
+        app_state.database.delete_email_verification_token(token=token)
+    except KeyError:
+        profile_error_url: Final = request.url_for("viewer_dashboard_profile").include_query_params(
+            message=ProfileMessage.ERROR
+        )
+        return RedirectResponse(profile_error_url, status_code=303)
+
+    success_url: Final = request.url_for("viewer_dashboard_profile").include_query_params(
+        message=ProfileMessage.EMAIL_VERIFIED
+    )
+    return RedirectResponse(success_url, status_code=303)
 
 
 @final
@@ -118,7 +283,7 @@ async def viewer_soundboard(
 
     context: Final = ViewerSoundboardContext(
         **common_context.model_dump(),
-        active_page="soundboard",
+        active_page=ViewerDashboardActivePage.SOUNDBOARD,
         max_pending_clips=limits.max_clips,
         max_pending_clips_per_user=limits.max_clips_per_user,
         total_pending_clips=total_pending_count,

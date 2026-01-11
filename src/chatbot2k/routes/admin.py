@@ -26,10 +26,10 @@ from chatbot2k.dependencies import get_broadcaster_user
 from chatbot2k.dependencies import get_common_context
 from chatbot2k.dependencies import get_templates
 from chatbot2k.types.configuration_setting_kind import ConfigurationSettingKind
-from chatbot2k.types.template_contexts import ActivePage
 from chatbot2k.types.template_contexts import AdminBroadcastsContext
 from chatbot2k.types.template_contexts import AdminConstantsContext
 from chatbot2k.types.template_contexts import AdminContext
+from chatbot2k.types.template_contexts import AdminDashboardActivePage
 from chatbot2k.types.template_contexts import AdminEntranceSoundsContext
 from chatbot2k.types.template_contexts import AdminGeneralSettingsContext
 from chatbot2k.types.template_contexts import AdminLiveNotificationsContext
@@ -90,7 +90,7 @@ async def admin_general_settings(
 
     context: Final = AdminGeneralSettingsContext(
         **common_context.model_dump(),
-        active_page=ActivePage.GENERAL_SETTINGS,
+        active_page=AdminDashboardActivePage.GENERAL_SETTINGS,
         current_bot_name=bot_name,
         current_author_name=author_name,
         current_timezone=timezone,
@@ -219,7 +219,7 @@ async def admin_constants(
 ) -> Response:
     admin_context: Final = AdminContext(
         **common_context.model_dump(),
-        active_page=ActivePage.CONSTANTS,
+        active_page=AdminDashboardActivePage.CONSTANTS,
     )
     constants: Final = sorted(
         (
@@ -314,7 +314,7 @@ async def admin_broadcasts(
     """Admin dashboard page for managing broadcasts."""
     admin_context: Final = AdminContext(
         **common_context.model_dump(),
-        active_page=ActivePage.BROADCASTS,
+        active_page=AdminDashboardActivePage.BROADCASTS,
     )
     broadcasts: Final = sorted(
         (
@@ -480,7 +480,7 @@ async def admin_live_notifications(
 
     context: Final = AdminLiveNotificationsContext(
         **common_context.model_dump(),
-        active_page=ActivePage.LIVE_NOTIFICATIONS,
+        active_page=AdminDashboardActivePage.LIVE_NOTIFICATIONS,
         channels=channels,
         discord_text_channels=discord_text_channels,
     )
@@ -583,7 +583,7 @@ async def admin_soundboard(
 
     context: Final = AdminSoundboardContext(
         **common_context.model_dump(),
-        active_page=ActivePage.SOUNDBOARD,
+        active_page=AdminDashboardActivePage.SOUNDBOARD,
         soundboard_commands=soundboard_commands,
         existing_commands=existing_commands,
     )
@@ -744,7 +744,7 @@ async def admin_pending_clips(
 
     context: Final = AdminPendingClipsContext(
         **common_context.model_dump(),
-        active_page=ActivePage.PENDING_CLIPS,
+        active_page=AdminDashboardActivePage.PENDING_CLIPS,
         pending_clips=pending_clips,
         existing_commands=[name.lower() for name in app_state.command_handlers],
     )
@@ -848,7 +848,7 @@ async def admin_entrance_sounds(
 
     admin_context: Final = AdminContext(
         **common_context.model_dump(),
-        active_page=ActivePage.ENTRANCE_SOUNDS,
+        active_page=AdminDashboardActivePage.ENTRANCE_SOUNDS,
     )
 
     context: Final = AdminEntranceSoundsContext(

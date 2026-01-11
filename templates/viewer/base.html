@@ -104,6 +104,12 @@
                         Soundboard
                     </a>
                 </li>
+                <li>
+                    <a href="{{ request.app.url_path_for('viewer_dashboard_profile') }}" 
+                       class="{% if active_page == 'profile' %}active{% endif %}">
+                        Profile
+                    </a>
+                </li>
             </ul>
         </nav>
     </aside>

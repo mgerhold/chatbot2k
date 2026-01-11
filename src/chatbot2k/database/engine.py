@@ -26,6 +26,7 @@ from chatbot2k.database.tables import CachedSourceCode
 from chatbot2k.database.tables import ConfigurationSetting
 from chatbot2k.database.tables import Constant
 from chatbot2k.database.tables import DictionaryEntry
+from chatbot2k.database.tables import EmailVerificationToken
 from chatbot2k.database.tables import EntranceSound
 from chatbot2k.database.tables import LiveNotificationChannel
 from chatbot2k.database.tables import Parameter
@@ -38,6 +39,7 @@ from chatbot2k.database.tables import SoundboardCommand
 from chatbot2k.database.tables import StaticCommand
 from chatbot2k.database.tables import Translation
 from chatbot2k.database.tables import TwitchTokenSet
+from chatbot2k.database.tables import UserProfile
 from chatbot2k.models.parameterized_command import ParameterizedCommand as ParameterizedCommandModel
 from chatbot2k.translation_key import TranslationKey
 from chatbot2k.types.configuration_setting_kind import ConfigurationSettingKind
@@ -764,3 +766,81 @@ class Database:
                 select(ReceivedTwitchMessage).where(ReceivedTwitchMessage.message_id == message_id)
             ).one_or_none()
             return message is not None
+
+    def upsert_user_profile(self, *, twitch_user_id: str, email: Optional[str]) -> None:
+        """Add a user profile with the given email."""
+        with self._session() as s:
+            user_profile = s.exec(select(UserProfile).where(UserProfile.twitch_user_id == twitch_user_id)).one_or_none()
+            if user_profile is None:
+                user_profile = UserProfile(twitch_user_id=twitch_user_id, email=email)
+            else:
+                user_profile.email = email
+            s.add(user_profile)
+            s.commit()
+
+    def get_user_profile(self, *, twitch_user_id: str) -> Optional[UserProfile]:
+        """Get a user profile by Twitch user ID."""
+        with self._session() as s:
+            return s.exec(select(UserProfile).where(UserProfile.twitch_user_id == twitch_user_id)).one_or_none()
+
+    def delete_user_profile(self, *, twitch_user_id: str) -> None:
+        """Delete a user profile by Twitch user ID."""
+        with self._session() as s:
+            user_profile: Final = s.exec(
+                select(UserProfile).where(UserProfile.twitch_user_id == twitch_user_id)
+            ).one_or_none()
+            if user_profile is None:
+                raise KeyError(f"UserProfile with ID '{twitch_user_id}' not found")
+            s.delete(user_profile)
+            s.commit()
+
+    def mark_email_as_verified(self, *, twitch_user_id: str) -> None:
+        """Mark a user’s email as verified."""
+        with self._session() as s:
+            user_profile: Final = s.exec(
+                select(UserProfile).where(UserProfile.twitch_user_id == twitch_user_id)
+            ).one_or_none()
+            if user_profile is None:
+                raise KeyError(f"UserProfile with ID '{twitch_user_id}' not found")
+            user_profile.email_is_verified = True
+            s.add(user_profile)
+            s.commit()
+
+    def add_email_verification_token(self, *, token: str, twitch_user_id: str, created_at: datetime) -> None:
+        """Add an email verification token for a Twitch user."""
+        with self._session() as s:
+            email_verification_token: Final = EmailVerificationToken(
+                twitch_user_id=twitch_user_id,
+                token=token,
+                created_at=created_at,
+            )
+            s.add(email_verification_token)
+            s.commit()
+
+    def get_email_verification_token(self, *, token: str) -> Optional[EmailVerificationToken]:
+        """Get an email verification token by token string."""
+        with self._session() as s:
+            return s.exec(select(EmailVerificationToken).where(EmailVerificationToken.token == token)).one_or_none()
+
+    def delete_email_verification_token(self, *, token: str) -> None:
+        """Delete an email verification token by token string."""
+        with self._session() as s:
+            email_verification_token: Final = s.exec(
+                select(EmailVerificationToken).where(EmailVerificationToken.token == token)
+            ).one_or_none()
+            if email_verification_token is None:
+                raise KeyError(f"EmailVerificationToken with token '{token}' not found")
+            s.delete(email_verification_token)
+            s.commit()
+
+    def purge_expired_email_verification_tokens(self, *, expiry_minutes: int) -> None:
+        """Purge email verification tokens older than the specified expiry in minutes."""
+        expiry_threshold: Final = datetime.now(UTC) - timedelta(minutes=expiry_minutes)
+
+        with self._session() as s:
+            s.exec(
+                delete(EmailVerificationToken)
+                .where(col(EmailVerificationToken.created_at) < expiry_threshold)
+                .execution_options(synchronize_session=False)
+            )
+            s.commit()

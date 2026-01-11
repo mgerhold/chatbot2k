@@ -83,7 +83,7 @@ class MainPageContext(CommonContext):
 
 
 @final
-class ActivePage(StrEnum):
+class AdminDashboardActivePage(StrEnum):
     GENERAL_SETTINGS = "general_settings"
     CONSTANTS = "constants"
     BROADCASTS = "broadcasts"
@@ -96,7 +96,7 @@ class ActivePage(StrEnum):
 class AdminContext(CommonContext):
     model_config = ConfigDict(frozen=True)
 
-    active_page: ActivePage
+    active_page: AdminDashboardActivePage
 
 
 @final
@@ -207,10 +207,25 @@ class AdminEntranceSoundsContext(AdminContext):
     entrance_sounds: list[EntranceSound]
 
 
+@final
+class ViewerDashboardActivePage(StrEnum):
+    PROFILE = "profile"
+    SOUNDBOARD = "soundboard"
+
+
 class ViewerContext(CommonContext):
     model_config = ConfigDict(frozen=True)
 
-    active_page: str
+    active_page: ViewerDashboardActivePage
+
+
+@final
+class ViewerProfileContext(ViewerContext):
+    model_config = ConfigDict(frozen=True)
+
+    email: Optional[str]
+    email_is_verified: bool
+    message: Optional[str]
 
 
 @final
@@ -234,4 +249,13 @@ class NewPendingClipEmailContext(BaseModel):
     uploader_id: str
     command_name: str
     dashboard_url: str
+    bot_name: str
+
+
+@final
+class VerifyEmailContext(BaseModel):
+    model_config = ConfigDict(frozen=True)
+
+    user_name: str
+    verification_link: str
     bot_name: str
