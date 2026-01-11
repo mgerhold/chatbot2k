@@ -123,16 +123,16 @@ async def get_common_context(
     )
     is_broadcaster: Final = False if current_user is None else await is_user_broadcaster(app_state, current_user.id)
     pending_clips_count: Final = app_state.database.get_number_of_pending_soundboard_clips()
-    
+
     # Get notification counts for the current user
     if current_user is not None:
         notifications: Final = app_state.database.get_notifications(twitch_user_id=current_user.id)
-        unread_notifications_count: Final = sum(1 for n in notifications if not n.has_been_read)
-        total_notifications_count: Final = len(notifications)
+        unread_notifications_count = sum(1 for n in notifications if not n.has_been_read)
+        total_notifications_count = len(notifications)
     else:
-        unread_notifications_count: Final = 0
-        total_notifications_count: Final = 0
-    
+        unread_notifications_count = 0
+        total_notifications_count = 0
+
     return CommonContext(
         bot_name=app_state.database.retrieve_configuration_setting_or_default(
             ConfigurationSettingKind.BOT_NAME,
