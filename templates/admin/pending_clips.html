@@ -163,6 +163,92 @@
     .duplicate-warning.show {
         display: block;
     }
+
+    /* Rejection Dialog Styles */
+    .rejection-dialog-overlay {
+        display: none;
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: rgba(0, 0, 0, 0.7);
+        z-index: 1000;
+        align-items: center;
+        justify-content: center;
+    }
+
+    .rejection-dialog-overlay.active {
+        display: flex;
+    }
+
+    .rejection-dialog {
+        background: #1a1a1a;
+        border: 1px solid var(--border);
+        border-radius: 8px;
+        padding: 1.5rem;
+        min-width: 400px;
+        max-width: 500px;
+        box-shadow: 0 10px 40px rgba(0, 0, 0, 0.5);
+    }
+
+    .rejection-dialog h3 {
+        margin: 0 0 1rem 0;
+        color: var(--text);
+        font-size: 1.25rem;
+    }
+
+    .rejection-dialog-content {
+        margin-bottom: 1.5rem;
+    }
+
+    .rejection-dialog-content label {
+        display: block;
+        margin-bottom: 0.5rem;
+        color: var(--text);
+        font-weight: 500;
+    }
+
+    .rejection-dialog-content textarea {
+        width: 100%;
+        min-height: 100px;
+        padding: 0.75rem;
+        background: rgba(255, 255, 255, 0.05);
+        border: 1px solid var(--border);
+        border-radius: 4px;
+        color: var(--text);
+        font-family: inherit;
+        font-size: 0.95rem;
+        resize: vertical;
+    }
+
+    .rejection-dialog-content textarea:focus {
+        outline: 2px solid var(--accent);
+        outline-offset: 1px;
+        background: rgba(255, 255, 255, 0.08);
+    }
+
+    .rejection-dialog-content small {
+        display: block;
+        margin-top: 0.5rem;
+        color: var(--muted);
+        font-size: 0.85rem;
+    }
+
+    .rejection-dialog-actions {
+        display: flex;
+        gap: 0.75rem;
+        justify-content: flex-end;
+    }
+
+    .btn-cancel {
+        background: rgba(255, 255, 255, 0.1);
+        color: var(--text);
+    }
+
+    .btn-cancel:hover {
+        background: rgba(255, 255, 255, 0.15);
+    }
 </style>
 <script>
     const existingCommands = {{ existing_commands | tojson }};
@@ -206,6 +292,68 @@
             
             // Check initial value
             checkDuplicate();
+        });
+
+        // Rejection dialog functionality
+        const rejectionDialog = document.getElementById('rejectionDialog');
+        const rejectionReasonInput = document.getElementById('rejectionReasonInput');
+        const dialogCommandName = document.getElementById('dialogCommandName');
+        const cancelRejectButton = document.getElementById('cancelRejectButton');
+        const confirmRejectButton = document.getElementById('confirmRejectButton');
+        
+        let currentRejectForm = null;
+        
+        // Open dialog when reject button is clicked
+        document.querySelectorAll('.reject-button').forEach(button => {
+            button.addEventListener('click', function() {
+                currentRejectForm = this.closest('.reject-form');
+                const commandName = currentRejectForm.dataset.command;
+                
+                dialogCommandName.textContent = commandName;
+                rejectionReasonInput.value = '';
+                rejectionDialog.classList.add('active');
+                
+                // Focus on the textarea
+                setTimeout(() => rejectionReasonInput.focus(), 100);
+            });
+        });
+        
+        // Close dialog on cancel
+        cancelRejectButton.addEventListener('click', function() {
+            rejectionDialog.classList.remove('active');
+            currentRejectForm = null;
+        });
+        
+        // Close dialog when clicking outside
+        rejectionDialog.addEventListener('click', function(e) {
+            if (e.target === rejectionDialog) {
+                rejectionDialog.classList.remove('active');
+                currentRejectForm = null;
+            }
+        });
+        
+        // Close dialog on Escape key
+        document.addEventListener('keydown', function(e) {
+            if (e.key === 'Escape' && rejectionDialog.classList.contains('active')) {
+                rejectionDialog.classList.remove('active');
+                currentRejectForm = null;
+            }
+        });
+        
+        // Confirm rejection
+        confirmRejectButton.addEventListener('click', function() {
+            if (currentRejectForm) {
+                const reason = rejectionReasonInput.value.trim();
+                const reasonInput = currentRejectForm.querySelector('.rejection-reason-input');
+                
+                // Set the rejection reason in the hidden input
+                if (reason) {
+                    reasonInput.value = reason;
+                }
+                
+                // Submit the form
+                currentRejectForm.submit();
+            }
         });
     });
 </script>
@@ -327,9 +475,12 @@
                             method="post" 
                             action="{{ request.app.url_path_for('reject_pending_clip', clip_id=clip.id) }}"
                             style="margin: 0;"
-                            onsubmit="return confirm('Are you sure you want to reject this clip?');"
+                            class="reject-form"
+                            data-clip-id="{{ clip.id }}"
+                            data-command="{{ clip.command }}"
                         >
-                            <button type="submit" class="btn btn-reject">
+                            <input type="hidden" name="reason" class="rejection-reason-input">
+                            <button type="button" class="btn btn-reject reject-button">
                                 Reject
                             </button>
                         </form>
@@ -346,4 +497,31 @@
     </p>
     {% endif %}
 </section>
+
+<!-- Rejection Dialog -->
+<div class="rejection-dialog-overlay" id="rejectionDialog">
+    <div class="rejection-dialog">
+        <h3>Reject Clip</h3>
+        <div class="rejection-dialog-content">
+            <p style="margin-bottom: 1rem; color: var(--muted);">
+                Are you sure you want to reject the clip with command <strong id="dialogCommandName" style="color: var(--accent);"></strong>?
+            </p>
+            <label for="rejectionReasonInput">Rejection reason (optional)</label>
+            <textarea 
+                id="rejectionReasonInput" 
+                placeholder="Enter an optional reason for rejecting this clip..."
+                maxlength="500"
+            ></textarea>
+            <small>This message will be sent to the uploader as part of the rejection notification.</small>
+        </div>
+        <div class="rejection-dialog-actions">
+            <button type="button" class="btn btn-cancel" id="cancelRejectButton">
+                Cancel
+            </button>
+            <button type="button" class="btn btn-reject" id="confirmRejectButton">
+                Reject
+            </button>
+        </div>
+    </div>
+</div>
 {% endblock %}

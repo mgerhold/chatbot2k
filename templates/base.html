@@ -22,6 +22,56 @@
 
     <link rel="preload" href="/static/avatar.png" as="image"/>
 
+    <style>
+        .navbar-bell {
+            position: relative;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: 40px;
+            height: 40px;
+            margin-right: 0.75rem;
+            cursor: pointer;
+            border-radius: 50%;
+            transition: background 0.2s ease;
+        }
+
+        .navbar-bell:hover {
+            background: rgba(96, 165, 250, 0.1);
+        }
+
+        .navbar-bell svg {
+            width: 24px;
+            height: 24px;
+            fill: none;
+            stroke: var(--text);
+            stroke-width: 2;
+            stroke-linecap: round;
+            stroke-linejoin: round;
+        }
+
+        .navbar-bell-badge {
+            position: absolute;
+            top: -2px;
+            right: -2px;
+            display: inline-block;
+            min-width: 18px;
+            padding: 0.125rem 0.35rem;
+            background: #ef4444;
+            color: white;
+            border-radius: 10px;
+            font-size: 0.7rem;
+            font-weight: 600;
+            line-height: 1.2;
+            text-align: center;
+        }
+
+        .navbar-bell-badge.read-only {
+            background: rgba(255, 255, 255, 0.2);
+            color: var(--text);
+        }
+    </style>
+
     {% block head_extra %}{% endblock %}
 </head>
 <body>
@@ -41,6 +91,17 @@
         </div>
         <div class="navbar-right">
             {% if current_user %}
+            <a href="{{ request.app.url_path_for('viewer_dashboard_notifications') }}" class="navbar-bell" title="Notifications">
+                <svg viewBox="0 0 24 24">
+                    <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"></path>
+                    <path d="M13.73 21a2 2 0 0 1-3.46 0"></path>
+                </svg>
+                {% if unread_notifications_count > 0 %}
+                <span class="navbar-bell-badge">{{ unread_notifications_count }}</span>
+                {% elif total_notifications_count > 0 %}
+                <span class="navbar-bell-badge read-only">{{ total_notifications_count }}</span>
+                {% endif %}
+            </a>
             {% if profile_image_url %}
             <img src="{{ profile_image_url | e }}" alt="{{ current_user.display_name | e }}'s profile" class="navbar-profile-pic">
             {% endif %}

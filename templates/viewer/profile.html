@@ -1,0 +1,317 @@
+{% extends "viewer/base.html" %}
+
+{% block title %}{{ bot_name }} — Profile{% endblock %}
+
+{% block head_extra %}
+{{ super() }}
+<style>
+    .profile-disclaimer {
+        margin-bottom: 2rem;
+        padding: 1.5rem;
+        background: rgba(59, 130, 246, 0.1);
+        border: 1px solid rgba(59, 130, 246, 0.3);
+        border-radius: var(--radius);
+    }
+
+    .profile-disclaimer h2 {
+        margin: 0 0 1rem 0;
+        font-size: 1.25rem;
+        color: var(--accent);
+    }
+
+    .profile-disclaimer p {
+        margin: 0;
+        color: var(--text);
+        line-height: 1.6;
+    }
+
+    .message-box {
+        margin-bottom: 2rem;
+        padding: 1.5rem;
+        border-radius: var(--radius);
+        animation: slideIn 0.3s ease-out;
+    }
+
+    @keyframes slideIn {
+        from {
+            opacity: 0;
+            transform: translateY(-10px);
+        }
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    }
+
+    .message-box.success {
+        background: rgba(34, 197, 94, 0.1);
+        border: 1px solid rgba(34, 197, 94, 0.3);
+        color: #22c55e;
+    }
+
+    .message-box.info {
+        background: rgba(59, 130, 246, 0.1);
+        border: 1px solid rgba(59, 130, 246, 0.3);
+        color: #3b82f6;
+    }
+
+    .message-box.error {
+        background: rgba(239, 68, 68, 0.1);
+        border: 1px solid rgba(239, 68, 68, 0.3);
+        color: #ef4444;
+    }
+
+    .profile-section {
+        margin-bottom: 2rem;
+        padding: 1.5rem;
+        background: rgba(96, 165, 250, 0.05);
+        border: 1px solid var(--border);
+        border-radius: var(--radius);
+    }
+
+    .profile-section h2 {
+        margin: 0 0 1.5rem 0;
+        font-size: 1.25rem;
+        color: var(--text);
+    }
+
+    .form-group {
+        margin-bottom: 1.5rem;
+    }
+
+    .form-group label {
+        display: block;
+        margin-bottom: 0.5rem;
+        font-weight: 500;
+        color: var(--text);
+    }
+
+    .form-group input[type="email"] {
+        width: 100%;
+        padding: 0.75rem;
+        background: rgba(255, 255, 255, 0.05);
+        border: 1px solid var(--border);
+        border-radius: 4px;
+        color: var(--text);
+        font-family: inherit;
+        font-size: 1rem;
+    }
+
+    .form-group input[type="email"]:focus {
+        outline: 2px solid var(--accent);
+        outline-offset: 1px;
+        background: rgba(255, 255, 255, 0.08);
+    }
+
+    .form-group small {
+        display: block;
+        margin-top: 0.5rem;
+        color: var(--muted);
+        font-size: 0.875rem;
+        line-height: 1.5;
+    }
+
+    .verification-status {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.5rem;
+        padding: 0.5rem 1rem;
+        border-radius: 4px;
+        font-size: 0.875rem;
+        font-weight: 500;
+        margin-bottom: 1rem;
+    }
+
+    .verification-status.verified {
+        background: rgba(34, 197, 94, 0.2);
+        color: #22c55e;
+    }
+
+    .verification-status.not-verified {
+        background: rgba(234, 179, 8, 0.2);
+        color: #eab308;
+    }
+
+    .verification-status.no-email {
+        background: rgba(148, 163, 184, 0.2);
+        color: #94a3b8;
+    }
+
+    .verification-icon {
+        font-size: 1rem;
+    }
+
+    .btn {
+        padding: 0.75rem 1.5rem;
+        border: none;
+        border-radius: 4px;
+        cursor: pointer;
+        font-weight: 500;
+        transition: all 0.2s ease;
+        text-decoration: none;
+        display: inline-block;
+        font-size: 1rem;
+    }
+
+    .btn-primary {
+        background: var(--accent);
+        color: white;
+    }
+
+    .btn-primary:hover {
+        background: var(--link-hover);
+    }
+
+    .btn-primary:disabled {
+        opacity: 0.5;
+        cursor: not-allowed;
+    }
+
+    .btn-danger {
+        background: #ef4444;
+        color: white;
+    }
+
+    .btn-danger:hover {
+        background: #dc2626;
+    }
+
+    .danger-zone {
+        margin-top: 3rem;
+        padding: 1.5rem;
+        background: rgba(239, 68, 68, 0.05);
+        border: 1px solid rgba(239, 68, 68, 0.3);
+        border-radius: var(--radius);
+    }
+
+    .danger-zone h2 {
+        margin: 0 0 1rem 0;
+        font-size: 1.25rem;
+        color: #ef4444;
+    }
+
+    .danger-zone p {
+        margin: 0 0 1.5rem 0;
+        color: var(--text);
+        line-height: 1.6;
+    }
+
+    .privacy-note {
+        padding: 1rem;
+        background: rgba(255, 255, 255, 0.02);
+        border-left: 3px solid var(--accent);
+        margin-bottom: 1.5rem;
+        font-size: 0.875rem;
+        color: var(--muted);
+        line-height: 1.6;
+    }
+
+    .form-actions {
+        display: flex;
+        gap: 1rem;
+        flex-wrap: wrap;
+    }
+</style>
+{% endblock %}
+
+{% block dashboard_content %}
+<div class="dashboard-header">
+    <h1>Profile Settings</h1>
+    <p>Manage your personal information and preferences</p>
+</div>
+
+{% if message %}
+<div class="message-box {% if 'error' in message.lower() %}error{% elif 'deleted' in message.lower() or 'verify' in message.lower() %}info{% else %}success{% endif %}">
+    {{ message }}
+</div>
+{% endif %}
+
+<div class="profile-disclaimer">
+    <h2>Privacy Notice</h2>
+    <p>
+        We respect your privacy. <strong>We do not store any personal data unless explicitly set by you.</strong>
+    </p>
+</div>
+
+<div class="profile-section">
+    <h2>Email Notifications</h2>
+    
+    <div class="privacy-note" style="margin-bottom: 1.5rem;">
+        <strong>How notifications work:</strong>
+        <ul style="margin: 0.5rem 0 0 1.5rem; padding: 0;">
+            <li style="margin-bottom: 0.5rem;">
+                <strong>Without email:</strong> You will receive notifications exclusively inside the app 
+                (only visible on the website when you visit it).
+            </li>
+            <li>
+                <strong>With verified email:</strong> You will receive notifications via email 
+                <em>in addition to</em> in-app notifications.
+            </li>
+        </ul>
+    </div>
+    
+    {% if email %}
+    <div class="verification-status {% if email_is_verified %}verified{% else %}not-verified{% endif %}">
+        <span class="verification-icon">{% if email_is_verified %}✓{% else %}⚠{% endif %}</span>
+        <span>
+            {% if email_is_verified %}
+                Email verified — notifications will be sent to your email
+            {% else %}
+                Email not verified — you'll only receive in-app notifications until verified
+            {% endif %}
+        </span>
+    </div>
+    {% else %}
+    <div class="verification-status no-email">
+        <span class="verification-icon">ℹ</span>
+        <span>No email address set — you'll only receive in-app notifications</span>
+    </div>
+    {% endif %}
+
+    <form method="POST" action="{{ request.app.url_path_for('update_viewer_profile') }}">
+        <div class="form-group">
+            <label for="email">Email Address (Optional)</label>
+            <input 
+                type="email" 
+                id="email" 
+                name="email" 
+                value="{{ email or '' }}"
+                placeholder="your.email@example.com"
+            >
+            <small>
+                Enter your email to receive notifications via email in addition to in-app notifications.
+                {% if not email_is_verified and email %}
+                <br><strong>Please check your inbox to verify your email address.</strong>
+                {% endif %}
+            </small>
+        </div>
+
+        <div class="form-actions">
+            <button type="submit" class="btn btn-primary">
+                {% if email %}Update Email{% else %}Set Email{% endif %}
+            </button>
+        </div>
+    </form>
+</div>
+
+<div class="danger-zone">
+    <h2>Danger Zone</h2>
+    
+    {% if email %}
+    <p>
+        Deleting your profile will permanently remove your email address from our system.
+        You will not be able to receive any email notifications.
+    </p>
+    
+    <form method="POST" action="{{ request.app.url_path_for('viewer_delete_profile') }}" 
+          onsubmit="return confirm('Are you sure you want to delete your profile? This action cannot be undone.');">
+        <button type="submit" class="btn btn-danger">Delete Profile</button>
+    </form>
+    {% else %}
+    <p>
+        You currently have no profile data stored. There is no email address associated with your account,
+        so there is nothing to delete.
+    </p>
+    {% endif %}
+</div>
+{% endblock %}

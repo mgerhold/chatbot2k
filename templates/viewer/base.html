@@ -58,6 +58,23 @@
         font-weight: 600;
     }
 
+    .nav-badge {
+        display: inline-block;
+        margin-left: 0.5rem;
+        padding: 0.125rem 0.5rem;
+        background: #ef4444;
+        color: white;
+        border-radius: 10px;
+        font-size: 0.75rem;
+        font-weight: 600;
+        line-height: 1;
+    }
+
+    .nav-badge.read-only {
+        background: rgba(255, 255, 255, 0.2);
+        color: var(--text);
+    }
+
     .dashboard-content {
         flex: 1;
         min-width: 0;
@@ -99,9 +116,26 @@
         <nav>
             <ul class="dashboard-nav">
                 <li>
+                    <a href="{{ request.app.url_path_for('viewer_dashboard_notifications') }}" 
+                       class="{% if active_page == 'notifications' %}active{% endif %}">
+                        Notifications
+                        {% if unread_notifications_count > 0 %}
+                        <span class="nav-badge" id="viewer-nav-badge">{{ unread_notifications_count }}</span>
+                        {% elif total_notifications_count > 0 %}
+                        <span class="nav-badge read-only" id="viewer-nav-badge">{{ total_notifications_count }}</span>
+                        {% endif %}
+                    </a>
+                </li>
+                <li>
                     <a href="{{ request.app.url_path_for('viewer_soundboard') }}" 
                        class="{% if active_page == 'soundboard' %}active{% endif %}">
                         Soundboard
+                    </a>
+                </li>
+                <li>
+                    <a href="{{ request.app.url_path_for('viewer_dashboard_profile') }}" 
+                       class="{% if active_page == 'profile' %}active{% endif %}">
+                        Profile
                     </a>
                 </li>
             </ul>

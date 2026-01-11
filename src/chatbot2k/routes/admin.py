@@ -26,16 +26,20 @@ from chatbot2k.dependencies import get_broadcaster_user
 from chatbot2k.dependencies import get_common_context
 from chatbot2k.dependencies import get_templates
 from chatbot2k.types.configuration_setting_kind import ConfigurationSettingKind
-from chatbot2k.types.template_contexts import ActivePage
 from chatbot2k.types.template_contexts import AdminBroadcastsContext
 from chatbot2k.types.template_contexts import AdminConstantsContext
 from chatbot2k.types.template_contexts import AdminContext
+from chatbot2k.types.template_contexts import AdminDashboardActivePage
 from chatbot2k.types.template_contexts import AdminEntranceSoundsContext
 from chatbot2k.types.template_contexts import AdminGeneralSettingsContext
 from chatbot2k.types.template_contexts import AdminLiveNotificationsContext
 from chatbot2k.types.template_contexts import AdminPendingClipsContext
 from chatbot2k.types.template_contexts import AdminSoundboardContext
 from chatbot2k.types.template_contexts import Broadcast
+from chatbot2k.types.template_contexts import ClipApprovedContext
+from chatbot2k.types.template_contexts import ClipApprovedEmailContext
+from chatbot2k.types.template_contexts import ClipRejectedContext
+from chatbot2k.types.template_contexts import ClipRejectedEmailContext
 from chatbot2k.types.template_contexts import CommonContext
 from chatbot2k.types.template_contexts import Constant
 from chatbot2k.types.template_contexts import EntranceSound
@@ -45,6 +49,7 @@ from chatbot2k.types.template_contexts import SoundboardCommand
 from chatbot2k.types.user_info import UserInfo
 from chatbot2k.utils.discord import get_available_discord_text_channels
 from chatbot2k.utils.mime_types import get_file_extension_by_mime_type
+from chatbot2k.utils.notifications import notify_user
 from chatbot2k.utils.time_and_locale import get_common_locales
 from chatbot2k.utils.time_and_locale import get_common_timezones
 from chatbot2k.utils.twitch import get_twitch_user_by_login
@@ -90,7 +95,7 @@ async def admin_general_settings(
 
     context: Final = AdminGeneralSettingsContext(
         **common_context.model_dump(),
-        active_page=ActivePage.GENERAL_SETTINGS,
+        active_page=AdminDashboardActivePage.GENERAL_SETTINGS,
         current_bot_name=bot_name,
         current_author_name=author_name,
         current_timezone=timezone,
@@ -219,7 +224,7 @@ async def admin_constants(
 ) -> Response:
     admin_context: Final = AdminContext(
         **common_context.model_dump(),
-        active_page=ActivePage.CONSTANTS,
+        active_page=AdminDashboardActivePage.CONSTANTS,
     )
     constants: Final = sorted(
         (
@@ -314,7 +319,7 @@ async def admin_broadcasts(
     """Admin dashboard page for managing broadcasts."""
     admin_context: Final = AdminContext(
         **common_context.model_dump(),
-        active_page=ActivePage.BROADCASTS,
+        active_page=AdminDashboardActivePage.BROADCASTS,
     )
     broadcasts: Final = sorted(
         (
@@ -480,7 +485,7 @@ async def admin_live_notifications(
 
     context: Final = AdminLiveNotificationsContext(
         **common_context.model_dump(),
-        active_page=ActivePage.LIVE_NOTIFICATIONS,
+        active_page=AdminDashboardActivePage.LIVE_NOTIFICATIONS,
         channels=channels,
         discord_text_channels=discord_text_channels,
     )
@@ -583,7 +588,7 @@ async def admin_soundboard(
 
     context: Final = AdminSoundboardContext(
         **common_context.model_dump(),
-        active_page=ActivePage.SOUNDBOARD,
+        active_page=AdminDashboardActivePage.SOUNDBOARD,
         soundboard_commands=soundboard_commands,
         existing_commands=existing_commands,
     )
@@ -744,7 +749,7 @@ async def admin_pending_clips(
 
     context: Final = AdminPendingClipsContext(
         **common_context.model_dump(),
-        active_page=ActivePage.PENDING_CLIPS,
+        active_page=AdminDashboardActivePage.PENDING_CLIPS,
         pending_clips=pending_clips,
         existing_commands=[name.lower() for name in app_state.command_handlers],
     )
@@ -760,11 +765,11 @@ async def admin_pending_clips(
 async def approve_pending_clip(
     request: Request,
     app_state: Annotated[AppState, Depends(get_app_state)],
+    templates: Annotated[Jinja2Templates, Depends(get_templates)],
     clip_id: int,
     command_name: Annotated[str, Form()],
 ) -> Response:
     """Approve a pending soundboard clip and add it to the soundboard."""
-    # Get the pending clip.
     all_pending_clips: Final = app_state.database.get_all_pending_soundboard_clips()
     pending_clip = next((clip for clip in all_pending_clips if clip.id == clip_id), None)
 
@@ -801,6 +806,27 @@ async def approve_pending_clip(
 
     app_state.reload_command_handlers()
 
+    await notify_user(
+        twitch_user_id=pending_clip.uploader_twitch_id,
+        templates=templates,
+        notification_template_name="notifications/clip_approved.txt.j2",
+        notification_template_context=ClipApprovedContext(
+            suggested_command=f"!{pending_clip.name}",
+            approved_command=f"!{command_name}",
+        ),
+        email_template_name="emails/clip_approved.txt.j2",
+        email_subject="Your soundboard clip has been approved!",
+        email_template_context=ClipApprovedEmailContext(
+            user_name=pending_clip.uploader_twitch_display_name,
+            suggested_command=f"!{pending_clip.name}",
+            approved_command=f"!{command_name}",
+            bot_name=app_state.database.retrieve_configuration_setting_or_default(
+                ConfigurationSettingKind.BOT_NAME, f"Chatbot of {app_state.config.twitch_channel}"
+            ),
+        ),
+        app_state=app_state,
+    )
+
     return RedirectResponse(request.url_for("admin_pending_clips"), status_code=303)
 
 
@@ -808,9 +834,40 @@ async def approve_pending_clip(
 async def reject_pending_clip(
     request: Request,
     app_state: Annotated[AppState, Depends(get_app_state)],
+    templates: Annotated[Jinja2Templates, Depends(get_templates)],
     clip_id: int,
+    reason: Annotated[str, Form()] = "",
 ) -> Response:
     """Reject and delete a pending soundboard clip."""
+    all_pending_clips: Final = app_state.database.get_all_pending_soundboard_clips()
+    pending_clip = next((clip for clip in all_pending_clips if clip.id == clip_id), None)
+
+    if pending_clip is None:
+        raise HTTPException(status_code=404, detail="Pending clip not found")
+
+    rejection_reason: Final = reason.strip() if reason else None
+
+    await notify_user(
+        twitch_user_id=pending_clip.uploader_twitch_id,
+        templates=templates,
+        notification_template_name="notifications/clip_rejected.txt.j2",
+        notification_template_context=ClipRejectedContext(
+            suggested_command=f"!{pending_clip.name}",
+            reason=rejection_reason,
+        ),
+        email_template_name="emails/clip_rejected.txt.j2",
+        email_subject="Your soundboard clip has been rejected",
+        email_template_context=ClipRejectedEmailContext(
+            user_name=pending_clip.uploader_twitch_display_name,
+            suggested_command=f"!{pending_clip.name}",
+            reason=rejection_reason,
+            bot_name=app_state.database.retrieve_configuration_setting_or_default(
+                ConfigurationSettingKind.BOT_NAME, f"Chatbot of {app_state.config.twitch_channel}"
+            ),
+        ),
+        app_state=app_state,
+    )
+
     try:
         app_state.database.remove_pending_soundboard_clip(id_=clip_id)
     except KeyError as e:
@@ -848,7 +905,7 @@ async def admin_entrance_sounds(
 
     admin_context: Final = AdminContext(
         **common_context.model_dump(),
-        active_page=ActivePage.ENTRANCE_SOUNDS,
+        active_page=AdminDashboardActivePage.ENTRANCE_SOUNDS,
     )
 
     context: Final = AdminEntranceSoundsContext(

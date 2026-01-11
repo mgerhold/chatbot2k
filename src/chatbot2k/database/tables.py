@@ -182,3 +182,32 @@ class ReceivedTwitchMessage(SQLModel, table=True):
 
     message_id: str = Field(primary_key=True)
     timestamp: datetime
+
+
+@final
+class UserProfile(SQLModel, table=True):
+    """Represents a user profile with customizable settings."""
+
+    twitch_user_id: str = Field(primary_key=True)
+    email: Optional[str] = None
+    email_is_verified: bool = False
+
+
+@final
+class EmailVerificationToken(SQLModel, table=True):
+    """Represents an email verification token for user profiles."""
+
+    token: str = Field(primary_key=True)
+    twitch_user_id: str
+    created_at: datetime
+
+
+@final
+class Notification(SQLModel, table=True):
+    """Represents a notification that has been sent to a user."""
+
+    id: Optional[int] = Field(default=None, primary_key=True)
+    twitch_user_id: str
+    message: str
+    sent_at: datetime
+    has_been_read: bool

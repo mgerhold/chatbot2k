@@ -1,3 +1,4 @@
+from datetime import datetime
 from enum import StrEnum
 from typing import Optional
 from typing import final
@@ -18,6 +19,8 @@ class CommonContext(BaseModel):
     profile_image_url: Optional[str]
     is_broadcaster: bool
     pending_clips_count: int
+    unread_notifications_count: int
+    total_notifications_count: int
 
 
 @final
@@ -83,7 +86,7 @@ class MainPageContext(CommonContext):
 
 
 @final
-class ActivePage(StrEnum):
+class AdminDashboardActivePage(StrEnum):
     GENERAL_SETTINGS = "general_settings"
     CONSTANTS = "constants"
     BROADCASTS = "broadcasts"
@@ -96,7 +99,7 @@ class ActivePage(StrEnum):
 class AdminContext(CommonContext):
     model_config = ConfigDict(frozen=True)
 
-    active_page: ActivePage
+    active_page: AdminDashboardActivePage
 
 
 @final
@@ -207,10 +210,44 @@ class AdminEntranceSoundsContext(AdminContext):
     entrance_sounds: list[EntranceSound]
 
 
+@final
+class ViewerDashboardActivePage(StrEnum):
+    NOTIFICATIONS = "notifications"
+    SOUNDBOARD = "soundboard"
+    PROFILE = "profile"
+
+
 class ViewerContext(CommonContext):
     model_config = ConfigDict(frozen=True)
 
-    active_page: str
+    active_page: ViewerDashboardActivePage
+
+
+@final
+class Notification(BaseModel):
+    model_config = ConfigDict(frozen=True)
+
+    id: int
+    twitch_user_id: str
+    message: str
+    sent_at: datetime
+    has_been_read: bool
+
+
+@final
+class ViewerNotificationsContext(ViewerContext):
+    model_config = ConfigDict(frozen=True)
+
+    notifications: list[Notification]
+
+
+@final
+class ViewerProfileContext(ViewerContext):
+    model_config = ConfigDict(frozen=True)
+
+    email: Optional[str]
+    email_is_verified: bool
+    message: Optional[str]
 
 
 @final
@@ -234,4 +271,49 @@ class NewPendingClipEmailContext(BaseModel):
     uploader_id: str
     command_name: str
     dashboard_url: str
+    bot_name: str
+
+
+@final
+class VerifyEmailContext(BaseModel):
+    model_config = ConfigDict(frozen=True)
+
+    user_name: str
+    verification_link: str
+    bot_name: str
+
+
+@final
+class ClipApprovedContext(BaseModel):
+    model_config = ConfigDict(frozen=True)
+
+    suggested_command: str
+    approved_command: str
+
+
+@final
+class ClipRejectedContext(BaseModel):
+    model_config = ConfigDict(frozen=True)
+
+    suggested_command: str
+    reason: Optional[str]
+
+
+@final
+class ClipApprovedEmailContext(BaseModel):
+    model_config = ConfigDict(frozen=True)
+
+    user_name: str
+    suggested_command: str
+    approved_command: str
+    bot_name: str
+
+
+@final
+class ClipRejectedEmailContext(BaseModel):
+    model_config = ConfigDict(frozen=True)
+
+    user_name: str
+    suggested_command: str
+    reason: Optional[str]
     bot_name: str
