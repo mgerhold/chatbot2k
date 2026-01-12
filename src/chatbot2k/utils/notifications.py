@@ -26,7 +26,7 @@ async def notify_user(
         sent_at=datetime.now(UTC),
     )
     user_profile: Final = app_state.database.get_user_profile(twitch_user_id=twitch_user_id)
-    if user_profile is None or user_profile.email is None:
+    if user_profile is None or user_profile.email is None or not user_profile.email_is_verified:
         return
     await send_email(
         to_address=user_profile.email,
