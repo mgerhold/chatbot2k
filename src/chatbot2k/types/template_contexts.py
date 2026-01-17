@@ -94,6 +94,7 @@ class AdminDashboardActivePage(StrEnum):
     SOUNDBOARD = "soundboard"
     PENDING_CLIPS = "pending_clips"
     ENTRANCE_SOUNDS = "entrance_sounds"
+    EVENT_ACTIONS = "event_actions"
 
 
 class AdminContext(CommonContext):
@@ -317,3 +318,38 @@ class ClipRejectedEmailContext(BaseModel):
     suggested_command: str
     reason: Optional[str]
     bot_name: str
+
+
+@final
+class RaidEventUserInfo(BaseModel):
+    model_config = ConfigDict(frozen=True)
+
+    twitch_user_id: str
+    twitch_user_login: str
+    twitch_display_name: str
+    twitch_profile_image_url: str
+    twitch_url: str
+
+
+@final
+class RaidEventAction(BaseModel):
+    model_config = ConfigDict(frozen=True)
+
+    id: int
+    twitch_user_info: Optional[RaidEventUserInfo]
+    chat_message_to_send: Optional[str]
+    soundboard_clip_to_play: Optional[str]
+    should_shoutout: bool
+
+    @property
+    def is_general_entry(self) -> bool:
+        return self.twitch_user_info is None
+
+
+@final
+class AdminEventActionsContext(AdminContext):
+    model_config = ConfigDict(frozen=True)
+
+    raid_event_actions: list[RaidEventAction]
+    soundboard_commands: list[str]
+    has_general_entry: bool

@@ -1,0 +1,549 @@
+{% extends "admin/base.html" %}
+
+{% block title %}{{ bot_name }} — Event Actions{% endblock %}
+
+{% block head_extra %}
+{{ super() }}
+<style>
+    .action-card {
+        margin-top: 1rem;
+        padding: 1.5rem;
+        background: rgba(96, 165, 250, 0.05);
+        border: 1px solid var(--border);
+        border-radius: var(--radius);
+    }
+
+    .action-card:first-child {
+        margin-top: 0;
+    }
+
+    .action-card.general {
+        background: rgba(168, 85, 247, 0.05);
+        border-color: rgba(168, 85, 247, 0.3);
+    }
+
+    .action-card .form-row {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 1rem;
+        margin-bottom: 1rem;
+    }
+
+    .action-card .form-row-full {
+        margin-bottom: 1rem;
+    }
+
+    @media (max-width: 768px) {
+        .action-card .form-row {
+            grid-template-columns: 1fr;
+        }
+    }
+
+    .action-card input[type="text"],
+    .action-card select {
+        width: 100%;
+        padding: 0.75rem;
+        background: rgba(255, 255, 255, 0.05);
+        border: 1px solid var(--border);
+        border-radius: 4px;
+        color: var(--text);
+        font-family: inherit;
+    }
+
+    .action-card input[type="text"]:focus,
+    .action-card select:focus {
+        outline: 2px solid var(--accent);
+        outline-offset: 1px;
+        background: rgba(255, 255, 255, 0.08);
+    }
+
+    .action-card .actions {
+        display: flex;
+        gap: 0.5rem;
+        justify-content: flex-end;
+        padding-top: 0.5rem;
+        border-top: 1px solid var(--border);
+    }
+
+    .btn {
+        padding: 0.5rem 1rem;
+        border: none;
+        border-radius: 4px;
+        cursor: pointer;
+        font-weight: 500;
+        transition: all 0.2s ease;
+        text-decoration: none;
+        display: inline-block;
+    }
+
+    .btn-primary {
+        background: var(--accent);
+        color: white;
+    }
+
+    .btn-primary:hover {
+        background: var(--link-hover);
+    }
+
+    .btn-primary:disabled {
+        background: rgba(96, 165, 250, 0.3);
+        cursor: not-allowed;
+    }
+
+    .btn-danger {
+        background: #dc2626;
+        color: white;
+    }
+
+    .btn-danger:hover {
+        background: #b91c1c;
+    }
+
+    .btn-small {
+        padding: 0.4rem 0.8rem;
+        font-size: 0.9rem;
+    }
+
+    .add-section {
+        margin-top: 2rem;
+        padding: 1.5rem;
+        background: rgba(96, 165, 250, 0.05);
+        border: 1px solid var(--border);
+        border-radius: var(--radius);
+    }
+
+    .add-section h3 {
+        margin: 0 0 1rem 0;
+    }
+
+    .form-group {
+        margin-bottom: 1rem;
+    }
+
+    .form-group label {
+        display: block;
+        margin-bottom: 0.5rem;
+        font-weight: 500;
+        color: var(--text);
+    }
+
+    .form-group input[type="text"],
+    .form-group select {
+        width: 100%;
+        padding: 0.75rem;
+        background: rgba(255, 255, 255, 0.05);
+        border: 1px solid var(--border);
+        border-radius: 4px;
+        color: var(--text);
+        font-family: inherit;
+    }
+
+    .form-group input[type="text"]:focus,
+    .form-group select:focus {
+        outline: 2px solid var(--accent);
+        outline-offset: 1px;
+        background: rgba(255, 255, 255, 0.08);
+    }
+
+    .empty-state {
+        text-align: center;
+        padding: 3rem 1rem;
+        color: var(--muted);
+    }
+
+    .user-validation {
+        display: none;
+        margin-top: 0.5rem;
+        padding: 0.5rem;
+        border-radius: 4px;
+        font-size: 0.875rem;
+        font-weight: 500;
+    }
+
+    .user-validation.success {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        background: rgba(34, 197, 94, 0.1);
+        border: 1px solid rgba(34, 197, 94, 0.3);
+        color: #22c55e;
+    }
+
+    .user-validation.success .user-info {
+        display: flex;
+        align-items: center;
+        gap: 0.75rem;
+        flex: 1;
+    }
+
+    .user-validation.success .profile-image {
+        width: 32px;
+        height: 32px;
+        border-radius: 50%;
+        border: 2px solid rgba(34, 197, 94, 0.5);
+    }
+
+    .user-validation.success .user-details {
+        display: flex;
+        flex-direction: column;
+        gap: 0.125rem;
+    }
+
+    .user-validation.success .user-found-text {
+        font-weight: 600;
+    }
+
+    .user-validation.success .user-id {
+        font-size: 0.75rem;
+        opacity: 0.8;
+        font-family: 'Courier New', monospace;
+    }
+
+    .user-validation.error {
+        display: block;
+        background: rgba(239, 68, 68, 0.1);
+        border: 1px solid rgba(239, 68, 68, 0.3);
+        color: #ef4444;
+    }
+
+    .user-validation.loading {
+        display: block;
+        background: rgba(96, 165, 250, 0.1);
+        border: 1px solid rgba(96, 165, 250, 0.3);
+        color: #60a5fa;
+    }
+
+    .checkmark {
+        display: inline-block;
+        width: 16px;
+        height: 16px;
+        font-size: 16px;
+    }
+
+    .radio-group {
+        display: flex;
+        gap: 1.5rem;
+        margin-bottom: 1rem;
+    }
+
+    .radio-option {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+    }
+
+    .radio-option input[type="radio"] {
+        width: 1.2rem;
+        height: 1.2rem;
+        cursor: pointer;
+    }
+
+    .radio-option label {
+        margin: 0;
+        cursor: pointer;
+        font-weight: 500;
+    }
+
+    .conditional-field {
+        display: none;
+    }
+
+    .conditional-field.visible {
+        display: block;
+    }
+
+    .general-badge {
+        display: inline-block;
+        padding: 0.25rem 0.75rem;
+        background: rgba(168, 85, 247, 0.2);
+        color: #a855f7;
+        border-radius: 12px;
+        font-size: 0.75rem;
+        font-weight: 600;
+        margin-left: 0.5rem;
+        text-transform: uppercase;
+    }
+
+    .checkbox-group {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        padding: 0.75rem;
+        background: rgba(255, 255, 255, 0.05);
+        border: 1px solid var(--border);
+        border-radius: 4px;
+    }
+
+    .checkbox-group input[type="checkbox"] {
+        width: 1.2rem;
+        height: 1.2rem;
+        cursor: pointer;
+    }
+
+    .checkbox-group label {
+        margin: 0;
+        cursor: pointer;
+        font-weight: 500;
+        color: var(--text);
+    }
+
+    .help-text {
+        font-size: 0.875rem;
+        color: var(--muted);
+        margin-top: 0.25rem;
+    }
+</style>
+<script>
+    let userValidationTimeout = null;
+    let currentTwitchUserId = null;
+
+    async function validateTwitchUser(username) {
+        const validationElement = document.getElementById('user-validation');
+        const submitButton = document.getElementById('add-action-submit');
+        const entryTypeSpecific = document.getElementById('entry_type_specific');
+        
+        if (!username.trim() || !entryTypeSpecific.checked) {
+            validationElement.className = 'user-validation';
+            updateSubmitButtonState();
+            currentTwitchUserId = null;
+            return;
+        }
+
+        validationElement.className = 'user-validation loading';
+        validationElement.textContent = 'Checking user...';
+        currentTwitchUserId = null;
+        updateSubmitButtonState();
+
+        try {
+            const response = await fetch(`{{ request.app.url_path_for('validate_twitch_user') }}?username=${encodeURIComponent(username)}`);
+            const data = await response.json();
+
+            if (data.valid) {
+                validationElement.className = 'user-validation success';
+                validationElement.innerHTML = `
+                    <span class="checkmark">✓</span>
+                    <div class="user-info">
+                        <img src="${data.profile_image_url}" alt="Profile" class="profile-image">
+                        <div class="user-details">
+                            <span class="user-found-text">User found</span>
+                            <span class="user-id">ID: ${data.user_id}</span>
+                        </div>
+                    </div>
+                `;
+                currentTwitchUserId = data.user_id;
+                updateSubmitButtonState();
+            } else {
+                validationElement.className = 'user-validation error';
+                validationElement.textContent = data.error || 'User not found';
+                currentTwitchUserId = null;
+                updateSubmitButtonState();
+            }
+        } catch (error) {
+            validationElement.className = 'user-validation error';
+            validationElement.textContent = 'Error checking user. Please try again.';
+            currentTwitchUserId = null;
+            updateSubmitButtonState();
+        }
+    }
+
+    function updateSubmitButtonState() {
+        const submitButton = document.getElementById('add-action-submit');
+        const entryTypeGeneral = document.getElementById('entry_type_general');
+        const entryTypeSpecific = document.getElementById('entry_type_specific');
+        
+        if (entryTypeGeneral.checked) {
+            submitButton.disabled = false;
+        } else if (entryTypeSpecific.checked) {
+            submitButton.disabled = currentTwitchUserId === null;
+        } else {
+            submitButton.disabled = true;
+        }
+    }
+
+    function updateEntryTypeFields() {
+        const entryTypeSpecific = document.getElementById('entry_type_specific');
+        const specificUserField = document.getElementById('specific_user_field');
+        const twitchUserIdInput = document.getElementById('twitch_user_id_hidden');
+        const usernameInput = document.getElementById('twitch_username');
+        
+        if (entryTypeSpecific.checked) {
+            specificUserField.classList.add('visible');
+            if (usernameInput.value.trim()) {
+                validateTwitchUser(usernameInput.value);
+            }
+        } else {
+            specificUserField.classList.remove('visible');
+            twitchUserIdInput.value = '';
+            currentTwitchUserId = null;
+            const validationElement = document.getElementById('user-validation');
+            validationElement.className = 'user-validation';
+        }
+        
+        updateSubmitButtonState();
+    }
+
+    document.addEventListener('DOMContentLoaded', function() {
+        const usernameInput = document.getElementById('twitch_username');
+        const entryTypeRadios = document.querySelectorAll('input[name="entry_type"]');
+        const addForm = document.getElementById('add-action-form');
+
+        usernameInput.addEventListener('input', function() {
+            clearTimeout(userValidationTimeout);
+            userValidationTimeout = setTimeout(() => {
+                validateTwitchUser(this.value);
+            }, 500);
+        });
+
+        entryTypeRadios.forEach(radio => {
+            radio.addEventListener('change', updateEntryTypeFields);
+        });
+
+        // Before form submission, set the hidden twitch_user_id field
+        addForm.addEventListener('submit', function(e) {
+            const entryTypeSpecific = document.getElementById('entry_type_specific');
+            const twitchUserIdInput = document.getElementById('twitch_user_id_hidden');
+            
+            if (entryTypeSpecific.checked && currentTwitchUserId) {
+                twitchUserIdInput.value = currentTwitchUserId;
+            }
+        });
+
+        // Initialize the state
+        updateEntryTypeFields();
+    });
+</script>
+{% endblock %}
+
+{% block dashboard_content %}
+<div class="dashboard-header">
+    <h1>Event Actions</h1>
+    <p>Configure actions that occur when your channel gets raided.</p>
+</div>
+
+<section class="add-section">
+    <h3>Add New Event Action</h3>
+    <form id="add-action-form" method="post" action="{{ request.app.url_path_for('add_event_action') }}">
+        <div class="form-group">
+            <label>Entry Type</label>
+            <div class="radio-group">
+                <div class="radio-option">
+                    <input type="radio" id="entry_type_general" name="entry_type" value="general" {% if has_general_entry %}disabled{% else %}checked{% endif %}>
+                    <label for="entry_type_general">General (all raiders){% if has_general_entry %} - Already exists{% endif %}</label>
+                </div>
+                <div class="radio-option">
+                    <input type="radio" id="entry_type_specific" name="entry_type" value="specific" {% if has_general_entry %}checked{% endif %}>
+                    <label for="entry_type_specific">Specific streamer</label>
+                </div>
+            </div>
+            <p class="help-text">General entries apply to all raiders unless a specific entry exists for them.</p>
+        </div>
+        
+        <div id="specific_user_field" class="form-group conditional-field">
+            <label for="twitch_username">Twitch Username</label>
+            <input type="text" id="twitch_username" placeholder="e.g., twitchusername" autocomplete="off">
+            <input type="hidden" id="twitch_user_id_hidden" name="twitch_user_id">
+            <div id="user-validation" class="user-validation"></div>
+        </div>
+        
+        <div class="form-group">
+            <label for="chat_message">Chat Message</label>
+            <input type="text" id="chat_message" name="chat_message" placeholder="e.g., Thanks for the raid @{raider}!">
+            <p class="help-text">Optional: Message to send in chat. Leave empty for no message.</p>
+        </div>
+        
+        <div class="form-group">
+            <label for="soundboard_clip">Soundboard Clip</label>
+            {% if soundboard_commands %}
+            <select id="soundboard_clip" name="soundboard_clip">
+                <option value="">-- No clip --</option>
+                {% for command in soundboard_commands %}
+                <option value="{{ command | e }}">{{ command | e }}</option>
+                {% endfor %}
+            </select>
+            {% else %}
+            <input type="text" id="soundboard_clip" name="soundboard_clip" placeholder="e.g., !welcome">
+            {% endif %}
+            <p class="help-text">Optional: Soundboard clip to play. Leave empty for no clip.</p>
+        </div>
+        
+        <div class="form-group">
+            <div class="checkbox-group">
+                <input type="checkbox" id="should_shoutout" name="should_shoutout">
+                <label for="should_shoutout">Issue shoutout command</label>
+            </div>
+            <p class="help-text">If enabled, the bot will automatically shoutout the raiding streamer.</p>
+        </div>
+        
+        <button type="submit" id="add-action-submit" class="btn btn-primary" disabled>Add Event Action</button>
+    </form>
+</section>
+
+<section>
+    <h2>Configured Event Actions</h2>
+    
+    {% if raid_event_actions %}
+    {% for action in raid_event_actions %}
+    <div class="action-card {% if not action.twitch_user_info %}general{% endif %}">
+        <form method="post" action="{{ request.app.url_path_for('update_event_action', action_id=action.id) }}">
+            <div class="form-row">
+                <div class="form-group">
+                    <label>Raiding Streamer</label>
+                    {% if not action.twitch_user_info %}
+                    <div style="font-weight: 600; color: var(--text); margin-top: 0.25rem;">
+                        All Raiders
+                        <span class="general-badge">General</span>
+                    </div>
+                    <p class="help-text">Applies to all raiders without specific settings.</p>
+                    {% else %}
+                    <div style="font-weight: 600; color: var(--text); margin-top: 0.25rem; display: flex; align-items: center; gap: 0.75rem;">
+                        <img src="{{ action.twitch_user_info.twitch_profile_image_url | e }}" alt="{{ action.twitch_user_info.twitch_display_name | e }}" style="width: 32px; height: 32px; border-radius: 50%;">
+                        <span><a href="{{ action.twitch_user_info.twitch_url | e }}" target="_blank" rel="noopener noreferrer">{{ action.twitch_user_info.twitch_display_name | e }}</a> <span style="font-weight: 400; color: var(--muted);">({{ action.twitch_user_info.twitch_user_id | e }})</span></span>
+                    </div>
+                    {% endif %}
+                </div>
+                <div class="form-group">
+                    <label for="soundboard_clip_{{ action.id }}">Soundboard Clip</label>
+                    {% if soundboard_commands %}
+                    <select id="soundboard_clip_{{ action.id }}" name="soundboard_clip">
+                        <option value="">-- No clip --</option>
+                        {% for command in soundboard_commands %}
+                        <option value="{{ command | e }}" {% if action.soundboard_clip_to_play and command == '!' + action.soundboard_clip_to_play %}selected{% endif %}>{{ command | e }}</option>
+                        {% endfor %}
+                    </select>
+                    {% else %}
+                    <input type="text" id="soundboard_clip_{{ action.id }}" name="soundboard_clip" value="{% if action.soundboard_clip_to_play %}!{{ action.soundboard_clip_to_play | e }}{% endif %}" placeholder="e.g., !welcome">
+                    {% endif %}
+                </div>
+            </div>
+            <div class="form-row-full">
+                <div class="form-group">
+                    <label for="chat_message_{{ action.id }}">Chat Message</label>
+                    <input type="text" id="chat_message_{{ action.id }}" name="chat_message" value="{{ action.chat_message_to_send | e if action.chat_message_to_send else '' }}" placeholder="e.g., Thanks for the raid @{raider}!">
+                </div>
+            </div>
+            <div class="form-row-full">
+                <div class="form-group">
+                    <div class="checkbox-group">
+                        <input type="checkbox" id="should_shoutout_{{ action.id }}" name="should_shoutout" {% if action.should_shoutout %}checked{% endif %}>
+                        <label for="should_shoutout_{{ action.id }}">Issue shoutout command</label>
+                    </div>
+                </div>
+            </div>
+            <div class="actions">
+                <button type="submit" class="btn btn-primary btn-small">Save Changes</button>
+        </form>
+        <form method="post" action="{{ request.app.url_path_for('delete_event_action', action_id=action.id) }}">
+                <button type="submit" class="btn btn-danger btn-small" onclick="return confirm('Are you sure you want to delete this event action?')">Delete</button>
+        </form>
+            </div>
+    </div>
+    {% endfor %}
+    {% else %}
+    <div class="empty-state">
+        <p>No event actions configured yet.</p>
+        <p>Add your first event action above to get started.</p>
+    </div>
+    {% endif %}
+</section>
+
+{% endblock %}

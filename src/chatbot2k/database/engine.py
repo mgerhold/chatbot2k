@@ -935,7 +935,17 @@ class Database:
         with self._session() as s:
             return list(s.exec(select(RaidEventAction)).all())
 
-    def get_raid_event_action(self, *, twitch_user_id: str) -> Optional[RaidEventAction]:
+    def get_general_raid_event_action(self) -> Optional[RaidEventAction]:
+        """Gets the general raid event action for all users (if it exists)."""
+        with self._session() as s:
+            return s.exec(select(RaidEventAction).where(is_(col(RaidEventAction.twitch_user_id), None))).one_or_none()
+
+    def get_raid_event_action_by_id(self, *, id_: int) -> Optional[RaidEventAction]:
+        """Gets a raid event action by its ID."""
+        with self._session() as s:
+            return s.get(RaidEventAction, id_)
+
+    def get_raid_event_action_by_twitch_user(self, *, twitch_user_id: str) -> Optional[RaidEventAction]:
         """
         Gets a raid event action for a specific Twitch user ID or for all users if no
         entry for the specified user ID exists. Returns `None` if there is no entry for
