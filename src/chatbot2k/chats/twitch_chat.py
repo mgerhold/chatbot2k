@@ -83,7 +83,7 @@ class TwitchChat(Chat):
             # We only have the client secret, so we have to obtain tokens interactively.
             client = await Twitch(
                 app_state.config.twitch_client_id,
-                app_state.config.twitch_credentials,
+                app_state.config.twitch_client_secret,
             )
             client.user_auth_refresh_callback = _on_user_refresh
             auth: Final = UserAuthenticator(client, TwitchChat._SCOPES)
