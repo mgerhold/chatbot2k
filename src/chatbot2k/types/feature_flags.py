@@ -17,6 +17,8 @@ class FeatureFlags(NamedTuple):
     broadcasting: bool  # Is this chat capable of broadcasting messages?
     formatting_support: FormattingSupport
     can_post_live_notifications: bool
+    can_react_to_raids: bool
+    can_shoutout: bool
     can_trigger_soundboard: bool
     can_trigger_entrance_sounds: bool
     supports_giveaways: bool

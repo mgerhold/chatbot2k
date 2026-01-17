@@ -21,6 +21,7 @@ from starlette.templating import Jinja2Templates
 from chatbot2k.app_state import AppState
 from chatbot2k.constants import RELATIVE_SOUNDBOARD_FILES_DIRECTORY
 from chatbot2k.constants import SOUNDBOARD_FILES_DIRECTORY
+from chatbot2k.database.engine import TwitchUserVariants
 from chatbot2k.dependencies import get_app_state
 from chatbot2k.dependencies import get_broadcaster_user
 from chatbot2k.dependencies import get_common_context
@@ -31,6 +32,7 @@ from chatbot2k.types.template_contexts import AdminConstantsContext
 from chatbot2k.types.template_contexts import AdminContext
 from chatbot2k.types.template_contexts import AdminDashboardActivePage
 from chatbot2k.types.template_contexts import AdminEntranceSoundsContext
+from chatbot2k.types.template_contexts import AdminEventActionsContext
 from chatbot2k.types.template_contexts import AdminGeneralSettingsContext
 from chatbot2k.types.template_contexts import AdminLiveNotificationsContext
 from chatbot2k.types.template_contexts import AdminPendingClipsContext
@@ -45,6 +47,8 @@ from chatbot2k.types.template_contexts import Constant
 from chatbot2k.types.template_contexts import EntranceSound
 from chatbot2k.types.template_contexts import LiveNotificationChannel
 from chatbot2k.types.template_contexts import PendingClip
+from chatbot2k.types.template_contexts import RaidEventAction
+from chatbot2k.types.template_contexts import RaidEventUserInfo
 from chatbot2k.types.template_contexts import SoundboardCommand
 from chatbot2k.types.user_info import UserInfo
 from chatbot2k.utils.discord import get_available_discord_text_channels
@@ -59,6 +63,8 @@ from chatbot2k.utils.twitch import get_twitch_user_info_by_logins
 router: Final = APIRouter(prefix="/admin", dependencies=[Depends(get_broadcaster_user)])
 
 logger: Final = logging.getLogger(__name__)
+
+# region General Settings
 
 
 @router.get("/", name="admin_general_settings")
@@ -215,6 +221,11 @@ async def update_general_settings(
     return RedirectResponse(request.url_for("admin_general_settings"), status_code=303)
 
 
+# endregion
+
+# region Constants
+
+
 @router.get("/constants", name="admin_constants")
 async def admin_constants(
     request: Request,
@@ -307,6 +318,11 @@ async def delete_constant(
         url=request.app.url_path_for("admin_constants"),
         status_code=303,
     )
+
+
+# endregion
+
+# region Broadcasts
 
 
 @router.get("/broadcasts", name="admin_broadcasts")
@@ -453,6 +469,11 @@ async def delete_broadcast(
     )
 
 
+# endregion
+
+# region Live Notifications
+
+
 @router.get("/live-notifications", name="admin_live_notifications")
 async def admin_live_notifications(
     request: Request,
@@ -560,6 +581,11 @@ async def delete_live_notification_channel(
     except KeyError as e:
         raise HTTPException(status_code=404, detail=str(e)) from e
     return RedirectResponse(request.url_for("admin_live_notifications"), status_code=303)
+
+
+# endregion
+
+# region Soundboard
 
 
 @router.get("/soundboard", name="admin_soundboard")
@@ -721,6 +747,11 @@ async def delete_soundboard_clip(
     return RedirectResponse(request.url_for("admin_soundboard"), status_code=303)
 
 
+# endregion
+
+# region Pending Clips
+
+
 @router.get("/pending-clips", name="admin_pending_clips")
 async def admin_pending_clips(
     request: Request,
@@ -874,6 +905,11 @@ async def reject_pending_clip(
         raise HTTPException(status_code=404, detail=str(e)) from e
 
     return RedirectResponse(request.url_for("admin_pending_clips"), status_code=303)
+
+
+# endregion
+
+# region Entrance Sounds
 
 
 @router.get("/entrance-sounds", name="admin_entrance_sounds")
@@ -1033,3 +1069,191 @@ async def reset_entry_sounds_session(
 ) -> Response:
     app_state.entrance_sound_handler.reset_entrance_sounds_session()
     return RedirectResponse(request.url_for("admin_entrance_sounds"), status_code=303)
+
+
+# endregion
+
+# region Event Actions
+
+
+@router.get("/event-actions", name="admin_event_actions")
+async def admin_event_actions(
+    request: Request,
+    app_state: Annotated[AppState, Depends(get_app_state)],
+    templates: Annotated[Jinja2Templates, Depends(get_templates)],
+    common_context: Annotated[CommonContext, Depends(get_common_context)],
+) -> Response:
+    """Admin dashboard page for managing event actions (raid events)."""
+    database_entries: Final = app_state.database.get_raid_event_actions()
+
+    # Get Twitch user info for all non-general entries.
+    user_ids: Final = [entry.twitch_user_id for entry in database_entries if entry.twitch_user_id is not None]
+    user_info_by_id: Final = await get_twitch_user_info_by_ids(
+        user_ids=user_ids,
+        app_state=app_state,
+    )
+
+    # Build raid event actions list.
+    raid_event_actions: Final = sorted(
+        (
+            RaidEventAction(
+                id=cast(int, entry.id),
+                twitch_user_info=None
+                if entry.twitch_user_id is None
+                else RaidEventUserInfo(
+                    twitch_user_id=entry.twitch_user_id,
+                    twitch_user_login=user_info_by_id[entry.twitch_user_id].login,
+                    twitch_display_name=user_info_by_id[entry.twitch_user_id].display_name,
+                    twitch_profile_image_url=user_info_by_id[entry.twitch_user_id].profile_image_url,
+                    twitch_url=f"https://twitch.tv/{user_info_by_id[entry.twitch_user_id].login}",
+                ),
+                chat_message_to_send=entry.chat_message_to_send,
+                soundboard_clip_to_play=entry.soundboard_clip_to_play,
+                should_shoutout=entry.should_shoutout,
+            )
+            for entry in database_entries
+        ),
+        key=lambda entry: (
+            not entry.is_general_entry,
+            "" if entry.twitch_user_info is None else entry.twitch_user_info.twitch_display_name,
+        ),
+    )
+
+    # Get all soundboard commands for the dropdown.
+    soundboard_commands: Final = sorted([f"!{cmd.name}" for cmd in app_state.database.get_soundboard_commands()])
+
+    # Check if a general entry already exists.
+    has_general_entry: Final = any(action.is_general_entry for action in raid_event_actions)
+
+    context: Final = AdminEventActionsContext(
+        **common_context.model_dump(),
+        active_page=AdminDashboardActivePage.EVENT_ACTIONS,
+        raid_event_actions=raid_event_actions,
+        soundboard_commands=soundboard_commands,
+        has_general_entry=has_general_entry,
+    )
+
+    return templates.TemplateResponse(
+        request=request,
+        name="admin/event_actions.html",
+        context=context.model_dump(),
+    )
+
+
+@router.post("/event-actions/add", name="add_event_action")
+async def add_event_action(
+    request: Request,
+    app_state: Annotated[AppState, Depends(get_app_state)],
+    entry_type: Annotated[Literal["general", "specific"], Form()],
+    twitch_user_id: Annotated[str, Form()] = "",
+    chat_message: Annotated[str, Form()] = "",
+    soundboard_clip: Annotated[str, Form()] = "",
+    should_shoutout: Annotated[str, Form()] = "",
+) -> Response:
+    """Add a new raid event action."""
+    if entry_type not in ("general", "specific"):
+        raise HTTPException(status_code=400, detail="Invalid entry type")
+
+    # For general entries, check if one already exists.
+    if entry_type == "general":
+        general_raid_event_action: Final = app_state.database.get_general_raid_event_action()
+        if general_raid_event_action is not None:
+            raise HTTPException(status_code=400, detail="A general raid action already exists")
+        target_user_id = TwitchUserVariants.ALL_USERS
+    else:
+        if not twitch_user_id.strip():
+            raise HTTPException(status_code=400, detail="Twitch user ID is required for specific entries")
+        target_user_id = twitch_user_id.strip()
+
+    # Validate that at least one action is specified
+    chat_msg: Final = chat_message.strip() if chat_message.strip() else None
+    soundboard: Final = soundboard_clip.strip().removeprefix("!") if soundboard_clip.strip().removeprefix("!") else None
+    shoutout: Final = should_shoutout == "on"
+
+    if chat_msg is None and soundboard is None and not shoutout:
+        raise HTTPException(
+            status_code=400,
+            detail="At least one action must be specified (chat message, soundboard clip, or shoutout)",
+        )
+
+    try:
+        app_state.database.add_raid_event_action(
+            twitch_user_id=target_user_id,
+            chat_message_to_send=chat_msg,
+            soundboard_clip_to_play=soundboard,
+            should_shoutout=shoutout,
+        )
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e)) from e
+
+    return RedirectResponse(request.url_for("admin_event_actions"), status_code=303)
+
+
+@router.post("/event-actions/update/{action_id}", name="update_event_action")
+async def update_event_action(
+    request: Request,
+    action_id: int,
+    app_state: Annotated[AppState, Depends(get_app_state)],
+    chat_message: Annotated[str, Form()] = "",
+    soundboard_clip: Annotated[str, Form()] = "",
+    should_shoutout: Annotated[str, Form()] = "",
+) -> Response:
+    """Update an existing raid event action."""
+    existing_action: Final = app_state.database.get_raid_event_action_by_id(id_=action_id)
+
+    if existing_action is None:
+        raise HTTPException(status_code=404, detail="Event action not found")
+
+    target_user_id: Final = (
+        TwitchUserVariants.ALL_USERS if existing_action.twitch_user_id is None else existing_action.twitch_user_id
+    )
+
+    # Validate that at least one action is specified
+    chat_msg: Final = chat_message.strip() if chat_message.strip() else None
+    soundboard: Final = soundboard_clip.strip().removeprefix("!") if soundboard_clip.strip().removeprefix("!") else None
+    shoutout: Final = should_shoutout == "on"
+
+    if chat_msg is None and soundboard is None and not shoutout:
+        raise HTTPException(
+            status_code=400,
+            detail="At least one action must be specified (chat message, soundboard clip, or shoutout)",
+        )
+
+    try:
+        app_state.database.update_raid_event_action(
+            twitch_user_id=target_user_id,
+            chat_message_to_send=chat_msg,
+            soundboard_clip_to_play=soundboard,
+            should_shoutout=shoutout,
+        )
+    except (ValueError, KeyError) as e:
+        raise HTTPException(status_code=400, detail=str(e)) from e
+
+    return RedirectResponse(request.url_for("admin_event_actions"), status_code=303)
+
+
+@router.post("/event-actions/delete/{action_id}", name="delete_event_action")
+async def delete_event_action(
+    request: Request,
+    action_id: int,
+    app_state: Annotated[AppState, Depends(get_app_state)],
+) -> Response:
+    """Delete a raid event action."""
+    existing_action: Final = app_state.database.get_raid_event_action_by_id(id_=action_id)
+
+    if existing_action is None:
+        raise HTTPException(status_code=404, detail="Event action not found")
+
+    target_user_id: Final = (
+        TwitchUserVariants.ALL_USERS if existing_action.twitch_user_id is None else existing_action.twitch_user_id
+    )
+
+    try:
+        app_state.database.delete_raid_event_action(twitch_user_id=target_user_id)
+    except KeyError as e:
+        raise HTTPException(status_code=404, detail=str(e)) from e
+
+    return RedirectResponse(request.url_for("admin_event_actions"), status_code=303)
+
+
+# endregion

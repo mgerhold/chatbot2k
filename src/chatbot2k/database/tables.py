@@ -211,3 +211,23 @@ class Notification(SQLModel, table=True):
     message: str
     sent_at: datetime
     has_been_read: bool
+
+
+@final
+class RaidEventAction(SQLModel, table=True):
+    """Represents an action to be taken when a raid event occurs."""
+
+    id: Optional[int] = Field(default=None, primary_key=True)
+    twitch_user_id: Optional[str] = Field(unique=True)
+    chat_message_to_send: Optional[str]
+    soundboard_clip_to_play: Optional[str] = Field(
+        sa_column=Column(
+            ForeignKey(
+                "soundboardcommand.name",
+                ondelete="SET NULL",
+                onupdate="CASCADE",
+            ),
+            nullable=True,
+        )
+    )
+    should_shoutout: bool

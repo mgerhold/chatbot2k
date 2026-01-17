@@ -13,6 +13,7 @@ from typing import final
 
 from twitchAPI.eventsub.webhook import EventSubWebhook
 from twitchAPI.helper import first
+from twitchAPI.object.eventsub import ChannelRaidEvent
 from twitchAPI.object.eventsub import StreamOnlineEvent
 from twitchAPI.twitch import Twitch
 from twitchAPI.type import AuthType
@@ -42,22 +43,25 @@ class MonitoredStreamsManager:
         self,
         twitch: Twitch,
         eventsub: EventSubWebhook,
-        callback: Callable[[StreamLiveEvent], Awaitable[None]],
+        stream_live_callback: Callable[[StreamLiveEvent], Awaitable[None]],
+        channel_raid_callback: Callable[[ChannelRaidEvent], Awaitable[None]],
         app_state: AppState,
         _: _Passkey,
     ) -> None:
         self._twitch: Final = twitch
         self._eventsub: Final = eventsub
-        self._callback: Final = callback
+        self._stream_live_callback: Final = stream_live_callback
+        self._channel_raid_callback: Final = channel_raid_callback
         self._app_state: Final = app_state
-        self._event_queue: Final[asyncio.Queue[StreamOnlineEvent]] = asyncio.Queue()
+        self._event_queue: Final[asyncio.Queue[StreamOnlineEvent | ChannelRaidEvent]] = asyncio.Queue()
         self._event_handling_task: Final = asyncio.create_task(self._handle_events())
 
     @classmethod
     async def try_create(
         cls,
         app_state: AppState,
-        callback: Callable[[StreamLiveEvent], Awaitable[None]],
+        stream_live_callback: Callable[[StreamLiveEvent], Awaitable[None]],
+        channel_raid_callback: Callable[[ChannelRaidEvent], Awaitable[None]],
     ) -> Optional[Self]:
         if app_state.config.environment != Environment.PRODUCTION:
             # Twitch needs a publicly accessible URL supporting HTTPS for EventSub webhooks. We cannot
@@ -86,7 +90,8 @@ class MonitoredStreamsManager:
         instance: Final = cls(
             twitch,
             eventsub,
-            callback,
+            stream_live_callback,
+            channel_raid_callback,
             app_state,
             cls._Passkey(),
         )
@@ -156,13 +161,17 @@ class MonitoredStreamsManager:
                     # Proceed anyway.
 
                 try:
-                    await self._callback(await self._fetch_stream_info_with_retries(event))
+                    match event:
+                        case StreamOnlineEvent():
+                            await self._stream_live_callback(await self._fetch_stream_info_with_retries(event))
+                        case ChannelRaidEvent():
+                            await self._channel_raid_callback(event)
                 except Exception as e:
                     logger.exception(f"Error while processing stream live event: {e}")
             finally:
                 self._event_queue.task_done()
 
-    async def _on_stream_live(self, event: StreamOnlineEvent) -> None:
+    async def _enqueue_event(self, event: StreamOnlineEvent | ChannelRaidEvent) -> None:
         # We use `put_nowait` here to avoid blocking the EventSub webhook processing. Twitch
         # expects a quick response to webhook notifications, and blocking here could lead to
         # timeouts and failed notifications. Events are processed asynchronously in a separate
@@ -227,20 +236,28 @@ class MonitoredStreamsManager:
         # We ask the Twitch API for existing subscriptions to avoid creating duplicates.
         active_subscriptions: Final[set[_ActiveSubscription]] = set()
         existing_subscriptions: Final = await self._twitch.get_eventsub_subscriptions(
-            sub_type="stream.online",
             target_token=AuthType.APP,  # For webhook subscriptions (not websocket).
         )
+
+        if self._app_state.config.ignore_existing_subscriptions:
+            # Remove all existing subscriptions.
+            for existing_subscription in existing_subscriptions.data:
+                result = await self._eventsub.unsubscribe_topic(existing_subscription.id)
+                if not result:
+                    logger.error(
+                        f"Failed to unsubscribe from existing EventSub subscription ID '{existing_subscription.id}'."
+                    )
+                    continue
+                logger.info(f"Unsubscribed from existing EventSub subscription ID '{existing_subscription.id}'.")
+
+            existing_subscriptions.data = []
 
         for existing_subscription in existing_subscriptions.data:
             logging.info(f"Existing subscription: {existing_subscription}")
 
-        for existing_subscription in existing_subscriptions.data:
-            if existing_subscription.type != "stream.online":
-                logger.error(
-                    f"Received non-stream.online subscription from Twitch despite filtering: {existing_subscription}"
-                )
-                continue
+        raid_event_subscription_exists = False
 
+        for existing_subscription in existing_subscriptions.data:
             # > The callback URL where the notifications are sent. Included only if method is set to webhook.
             # See: https://dev.twitch.tv/docs/api/reference#get-eventsub-subscriptions
             if existing_subscription.transport.get("method") != "webhook":
@@ -256,52 +273,7 @@ class MonitoredStreamsManager:
                 # Maybe caused by a previous instance of the bot running with a different public URL, just ignore.
                 continue
 
-            if existing_subscription.status == "enabled":
-                # The structure of the `condition` dict depends on the subscription type. For "stream.online"
-                # subscriptions, it contains a "broadcaster_user_id" field.
-                # See: https://dev.twitch.tv/docs/eventsub/eventsub-subscription-types#streamonline
-                broadcaster_user_id = existing_subscription.condition.get("broadcaster_user_id")
-                if broadcaster_user_id is None:
-                    logger.error(
-                        f"Received subscription without broadcaster_user_id condition: {existing_subscription}"
-                    )
-                    continue
-
-                if any(sub.broadcaster_id == broadcaster_user_id for sub in active_subscriptions):
-                    # Duplicate subscription for the same broadcaster ID, remove it.
-                    result = await self._eventsub.unsubscribe_topic(existing_subscription.id)
-                    if not result:
-                        logger.error(
-                            "Failed to unsubscribe from duplicate EventSub subscription ID "
-                            + f"'{existing_subscription.id}'."
-                        )
-                        continue
-                    logger.info(f"Unsubscribed from duplicate EventSub subscription ID '{existing_subscription.id}'.")
-                    continue
-
-                if initial_startup:
-                    # The API wrapper has no builtin way to “re-activate” or “re-register” existing
-                    # subscriptions. So we manually add the callback and activate it (which internally
-                    # simply marks it as active).
-                    # This is really hacky!
-                    # TODO: Consider contributing a proper way to the twitchAPI library.
-                    self._eventsub._add_callback(  # type: ignore [reportPrivateUsage, reportUnknownMemberType]
-                        c_id=existing_subscription.id,
-                        callback=self._on_stream_live,
-                        event=StreamOnlineEvent,
-                    )
-                    await self._eventsub._activate_callback(  # type: ignore[reportPrivateUsage]
-                        c_id=existing_subscription.id,
-                    )
-
-                active_subscriptions.add(
-                    _ActiveSubscription(
-                        broadcaster_id=broadcaster_user_id,
-                        subscription_id=existing_subscription.id,
-                    )
-                )
-                logger.info(f"Subscription to broadcaster ID {broadcaster_user_id} does already exist.")
-            else:
+            if existing_subscription.status != "enabled":
                 # This subscription is in an unexpected or invalid state, so we remove it.
                 result = await self._eventsub.unsubscribe_topic(existing_subscription.id)
                 if not result:
@@ -310,6 +282,71 @@ class MonitoredStreamsManager:
                     )
                     continue
                 logger.info(f"Unsubscribed from invalid EventSub subscription ID '{existing_subscription.id}'.")
+                continue
+
+            # The structure of the `condition` dict depends on the subscription type. For "stream.online"
+            # subscriptions, it contains a "broadcaster_user_id" field.
+            # See: https://dev.twitch.tv/docs/eventsub/eventsub-subscription-types#streamonline
+            match existing_subscription.type:
+                case "stream.online":
+                    broadcaster_user_id = existing_subscription.condition.get("broadcaster_user_id")
+                    if broadcaster_user_id is None:
+                        logger.error(
+                            f"Received subscription without broadcaster_user_id condition: {existing_subscription}"
+                        )
+                        continue
+
+                    if any(sub.broadcaster_id == broadcaster_user_id for sub in active_subscriptions):
+                        # Duplicate subscription for the same broadcaster ID, remove it.
+                        result = await self._eventsub.unsubscribe_topic(existing_subscription.id)
+                        if not result:
+                            logger.error(
+                                "Failed to unsubscribe from duplicate EventSub subscription ID "
+                                + f"'{existing_subscription.id}'."
+                            )
+                            continue
+                        logger.info(
+                            f"Unsubscribed from duplicate EventSub subscription ID '{existing_subscription.id}'."
+                        )
+                        continue
+
+                    if initial_startup:
+                        # The API wrapper has no builtin way to “re-activate” or “re-register” existing
+                        # subscriptions. So we manually add the callback and activate it (which internally
+                        # simply marks it as active).
+                        # This is really hacky!
+                        # TODO: Consider contributing a proper way to the twitchAPI library.
+                        self._eventsub._add_callback(  # type: ignore [reportPrivateUsage, reportUnknownMemberType]
+                            c_id=existing_subscription.id,
+                            callback=self._enqueue_event,
+                            event=StreamOnlineEvent,
+                        )
+                        await self._eventsub._activate_callback(  # type: ignore[reportPrivateUsage]
+                            c_id=existing_subscription.id,
+                        )
+
+                    active_subscriptions.add(
+                        _ActiveSubscription(
+                            broadcaster_id=broadcaster_user_id,
+                            subscription_id=existing_subscription.id,
+                        )
+                    )
+                    logger.info(f"Subscription to broadcaster ID {broadcaster_user_id} does already exist.")
+                case "channel.raid":
+                    raid_event_subscription_exists = True
+                    if initial_startup:
+                        # See comment above about hacky re-activation of existing subscriptions.
+                        self._eventsub._add_callback(  # type: ignore [reportPrivateUsage, reportUnknownMemberType]
+                            c_id=existing_subscription.id,
+                            callback=self._enqueue_event,
+                            event=ChannelRaidEvent,
+                        )
+                        await self._eventsub._activate_callback(  # type: ignore[reportPrivateUsage]
+                            c_id=existing_subscription.id,
+                        )
+                    logger.info("Channel raid subscription does already exist.")
+                case _:
+                    logger.info(f"Skipping unsupported subscription type: {existing_subscription.type}")
 
         channels: Final = self._app_state.database.get_live_notification_channels()
 
@@ -320,7 +357,17 @@ class MonitoredStreamsManager:
         broadcaster_id: Final = await self._get_broadcaster_id()
         if broadcaster_id is not None:
             requested_broadcaster_ids.add(broadcaster_id)
-            # TODO: We could also add subscriptions for other events here, e.g. subscriptions, raids, etc.
+            if not raid_event_subscription_exists:
+                try:
+                    subscription_id = await self._eventsub.listen_channel_raid(
+                        callback=self._enqueue_event,
+                        to_broadcaster_user_id=broadcaster_id,
+                    )
+                    logger.info(
+                        f"Successfully set up listener for channel raid events, subscription ID: {subscription_id}"
+                    )
+                except Exception as e:
+                    logger.exception(f"Failed to set up listener for channel raid events: {e}")
         else:
             logger.error("Cannot set up EventSub subscriptions without broadcaster ID.")
 
@@ -345,7 +392,7 @@ class MonitoredStreamsManager:
         for id_ in broadcaster_ids_to_add:
             if broadcaster_id is not None and id_ == broadcaster_id:
                 try:
-                    subscription_id = await self._eventsub.listen_stream_online(broadcaster_id, self._on_stream_live)
+                    subscription_id = await self._eventsub.listen_stream_online(broadcaster_id, self._enqueue_event)
                     logger.info(
                         "Successfully set up listener for broadcaster's own channel, "
                         + f"subscription ID: {subscription_id}"
@@ -372,7 +419,7 @@ class MonitoredStreamsManager:
                 continue
             logger.info(f"Setting up stream online listener for user '{user.display_name}' (ID: {user.id})")
             try:
-                subscription_id = await self._eventsub.listen_stream_online(user.id, self._on_stream_live)
+                subscription_id = await self._eventsub.listen_stream_online(user.id, self._enqueue_event)
             except Exception as e:
                 logger.exception(f"Failed to set up listener for user '{user.display_name}': {e}")
                 continue

@@ -10,6 +10,7 @@ from chatbot2k.types.chat_platform import ChatPlatform
 from chatbot2k.types.chat_response import ChatResponse
 from chatbot2k.types.feature_flags import FeatureFlags
 from chatbot2k.types.live_notification import LiveNotification
+from chatbot2k.types.shoutout_command import ShoutoutCommand
 
 
 class Chat(ABC):
@@ -22,22 +23,23 @@ class Chat(ABC):
         return self._feature_flags
 
     @abstractmethod
-    def get_message_stream(self) -> AsyncGenerator[ChatMessage]:
-        pass
+    def get_message_stream(self) -> AsyncGenerator[ChatMessage]: ...
 
     @abstractmethod
-    async def send_responses(self, responses: Sequence[ChatResponse]) -> None:
-        pass
+    async def send_responses(self, responses: Sequence[ChatResponse]) -> None: ...
 
     @abstractmethod
-    async def send_broadcast(self, message: BroadcastMessage) -> None:
-        pass
+    async def send_broadcast(self, message: BroadcastMessage) -> None: ...
 
     @abstractmethod
-    async def post_live_notification(self, notification: LiveNotification) -> None:
-        pass
+    async def post_live_notification(self, notification: LiveNotification) -> None: ...
+
+    @abstractmethod
+    async def react_to_raid(self, message: BroadcastMessage) -> None: ...
+
+    @abstractmethod
+    async def shoutout(self, command: ShoutoutCommand) -> None: ...
 
     @property
     @abstractmethod
-    def platform(self) -> ChatPlatform:
-        pass
+    def platform(self) -> ChatPlatform: ...

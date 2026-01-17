@@ -26,6 +26,7 @@ from chatbot2k.types.feature_flags import FeatureFlags
 from chatbot2k.types.feature_flags import FormattingSupport
 from chatbot2k.types.live_notification import LiveNotification
 from chatbot2k.types.permission_level import PermissionLevel
+from chatbot2k.types.shoutout_command import ShoutoutCommand
 
 if TYPE_CHECKING:
     from chatbot2k.app_state import AppState
@@ -109,6 +110,8 @@ class DiscordChat(Chat):
                 broadcasting=False,
                 formatting_support=FormattingSupport.MARKDOWN,
                 can_post_live_notifications=True,
+                can_react_to_raids=False,
+                can_shoutout=False,
                 can_trigger_soundboard=False,
                 can_trigger_entrance_sounds=False,
                 supports_giveaways=False,
@@ -215,6 +218,14 @@ class DiscordChat(Chat):
             )
         except Exception as e:
             logger.exception(f"Unable to post live notification to channel '{notification.target_channel}': {e}")
+
+    @override
+    async def react_to_raid(self, message: BroadcastMessage) -> None:
+        raise NotImplementedError
+
+    @override
+    async def shoutout(self, command: ShoutoutCommand) -> None:
+        raise NotImplementedError
 
     @property
     @override

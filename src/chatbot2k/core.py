@@ -7,11 +7,14 @@ from contextlib import suppress
 from typing import Final
 from typing import final
 
+from twitchAPI.object.eventsub import ChannelRaidEvent
+
 from chatbot2k.app_state import AppState
 from chatbot2k.broadcasters.broadcaster import Broadcaster
 from chatbot2k.chats.chat import Chat
 from chatbot2k.chats.discord_chat import DiscordChat
 from chatbot2k.chats.twitch_chat import TwitchChat
+from chatbot2k.constants import RELATIVE_SOUNDBOARD_FILES_DIRECTORY
 from chatbot2k.live_notifications import MonitoredStreamsManager
 from chatbot2k.types.broadcast_message import BroadcastMessage
 from chatbot2k.types.chat_command import ChatCommand
@@ -23,6 +26,7 @@ from chatbot2k.types.feature_flags import FormattingSupport
 from chatbot2k.types.live_notification import LiveNotification
 from chatbot2k.types.live_notification import LiveNotificationTextTemplate
 from chatbot2k.types.live_notification import StreamLiveEvent
+from chatbot2k.types.shoutout_command import ShoutoutCommand
 from chatbot2k.utils.markdown import markdown_to_sanitized_html
 from chatbot2k.utils.markdown import markdown_to_text
 
@@ -65,6 +69,64 @@ async def _handle_channel_going_live(
         await chat.post_live_notification(notification)
 
 
+async def _handle_channel_being_raided(
+    app_state: AppState,
+    event: ChannelRaidEvent,
+    chats: Sequence[Chat],
+) -> None:
+    logger.info(
+        f"Stream has been raided by {event.event.from_broadcaster_user_name} "
+        + f"(ID = {event.event.from_broadcaster_user_id})"
+    )
+
+    action: Final = app_state.database.get_raid_event_action_by_twitch_user(
+        twitch_user_id=event.event.from_broadcaster_user_id
+    )
+
+    if action is None:
+        logger.info("No action configured for this raid event.")
+        return
+
+    replacements: Final = {
+        "{raider_name}": event.event.from_broadcaster_user_name,
+        "{raid_viewer_count}": str(event.event.viewers),
+    }
+
+    message = action.chat_message_to_send
+    if message is not None:
+        for placeholder, replacement in replacements.items():
+            message = message.replace(placeholder, replacement)
+
+        for chat in chats:
+            if not chat.feature_flags.can_react_to_raids:
+                continue
+            await chat.react_to_raid(BroadcastMessage(message))
+
+    if action.should_shoutout:
+        for chat in chats:
+            if not chat.feature_flags.can_shoutout:
+                continue
+
+            await chat.shoutout(
+                ShoutoutCommand(
+                    from_broadcaster_id=event.event.to_broadcaster_user_id,
+                    to_broadcaster_id=event.event.from_broadcaster_user_id,
+                )
+            )
+
+    if action.soundboard_clip_to_play is not None:
+        soundboard_commands: Final = app_state.database.get_soundboard_commands()
+        soundboard_command: Final = next(
+            (command for command in soundboard_commands if command.name == action.soundboard_clip_to_play),
+            None,
+        )
+        if soundboard_command is None:
+            logger.error(f"Soundboard command '{action.soundboard_clip_to_play}' not found.")
+            return
+        clip_url: Final = f"/{RELATIVE_SOUNDBOARD_FILES_DIRECTORY.as_posix()}/{soundboard_command.filename}"
+        await app_state.enqueue_soundboard_clip_url(clip_url)
+
+
 async def run_main_loop(app_state: AppState) -> None:
     chats: Final[list[Chat]] = [
         await TwitchChat.create(app_state),
@@ -90,6 +152,9 @@ async def run_main_loop(app_state: AppState) -> None:
 
     async def _on_channel_live(event: StreamLiveEvent) -> None:
         await _handle_channel_going_live(app_state, event, chats)
+
+    async def _on_channel_raid(event: ChannelRaidEvent) -> None:
+        await _handle_channel_being_raided(app_state, event, chats)
 
     # The broadcaster tasks can not be part of the task group further below,
     # because they have to be cancelled and recreated when the configuration changes.
@@ -117,7 +182,7 @@ async def run_main_loop(app_state: AppState) -> None:
                     for i, broadcaster in enumerate(app_state.broadcasters):
                         broadcaster_tasks.append(asyncio.create_task(_producer(i + len(chats), broadcaster)))
 
-    monitored_streams: Final = await MonitoredStreamsManager.try_create(app_state, _on_channel_live)
+    monitored_streams: Final = await MonitoredStreamsManager.try_create(app_state, _on_channel_live, _on_channel_raid)
 
     async with asyncio.TaskGroup() as task_group:
         task_group.create_task(_handle_commands())
