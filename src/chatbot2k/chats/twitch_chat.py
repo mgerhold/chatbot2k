@@ -35,7 +35,7 @@ from chatbot2k.types.shoutout_command import ShoutoutCommand
 
 @final
 class TwitchChat(Chat):
-    _SCOPES = [AuthScope.CHAT_READ, AuthScope.CHAT_EDIT]
+    _SCOPES = [AuthScope.CHAT_READ, AuthScope.CHAT_EDIT, AuthScope.MODERATOR_MANAGE_SHOUTOUTS]
 
     def __init__(
         self,
