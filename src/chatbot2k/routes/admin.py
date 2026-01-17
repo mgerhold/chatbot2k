@@ -60,6 +60,8 @@ router: Final = APIRouter(prefix="/admin", dependencies=[Depends(get_broadcaster
 
 logger: Final = logging.getLogger(__name__)
 
+# region General Settings
+
 
 @router.get("/", name="admin_general_settings")
 async def admin_general_settings(
@@ -215,6 +217,11 @@ async def update_general_settings(
     return RedirectResponse(request.url_for("admin_general_settings"), status_code=303)
 
 
+# endregion
+
+# region Constants
+
+
 @router.get("/constants", name="admin_constants")
 async def admin_constants(
     request: Request,
@@ -307,6 +314,11 @@ async def delete_constant(
         url=request.app.url_path_for("admin_constants"),
         status_code=303,
     )
+
+
+# endregion
+
+# region Broadcasts
 
 
 @router.get("/broadcasts", name="admin_broadcasts")
@@ -453,6 +465,11 @@ async def delete_broadcast(
     )
 
 
+# endregion
+
+# region Live Notifications
+
+
 @router.get("/live-notifications", name="admin_live_notifications")
 async def admin_live_notifications(
     request: Request,
@@ -560,6 +577,11 @@ async def delete_live_notification_channel(
     except KeyError as e:
         raise HTTPException(status_code=404, detail=str(e)) from e
     return RedirectResponse(request.url_for("admin_live_notifications"), status_code=303)
+
+
+# endregion
+
+# region Soundboard
 
 
 @router.get("/soundboard", name="admin_soundboard")
@@ -721,6 +743,11 @@ async def delete_soundboard_clip(
     return RedirectResponse(request.url_for("admin_soundboard"), status_code=303)
 
 
+# endregion
+
+# region Pending Clips
+
+
 @router.get("/pending-clips", name="admin_pending_clips")
 async def admin_pending_clips(
     request: Request,
@@ -874,6 +901,11 @@ async def reject_pending_clip(
         raise HTTPException(status_code=404, detail=str(e)) from e
 
     return RedirectResponse(request.url_for("admin_pending_clips"), status_code=303)
+
+
+# endregion
+
+# region Entrance Sounds
 
 
 @router.get("/entrance-sounds", name="admin_entrance_sounds")
@@ -1033,3 +1065,6 @@ async def reset_entry_sounds_session(
 ) -> Response:
     app_state.entrance_sound_handler.reset_entrance_sounds_session()
     return RedirectResponse(request.url_for("admin_entrance_sounds"), status_code=303)
+
+
+# endregion

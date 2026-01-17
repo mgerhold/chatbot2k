@@ -4,8 +4,11 @@ from contextlib import contextmanager
 from datetime import UTC
 from datetime import datetime
 from datetime import timedelta
+from enum import Enum
+from enum import auto
 from pathlib import Path
 from typing import Final
+from typing import Literal
 from typing import NamedTuple
 from typing import Optional
 from typing import final
@@ -15,6 +18,7 @@ from sqlalchemy import event
 from sqlalchemy import func
 from sqlalchemy.engine.interfaces import DBAPIConnection
 from sqlalchemy.pool.base import ConnectionPoolEntry
+from sqlalchemy.sql.operators import is_
 from sqlmodel import Session
 from sqlmodel import col
 from sqlmodel import create_engine
@@ -33,6 +37,7 @@ from chatbot2k.database.tables import Notification
 from chatbot2k.database.tables import Parameter
 from chatbot2k.database.tables import ParameterizedCommand
 from chatbot2k.database.tables import PendingSoundboardClip
+from chatbot2k.database.tables import RaidEventAction
 from chatbot2k.database.tables import ReceivedTwitchMessage
 from chatbot2k.database.tables import Script
 from chatbot2k.database.tables import ScriptStore
@@ -60,10 +65,15 @@ def create_database_url(sqlite_db_path: Path) -> str:
 
 
 @final
+class TwitchUserVariants(Enum):
+    ALL_USERS = auto()
+
+
+@final
 class Database:
     def __init__(self, sqlite_db_path: Path, *, echo: bool = False) -> None:
         url: Final = create_database_url(sqlite_db_path)
-        self._engine = create_engine(url, echo=echo)
+        self._engine: Final = create_engine(url, echo=echo)
 
         # Ensure SQLite enforces ON DELETE CASCADE at the DB level
         if url.startswith("sqlite"):
@@ -901,4 +911,82 @@ class Database:
             if notification is None:
                 raise KeyError(f"Notification with ID '{notification_id}' not found")
             s.delete(notification)
+            s.commit()
+
+    def add_raid_event_action(
+        self,
+        *,
+        twitch_user_id: str | Literal[TwitchUserVariants.ALL_USERS],
+        chat_message_to_send: Optional[str],
+        soundboard_clip_to_play: Optional[str],
+        should_shoutout: bool,
+    ) -> None:
+        with self._session() as s:
+            action: Final = RaidEventAction(
+                twitch_user_id=None if twitch_user_id == TwitchUserVariants.ALL_USERS else twitch_user_id,
+                chat_message_to_send=chat_message_to_send,
+                soundboard_clip_to_play=soundboard_clip_to_play,
+                should_shoutout=should_shoutout,
+            )
+            s.add(action)
+            s.commit()
+
+    def get_raid_event_actions(self) -> list[RaidEventAction]:
+        with self._session() as s:
+            return list(s.exec(select(RaidEventAction)).all())
+
+    def get_raid_event_action(self, *, twitch_user_id: str) -> Optional[RaidEventAction]:
+        """
+        Gets a raid event action for a specific Twitch user ID or for all users if no
+        entry for the specified user ID exists. Returns `None` if there is no entry for
+        that user ID and no general fallback entry (for all users).
+        """
+        with self._session() as s:
+            action: Final = s.exec(
+                select(RaidEventAction).where(RaidEventAction.twitch_user_id == twitch_user_id)
+            ).one_or_none()
+            if action is not None:
+                return action
+
+            # Fallback to the "all users" entry.
+            return s.exec(select(RaidEventAction).where(is_(col(RaidEventAction.twitch_user_id), None))).one_or_none()
+
+    def update_raid_event_action(
+        self,
+        *,
+        twitch_user_id: str | Literal[TwitchUserVariants.ALL_USERS],
+        chat_message_to_send: Optional[str],
+        soundboard_clip_to_play: Optional[str],
+        should_shoutout: bool,
+    ) -> None:
+        with self._session() as s:
+            match twitch_user_id:
+                case TwitchUserVariants.ALL_USERS:
+                    statement = select(RaidEventAction).where(is_(col(RaidEventAction.twitch_user_id), None))
+                case str():
+                    statement = select(RaidEventAction).where(RaidEventAction.twitch_user_id == twitch_user_id)
+            action: Final = s.exec(statement).one_or_none()
+            if action is None:
+                raise KeyError(f"RaidEventAction for Twitch user ID '{twitch_user_id}' not found")
+            action.chat_message_to_send = chat_message_to_send
+            action.soundboard_clip_to_play = soundboard_clip_to_play
+            action.should_shoutout = should_shoutout
+            s.add(action)
+            s.commit()
+
+    def delete_raid_event_action(
+        self,
+        *,
+        twitch_user_id: str | Literal[TwitchUserVariants.ALL_USERS],
+    ) -> None:
+        with self._session() as s:
+            match twitch_user_id:
+                case TwitchUserVariants.ALL_USERS:
+                    statement = select(RaidEventAction).where(is_(col(RaidEventAction.twitch_user_id), None))
+                case str():
+                    statement = select(RaidEventAction).where(RaidEventAction.twitch_user_id == twitch_user_id)
+            action: Final = s.exec(statement).one_or_none()
+            if action is None:
+                raise KeyError(f"RaidEventAction for Twitch user ID '{twitch_user_id}' not found")
+            s.delete(action)
             s.commit()
