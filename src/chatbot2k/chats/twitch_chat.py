@@ -14,6 +14,7 @@ from twitchAPI.chat import ChatMessage as TwitchChatMessage
 from twitchAPI.chat import EventData
 from twitchAPI.helper import first
 from twitchAPI.oauth import UserAuthenticator
+from twitchAPI.object.api import TwitchUser
 from twitchAPI.twitch import Twitch
 from twitchAPI.type import AuthScope
 from twitchAPI.type import ChatEvent
@@ -29,19 +30,28 @@ from chatbot2k.types.feature_flags import FeatureFlags
 from chatbot2k.types.feature_flags import FormattingSupport
 from chatbot2k.types.live_notification import LiveNotification
 from chatbot2k.types.permission_level import PermissionLevel
+from chatbot2k.types.shoutout_command import ShoutoutCommand
 
 
 @final
 class TwitchChat(Chat):
     _SCOPES = [AuthScope.CHAT_READ, AuthScope.CHAT_EDIT]
 
-    def __init__(self, client: TwitchChatClient, channel: str) -> None:
+    def __init__(
+        self,
+        client: TwitchChatClient,
+        *,
+        channel: str,
+        bot_user: TwitchUser,
+    ) -> None:
         super().__init__(
             FeatureFlags(
                 regular_chat=True,
                 broadcasting=True,
                 formatting_support=FormattingSupport.NONE,
                 can_post_live_notifications=False,
+                can_react_to_raids=True,
+                can_shoutout=True,
                 can_trigger_soundboard=True,
                 can_trigger_entrance_sounds=True,
                 supports_giveaways=True,
@@ -50,6 +60,7 @@ class TwitchChat(Chat):
         self._app_loop: Final = asyncio.get_running_loop()
         self._message_queue: Final[asyncio.Queue[ChatMessage]] = asyncio.Queue()
         self._channel: Final = channel
+        self._bot_user: Final = bot_user
 
         async def _on_ready(ready_event: EventData) -> None:
             await self._on_ready(ready_event)
@@ -101,8 +112,15 @@ class TwitchChat(Chat):
             validate=True,
         )
         chat: Final = await TwitchChatClient(client)
+        bot_user: Final = await first(chat.twitch.get_users())
+        if bot_user is None:
+            raise RuntimeError("Could not get bot user ID from Twitch.")
 
-        return cls(chat, app_state.config.twitch_channel)
+        return cls(
+            chat,
+            channel=app_state.config.twitch_channel,
+            bot_user=bot_user,
+        )
 
     @override
     async def get_message_stream(self) -> AsyncGenerator[ChatMessage]:
@@ -132,6 +150,18 @@ class TwitchChat(Chat):
     @override
     async def post_live_notification(self, notification: LiveNotification) -> None:
         raise NotImplementedError
+
+    @override
+    async def react_to_raid(self, message: BroadcastMessage) -> None:
+        await self._send_message(message.text)
+
+    @override
+    async def shoutout(self, command: ShoutoutCommand) -> None:
+        await self._twitch_chat_client.twitch.send_a_shoutout(
+            from_broadcaster_id=command.from_broadcaster_id,
+            to_broadcaster_id=command.to_broadcaster_id,
+            moderator_id=self._bot_user.id,
+        )
 
     @property
     @override
