@@ -239,6 +239,9 @@ class MonitoredStreamsManager:
             target_token=AuthType.APP,  # For webhook subscriptions (not websocket).
         )
 
+        if self._app_state.config.ignore_existing_subscriptions:
+            existing_subscriptions.data = []
+
         for existing_subscription in existing_subscriptions.data:
             logging.info(f"Existing subscription: {existing_subscription}")
 

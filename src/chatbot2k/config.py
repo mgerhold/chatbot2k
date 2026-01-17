@@ -67,6 +67,7 @@ class Config:
         self._twitch_eventsub_public_url: Optional[str] = None
         self._twitch_eventsub_listen_port: Optional[int] = None
         self._twitch_eventsub_secret: Optional[str] = None
+        self._ignore_existing_subscriptions: Optional[bool] = None
         self._jwt_secret: Optional[str] = None
         self._discord_token: Optional[str] = None
         self._discord_moderator_role_id: Optional[int] = None
@@ -102,6 +103,9 @@ class Config:
         self._twitch_eventsub_public_url = get_environment_variable_or_raise("TWITCH_EVENTSUB_PUBLIC_URL")
         self._twitch_eventsub_listen_port = int(get_environment_variable_or_raise("TWITCH_EVENTSUB_LISTEN_PORT"))
         self._twitch_eventsub_secret = get_environment_variable_or_raise("TWITCH_EVENTSUB_SECRET")
+        self._ignore_existing_subscriptions = (
+            get_environment_variable_or_raise("IGNORE_EXISTING_SUBSCRIPTIONS").lower() == "true"
+        )
         self._jwt_secret = get_environment_variable_or_raise("JWT_SECRET")
         self._discord_token = get_environment_variable_or_raise("DISCORD_BOT_TOKEN")
         discord_moderator_role_id_str: Final = get_environment_variable_or_default("DISCORD_MODERATOR_ROLE_ID", None)
@@ -194,6 +198,12 @@ class Config:
         if self._twitch_eventsub_secret is None:
             raise AssertionError("Twitch EventSub secret is not set. This should not happen.")
         return self._twitch_eventsub_secret
+
+    @property
+    def ignore_existing_subscriptions(self) -> bool:
+        if self._ignore_existing_subscriptions is None:
+            raise AssertionError("Ignore existing subscriptions flag is not set. This should not happen.")
+        return self._ignore_existing_subscriptions
 
     @property
     def jwt_secret(self) -> str:
