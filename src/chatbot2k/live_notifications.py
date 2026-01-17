@@ -240,6 +240,16 @@ class MonitoredStreamsManager:
         )
 
         if self._app_state.config.ignore_existing_subscriptions:
+            # Remove all existing subscriptions.
+            for existing_subscription in existing_subscriptions.data:
+                result = await self._eventsub.unsubscribe_topic(existing_subscription.id)
+                if not result:
+                    logger.error(
+                        f"Failed to unsubscribe from existing EventSub subscription ID '{existing_subscription.id}'."
+                    )
+                    continue
+                logger.info(f"Unsubscribed from existing EventSub subscription ID '{existing_subscription.id}'.")
+
             existing_subscriptions.data = []
 
         for existing_subscription in existing_subscriptions.data:
