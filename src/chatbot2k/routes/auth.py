@@ -112,11 +112,10 @@ async def twitch_callback(
     code: Optional[str] = None,
     state: Optional[str] = None,
 ) -> Response:
-    expected_state: Final = request.cookies.get(OAUTH_STATE_COOKIE)
-    if expected_state is None or state is None or code is None or state != expected_state:
+    if state is None or code is None:
         raise HTTPException(
             status_code=HTTPStatus.BAD_REQUEST,
-            detail="OAuth state mismatch or missing code",
+            detail="Missing code or state parameter",
         )
 
     login_state, is_owner = await _get_or_create_login_state(state)
@@ -140,6 +139,15 @@ async def twitch_callback(
         raise HTTPException(
             status_code=HTTPStatus.UNAUTHORIZED,
             detail=login_state.error or "Failed to authenticate with Twitch",
+        )
+
+    # Only the owner (first request) validated the cookie.
+    expected_state: Final = request.cookies.get(OAUTH_STATE_COOKIE)
+    if expected_state is None or state != expected_state:
+        login_state.error = "OAuth state mismatch"
+        raise HTTPException(
+            status_code=HTTPStatus.BAD_REQUEST,
+            detail="OAuth state mismatch or missing code",
         )
 
     try:
