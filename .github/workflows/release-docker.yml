@@ -41,8 +41,32 @@ jobs:
 
       - name: Build Docker image
         run: |
-          docker build -t ${{ steps.image.outputs.name }} .
+          docker build -t ghcr.io/${GITHUB_REPOSITORY,,}:${{ steps.docker_tag.outputs.tag }} .
+
+          if [ "${{ steps.docker_tag.outputs.tag }}" != "nightly" ]; then
+            docker tag ghcr.io/${GITHUB_REPOSITORY,,}:${{ steps.docker_tag.outputs.tag }} \
+                       ghcr.io/${GITHUB_REPOSITORY,,}:stable
+          fi
 
       - name: Push Docker image
         run: |
-          docker push ${{ steps.image.outputs.name }}
+          docker push ghcr.io/${GITHUB_REPOSITORY,,}:${{ steps.docker_tag.outputs.tag }}
+      
+          if [ "${{ steps.docker_tag.outputs.tag }}" != "nightly" ]; then
+            docker push ghcr.io/${GITHUB_REPOSITORY,,}:stable
+          fi
+
+  deploy:
+    runs-on: ubuntu-latest
+    needs: build-and-push
+    if: github.event_name == 'release'
+
+    steps:
+      - name: Trigger deploy (forced-command)
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.DEPLOY_HOST }}
+          username: ${{ secrets.DEPLOY_USER }}
+          key: ${{ secrets.DEPLOY_SSH_KEY }}
+          script: |
+            true
