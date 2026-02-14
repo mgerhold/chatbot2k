@@ -266,6 +266,57 @@
                 element.volume = volumeValue;
             }
         });
+
+        // Handle volume changes and send to backend
+        const volumeDebounceTimers = new Map();
+        
+        mediaElements.forEach(element => {
+            element.addEventListener('volumechange', function() {
+                const commandName = element.getAttribute('data-command');
+                if (!commandName) {
+                    console.error('Missing data-command attribute on media element:', element);
+                    return;
+                }
+                
+                const newVolume = element.volume;
+                
+                // Clear existing timer for this element
+                if (volumeDebounceTimers.has(element)) {
+                    clearTimeout(volumeDebounceTimers.get(element));
+                }
+                
+                // Set new debounced timer
+                const timerId = setTimeout(async () => {
+                    try {
+                        const response = await fetch(`/admin/soundboard/volume/${encodeURIComponent(commandName)}`, {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json',
+                            },
+                            body: JSON.stringify({ volume: newVolume }),
+                        });
+                        
+                        if (!response.ok) {
+                            const errorText = await response.text();
+                            let errorMessage = 'Failed to update volume';
+                            try {
+                                const errorJson = JSON.parse(errorText);
+                                errorMessage = errorJson.detail || errorMessage;
+                            } catch {
+                                // Keep default error message
+                            }
+                            console.error('Failed to update volume:', errorMessage);
+                        }
+                    } catch (error) {
+                        console.error('Error updating volume:', error);
+                    } finally {
+                        volumeDebounceTimers.delete(element);
+                    }
+                }, 500); // Debounce for 500ms
+                
+                volumeDebounceTimers.set(element, timerId);
+            });
+        });
     });
 </script>
 {% endblock %}
@@ -328,43 +379,43 @@
                 </td>
                 <td>
                     {% if base.endswith('.mp3') %}
-                    <audio controls preload="metadata" src="{{ sb.clip_url }}" type="audio/mpeg" data-volume="{{ sb.volume }}">
+                    <audio controls preload="metadata" src="{{ sb.clip_url }}" type="audio/mpeg" data-volume="{{ sb.volume }}" data-command="{{ sb.command }}">
                         Your browser can't play this clip. <a href="{{ sb.clip_url }}" target="_blank" rel="noopener noreferrer">Open</a>.
                     </audio>
                     {% elif base.endswith('.wav') %}
-                    <audio controls preload="metadata" src="{{ sb.clip_url }}" type="audio/wav" data-volume="{{ sb.volume }}">
+                    <audio controls preload="metadata" src="{{ sb.clip_url }}" type="audio/wav" data-volume="{{ sb.volume }}" data-command="{{ sb.command }}">
                         Your browser can't play this clip. <a href="{{ sb.clip_url }}" target="_blank" rel="noopener noreferrer">Open</a>.
                     </audio>
                     {% elif base.endswith('.ogg') or base.endswith('.opus') %}
-                    <audio controls preload="metadata" src="{{ sb.clip_url }}" type="audio/ogg" data-volume="{{ sb.volume }}">
+                    <audio controls preload="metadata" src="{{ sb.clip_url }}" type="audio/ogg" data-volume="{{ sb.volume }}" data-command="{{ sb.command }}">
                         Your browser can't play this clip. <a href="{{ sb.clip_url }}" target="_blank" rel="noopener noreferrer">Open</a>.
                     </audio>
                     {% elif base.endswith('.flac') %}
-                    <audio controls preload="metadata" src="{{ sb.clip_url }}" type="audio/flac" data-volume="{{ sb.volume }}">
+                    <audio controls preload="metadata" src="{{ sb.clip_url }}" type="audio/flac" data-volume="{{ sb.volume }}" data-command="{{ sb.command }}">
                         Your browser can't play this clip. <a href="{{ sb.clip_url }}" target="_blank" rel="noopener noreferrer">Open</a>.
                     </audio>
                     {% elif base.endswith('.aac') %}
-                    <audio controls preload="metadata" src="{{ sb.clip_url }}" type="audio/aac" data-volume="{{ sb.volume }}">
+                    <audio controls preload="metadata" src="{{ sb.clip_url }}" type="audio/aac" data-volume="{{ sb.volume }}" data-command="{{ sb.command }}">
                         Your browser can't play this clip. <a href="{{ sb.clip_url }}" target="_blank" rel="noopener noreferrer">Open</a>.
                     </audio>
                     {% elif base.endswith('.m4a') %}
-                    <audio controls preload="metadata" src="{{ sb.clip_url }}" type="audio/mp4" data-volume="{{ sb.volume }}">
+                    <audio controls preload="metadata" src="{{ sb.clip_url }}" type="audio/mp4" data-volume="{{ sb.volume }}" data-command="{{ sb.command }}">
                         Your browser can't play this clip. <a href="{{ sb.clip_url }}" target="_blank" rel="noopener noreferrer">Open</a>.
                     </audio>
                     {% elif base.endswith('.mp4') or base.endswith('.m4v') %}
-                    <video controls preload="metadata" playsinline class="clip-preview" src="{{ sb.clip_url }}" type="video/mp4" data-volume="{{ sb.volume }}">
+                    <video controls preload="metadata" playsinline class="clip-preview" src="{{ sb.clip_url }}" type="video/mp4" data-volume="{{ sb.volume }}" data-command="{{ sb.command }}">
                         Your browser can't play this clip. <a href="{{ sb.clip_url }}" target="_blank" rel="noopener noreferrer">Open</a>.
                     </video>
                     {% elif base.endswith('.webm') %}
-                    <video controls preload="metadata" playsinline class="clip-preview" src="{{ sb.clip_url }}" type="video/webm" data-volume="{{ sb.volume }}">
+                    <video controls preload="metadata" playsinline class="clip-preview" src="{{ sb.clip_url }}" type="video/webm" data-volume="{{ sb.volume }}" data-command="{{ sb.command }}">
                         Your browser can't play this clip. <a href="{{ sb.clip_url }}" target="_blank" rel="noopener noreferrer">Open</a>.
                     </video>
                     {% elif base.endswith('.mov') %}
-                    <video controls preload="metadata" playsinline class="clip-preview" src="{{ sb.clip_url }}" type="video/quicktime" data-volume="{{ sb.volume }}">
+                    <video controls preload="metadata" playsinline class="clip-preview" src="{{ sb.clip_url }}" type="video/quicktime" data-volume="{{ sb.volume }}" data-command="{{ sb.command }}">
                         Your browser can't play this clip. <a href="{{ sb.clip_url }}" target="_blank" rel="noopener noreferrer">Open</a>.
                     </video>
                     {% elif base.endswith('.mkv') %}
-                    <video controls preload="metadata" playsinline class="clip-preview" src="{{ sb.clip_url }}" type="video/x-matroska" data-volume="{{ sb.volume }}">
+                    <video controls preload="metadata" playsinline class="clip-preview" src="{{ sb.clip_url }}" type="video/x-matroska" data-volume="{{ sb.volume }}" data-command="{{ sb.command }}">
                         Your browser can't play this clip. <a href="{{ sb.clip_url }}" target="_blank" rel="noopener noreferrer">Open</a>.
                     </video>
                     {% else %}
