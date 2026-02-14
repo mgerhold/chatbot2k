@@ -5,6 +5,7 @@ from collections.abc import Callable
 from collections.abc import Sequence
 from contextlib import suppress
 from typing import Final
+from typing import Optional
 from typing import final
 
 from twitchAPI.object.eventsub import ChannelRaidEvent
@@ -14,7 +15,9 @@ from chatbot2k.broadcasters.broadcaster import Broadcaster
 from chatbot2k.chats.chat import Chat
 from chatbot2k.chats.discord_chat import DiscordChat
 from chatbot2k.chats.twitch_chat import TwitchChat
+from chatbot2k.command_handlers.clip_handler import ClipHandler
 from chatbot2k.constants import RELATIVE_SOUNDBOARD_FILES_DIRECTORY
+from chatbot2k.entrance_sounds import EntranceSoundHandler
 from chatbot2k.live_notifications import MonitoredStreamsManager
 from chatbot2k.types.broadcast_message import BroadcastMessage
 from chatbot2k.types.chat_command import ChatCommand
@@ -203,8 +206,11 @@ async def run_main_loop(app_state: AppState) -> None:
                 case _Sentinel():
                     active_participant_indices.discard(i)
                 case ChatMessage():
-                    if chats[i].feature_flags.can_trigger_entrance_sounds:
-                        await app_state.entrance_sound_handler.trigger_entrance_sounds(chat_message)
+                    entrance_sound_to_play = (
+                        None
+                        if not chats[i].feature_flags.can_trigger_entrance_sounds
+                        else await app_state.entrance_sound_handler.get_entrance_sound(chat_message)
+                    )
 
                     # Notify broadcasters about the chat message so they can react to it,
                     # e.g. by delaying the next broadcast if it was already triggered by
@@ -215,6 +221,8 @@ async def run_main_loop(app_state: AppState) -> None:
                             continue
                         await broadcaster.on_chat_message_received(chat_message)
                     if not chats[i].feature_flags.regular_chat:
+                        if entrance_sound_to_play is not None:
+                            await entrance_sound_to_play.trigger()
                         # This chat is not capable of processing regular chat messages.
                         continue
 
@@ -222,7 +230,15 @@ async def run_main_loop(app_state: AppState) -> None:
                         responses = _preprocess_outbound_messages_for_chat(responses, chat)
                         await chat.send_responses(responses)
 
-                    asyncio.create_task(_process_chat_message(chat_message, app_state, _callback, chats[i]))
+                    asyncio.create_task(
+                        _process_chat_message(
+                            chat_message,
+                            app_state,
+                            _callback,
+                            chats[i],
+                            entrance_sound_to_play=entrance_sound_to_play,
+                        )
+                    )
                 case BroadcastMessage():
                     for j, chat in enumerate(chats):
                         if j not in active_participant_indices:
@@ -243,47 +259,62 @@ async def _process_chat_message(
     app_state: AppState,
     callback: Callable[[list[ChatResponse], Chat], Awaitable[None]],
     chat: Chat,
+    *,
+    entrance_sound_to_play: Optional[EntranceSoundHandler.EntranceSoundCommand],
 ) -> None:
-    logging.debug(f"Processing chat message from {chat_message.sender_name}: {chat_message.text}")
-    command: Final = ChatCommand.from_chat_message(chat_message)
-    if command is None:
-        explanation_result: Final = app_state.dictionary.get_explanations(chat_message)  # Maybe `None`.
-        if explanation_result is not None:
-            await callback(explanation_result, chat)
-        return None
+    can_trigger_entrance_sound = True
+    try:
+        logging.debug(f"Processing chat message from {chat_message.sender_name}: {chat_message.text}")
+        command: Final = ChatCommand.from_chat_message(chat_message)
+        if command is None:
+            explanation_result: Final = app_state.dictionary.get_explanations(chat_message)  # Maybe `None`.
+            if explanation_result is not None:
+                await callback(explanation_result, chat)
+            return None
 
-    if command.name not in app_state.command_handlers:
-        return None  # No known command.
+        if command.name not in app_state.command_handlers:
+            return None  # No known command.
 
-    command_handler: Final = app_state.command_handlers[command.name]
-    if command_handler.min_required_permission_level > chat_message.sender_permission_level:
-        logging.info(
-            f"User {chat_message.sender_name} does not have permission to use command {command.name}. "
-            + f"Their permission level is {chat_message.sender_permission_level}"
-        )
-        return None
-    logging.info(
-        f"Processing command {command.name} from user {chat_message.sender_name} "
-        + f"with permission level {chat_message.sender_permission_level} ({chat_message.sender_permission_level.name})"
-    )
-    responses: Final = await asyncio.create_task(command_handler.handle_command(command))
-    dictionary_entries: Final = app_state.dictionary.get_explanations(chat_message)
-    if dictionary_entries is not None and responses is not None:
-        responses.extend(dictionary_entries)
-
-    result: Final = (
-        responses
-        if responses is not None
-        else [
-            ChatResponse(
-                text=f"Usage: {command_handler.usage}",
-                chat_message=chat_message,
+        command_handler: Final = app_state.command_handlers[command.name]
+        if command_handler.min_required_permission_level > chat_message.sender_permission_level:
+            logging.info(
+                f"User {chat_message.sender_name} does not have permission to use command {command.name}. "
+                + f"Their permission level is {chat_message.sender_permission_level}"
             )
-        ]
-    )
+            return None
 
-    await callback(result, chat)
-    return None
+        is_soundboard_command: Final = isinstance(command_handler, ClipHandler)
+        if is_soundboard_command:
+            # Do not trigger entrance sounds for soundboard commands to avoid
+            # multiple sounds being triggered at the same time.
+            can_trigger_entrance_sound = False
+
+        logging.info(
+            f"Processing command {command.name} from user {chat_message.sender_name} "
+            + f"with permission level {chat_message.sender_permission_level} "
+            + f"({chat_message.sender_permission_level.name})"
+        )
+        responses: Final = await asyncio.create_task(command_handler.handle_command(command))
+        dictionary_entries: Final = app_state.dictionary.get_explanations(chat_message)
+        if dictionary_entries is not None and responses is not None:
+            responses.extend(dictionary_entries)
+
+        result: Final = (
+            responses
+            if responses is not None
+            else [
+                ChatResponse(
+                    text=f"Usage: {command_handler.usage}",
+                    chat_message=chat_message,
+                )
+            ]
+        )
+
+        await callback(result, chat)
+        return None
+    finally:
+        if can_trigger_entrance_sound and entrance_sound_to_play is not None:
+            await entrance_sound_to_play.trigger()
 
 
 def _preprocess_outbound_messages_for_chat[T: ChatResponse | BroadcastMessage](
