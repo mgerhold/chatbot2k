@@ -1,3 +1,4 @@
+from typing import Final
 from typing import Optional
 from typing import final
 from typing import override
@@ -18,13 +19,15 @@ class ClipHandler(CommandHandler):
         *,
         name: str,
         filename: str,
+        volume: float,
         uploader_twitch_login: Optional[str] = None,
         uploader_twitch_display_name: Optional[str] = None,
     ) -> None:
         super().__init__(app_state, name=name)
-        self._clip_url = f"/{RELATIVE_SOUNDBOARD_FILES_DIRECTORY.as_posix()}/{filename}"
-        self._uploader_twitch_login = uploader_twitch_login
-        self._uploader_twitch_display_name = uploader_twitch_display_name
+        self._clip_url: Final = f"/{RELATIVE_SOUNDBOARD_FILES_DIRECTORY.as_posix()}/{filename}"
+        self._volume: Final = volume
+        self._uploader_twitch_login: Final = uploader_twitch_login
+        self._uploader_twitch_display_name: Final = uploader_twitch_display_name
 
     @property
     def clip_url(self) -> str:
@@ -37,6 +40,10 @@ class ClipHandler(CommandHandler):
     @property
     def uploader_twitch_display_name(self) -> Optional[str]:
         return self._uploader_twitch_display_name
+
+    @property
+    def volume(self) -> float:
+        return self._volume
 
     @override
     async def handle_command(self, chat_command: ChatCommand) -> Optional[list[ChatResponse]]:

@@ -284,43 +284,43 @@
                         <td class="mono"><code>{{ sb.command | e }}</code></td>
                         <td>
                             {% if base.endswith('.mp3') %}
-                            <audio controls preload="metadata" src="{{ sb.clip_url }}" type="audio/mpeg">
+                            <audio controls controlsList="novolume" preload="metadata" src="{{ sb.clip_url }}" type="audio/mpeg" data-volume="{{ sb.volume }}">
                                 Your browser can't play this clip. <a href="{{ sb.clip_url }}" target="_blank" rel="noopener noreferrer">Open</a>.
                             </audio>
                             {% elif base.endswith('.wav') %}
-                            <audio controls preload="metadata" src="{{ sb.clip_url }}" type="audio/wav">
+                            <audio controls controlsList="novolume" preload="metadata" src="{{ sb.clip_url }}" type="audio/wav" data-volume="{{ sb.volume }}">
                                 Your browser can't play this clip. <a href="{{ sb.clip_url }}" target="_blank" rel="noopener noreferrer">Open</a>.
                             </audio>
                             {% elif base.endswith('.ogg') or base.endswith('.opus') %}
-                            <audio controls preload="metadata" src="{{ sb.clip_url }}" type="audio/ogg">
+                            <audio controls controlsList="novolume" preload="metadata" src="{{ sb.clip_url }}" type="audio/ogg" data-volume="{{ sb.volume }}">
                                 Your browser can't play this clip. <a href="{{ sb.clip_url }}" target="_blank" rel="noopener noreferrer">Open</a>.
                             </audio>
                             {% elif base.endswith('.flac') %}
-                            <audio controls preload="metadata" src="{{ sb.clip_url }}" type="audio/flac">
+                            <audio controls controlsList="novolume" preload="metadata" src="{{ sb.clip_url }}" type="audio/flac" data-volume="{{ sb.volume }}">
                                 Your browser can't play this clip. <a href="{{ sb.clip_url }}" target="_blank" rel="noopener noreferrer">Open</a>.
                             </audio>
                             {% elif base.endswith('.aac') %}
-                            <audio controls preload="metadata" src="{{ sb.clip_url }}" type="audio/aac">
+                            <audio controls controlsList="novolume" preload="metadata" src="{{ sb.clip_url }}" type="audio/aac" data-volume="{{ sb.volume }}">
                                 Your browser can't play this clip. <a href="{{ sb.clip_url }}" target="_blank" rel="noopener noreferrer">Open</a>.
                             </audio>
                             {% elif base.endswith('.m4a') %}
-                            <audio controls preload="metadata" src="{{ sb.clip_url }}" type="audio/mp4">
+                            <audio controls controlsList="novolume" preload="metadata" src="{{ sb.clip_url }}" type="audio/mp4" data-volume="{{ sb.volume }}">
                                 Your browser can't play this clip. <a href="{{ sb.clip_url }}" target="_blank" rel="noopener noreferrer">Open</a>.
                             </audio>
                             {% elif base.endswith('.mp4') or base.endswith('.m4v') %}
-                            <video controls preload="metadata" playsinline class="sb-preview" src="{{ sb.clip_url }}" type="video/mp4">
+                            <video controls controlsList="novolume" preload="metadata" playsinline class="sb-preview" src="{{ sb.clip_url }}" type="video/mp4" data-volume="{{ sb.volume }}">
                                 Your browser can't play this clip. <a href="{{ sb.clip_url }}" target="_blank" rel="noopener noreferrer">Open</a>.
                             </video>
                             {% elif base.endswith('.webm') %}
-                            <video controls preload="metadata" playsinline class="sb-preview" src="{{ sb.clip_url }}" type="video/webm">
+                            <video controls controlsList="novolume" preload="metadata" playsinline class="sb-preview" src="{{ sb.clip_url }}" type="video/webm" data-volume="{{ sb.volume }}">
                                 Your browser can't play this clip. <a href="{{ sb.clip_url }}" target="_blank" rel="noopener noreferrer">Open</a>.
                             </video>
                             {% elif base.endswith('.mov') %}
-                            <video controls preload="metadata" playsinline class="sb-preview" src="{{ sb.clip_url }}" type="video/quicktime">
+                            <video controls controlsList="novolume" preload="metadata" playsinline class="sb-preview" src="{{ sb.clip_url }}" type="video/quicktime" data-volume="{{ sb.volume }}">
                                 Your browser can't play this clip. <a href="{{ sb.clip_url }}" target="_blank" rel="noopener noreferrer">Open</a>.
                             </video>
                             {% elif base.endswith('.mkv') %}
-                            <video controls preload="metadata" playsinline class="sb-preview" src="{{ sb.clip_url }}" type="video/x-matroska">
+                            <video controls controlsList="novolume" preload="metadata" playsinline class="sb-preview" src="{{ sb.clip_url }}" type="video/x-matroska" data-volume="{{ sb.volume }}">
                                 Your browser can't play this clip. <a href="{{ sb.clip_url }}" target="_blank" rel="noopener noreferrer">Open</a>.
                             </video>
                             {% else %}
@@ -358,6 +358,15 @@
 <!-- Refresh source code buttons -->
 <script>
   document.addEventListener("DOMContentLoaded", () => {
+    // Set volume on all audio/video elements based on data-volume attribute
+    const mediaElements = document.querySelectorAll('audio[data-volume], video[data-volume]');
+    mediaElements.forEach(element => {
+      const volumeValue = parseFloat(element.getAttribute('data-volume'));
+      if (!isNaN(volumeValue) && volumeValue >= 0.0 && volumeValue <= 1.0) {
+        element.volume = volumeValue;
+      }
+    });
+
     // Add click handlers to all refresh buttons
     document.querySelectorAll(".btn-refresh-source").forEach(button => {
       button.addEventListener("click", async (e) => {

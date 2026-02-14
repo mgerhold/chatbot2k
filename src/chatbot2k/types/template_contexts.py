@@ -72,6 +72,7 @@ class SoundboardCommand(BaseModel):
     clip_url: str
     uploader_twitch_login: Optional[str]
     uploader_twitch_display_name: Optional[str]
+    volume: float
 
 
 @final

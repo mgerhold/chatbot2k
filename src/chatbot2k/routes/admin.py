@@ -605,6 +605,7 @@ async def admin_soundboard(
                 clip_url=f"/{RELATIVE_SOUNDBOARD_FILES_DIRECTORY.as_posix()}/{cmd.filename}",
                 uploader_twitch_login=cmd.uploader_twitch_login,
                 uploader_twitch_display_name=cmd.uploader_twitch_display_name,
+                volume=cmd.volume,
             )
             for cmd in db_commands
         ),
