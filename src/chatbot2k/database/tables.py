@@ -3,8 +3,10 @@ from typing import Optional
 from typing import final
 
 from sqlalchemy import Column
+from sqlalchemy import Float
 from sqlalchemy import ForeignKey
 from sqlalchemy import String
+from sqlalchemy import text
 from sqlmodel import Field
 from sqlmodel import Relationship
 
@@ -54,6 +56,12 @@ class ParameterizedCommand(SQLModel, table=True):
 class SoundboardCommand(SQLModel, table=True):
     name: str = Field(primary_key=True)
     filename: str
+    volume: float = Field(
+        default=1.0,
+        ge=0.0,
+        le=1.0,
+        sa_column=Column(Float, nullable=False, server_default=text("1.0")),
+    )
     uploader_twitch_id: Optional[str] = Field(default=None)
     uploader_twitch_login: Optional[str] = Field(default=None)
     uploader_twitch_display_name: Optional[str] = Field(default=None)
