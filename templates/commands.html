@@ -125,6 +125,29 @@
         max-height: 200px;
     }
 
+    /* Hide volume controls on public page - CSS approach for better browser compatibility */
+    /* WebKit browsers (Chrome, Safari, Edge) */
+    #panel-soundboard .data-table audio::-webkit-media-controls-volume-slider,
+    #panel-soundboard .data-table video::-webkit-media-controls-volume-slider {
+        display: none;
+    }
+
+    #panel-soundboard .data-table audio::-webkit-media-controls-mute-button,
+    #panel-soundboard .data-table video::-webkit-media-controls-mute-button {
+        display: none;
+    }
+
+    /* Firefox */
+    #panel-soundboard .data-table audio::-moz-media-controls-volume-slider,
+    #panel-soundboard .data-table video::-moz-media-controls-volume-slider {
+        display: none;
+    }
+
+    #panel-soundboard .data-table audio::-moz-media-controls-mute-button,
+    #panel-soundboard .data-table video::-moz-media-controls-mute-button {
+        display: none;
+    }
+
     /* Source URL container with refresh button */
     .source-url-container {
         margin-top: 8px;
@@ -359,11 +382,19 @@
 <script>
   document.addEventListener("DOMContentLoaded", () => {
     // Set volume on all audio/video elements based on data-volume attribute
+    // and disable volume changes by users on the public page
     const mediaElements = document.querySelectorAll('audio[data-volume], video[data-volume]');
     mediaElements.forEach(element => {
       const volumeValue = parseFloat(element.getAttribute('data-volume'));
       if (!isNaN(volumeValue) && volumeValue >= 0.0 && volumeValue <= 1.0) {
         element.volume = volumeValue;
+        
+        // Prevent user volume changes - reset to database value
+        element.addEventListener('volumechange', () => {
+          if (element.volume !== volumeValue) {
+            element.volume = volumeValue;
+          }
+        });
       }
     });
 
