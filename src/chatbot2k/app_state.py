@@ -1,7 +1,10 @@
+from __future__ import annotations
+
 import asyncio
 from abc import ABC
 from abc import abstractmethod
 from typing import TYPE_CHECKING
+from typing import Final
 from typing import final
 from uuid import UUID
 
@@ -16,6 +19,7 @@ if TYPE_CHECKING:
     # We have to avoid circular imports, so we use a string annotation below.
     from chatbot2k.command_handlers.command_handler import CommandHandler
     from chatbot2k.entrance_sounds import EntranceSoundHandler
+    from chatbot2k.models.soundboard_event import SoundboardEvent
 
 
 class AppState(ABC):
@@ -29,7 +33,7 @@ class AppState(ABC):
 
     @property
     @abstractmethod
-    def command_handlers(self) -> dict[str, "CommandHandler"]: ...
+    def command_handlers(self) -> dict[str, CommandHandler]: ...
 
     @property
     @abstractmethod
@@ -49,15 +53,19 @@ class AppState(ABC):
 
     @property
     @abstractmethod
-    def soundboard_clips_url_queues(self) -> dict[UUID, asyncio.Queue[str]]: ...
+    def soundboard_event_queues(self) -> dict[UUID, asyncio.Queue[SoundboardEvent]]: ...
 
     @final
-    async def enqueue_soundboard_clip_url(self, clip_url: str) -> None:
+    async def enqueue_soundboard_clip_url(self, clip_url: str, volume: float) -> None:
         if not self.is_soundboard_enabled:
             return
 
-        for queue in self.soundboard_clips_url_queues.values():
-            await queue.put(clip_url)
+        # Local import to avoid circular dependency at module level
+        from chatbot2k.models.soundboard_event import SoundboardEvent
+
+        event: Final = SoundboardEvent(clip_url=clip_url, volume=volume)
+        for queue in self.soundboard_event_queues.values():
+            await queue.put(event)
 
     @property
     @abstractmethod
@@ -69,7 +77,7 @@ class AppState(ABC):
 
     @property
     @abstractmethod
-    def entrance_sound_handler(self) -> "EntranceSoundHandler": ...
+    def entrance_sound_handler(self) -> EntranceSoundHandler: ...
 
     @property
     @abstractmethod

@@ -13,6 +13,7 @@ from fastapi import Form
 from fastapi import HTTPException
 from fastapi import UploadFile
 from pydantic import BaseModel
+from pydantic import field_validator
 from starlette.requests import Request
 from starlette.responses import RedirectResponse
 from starlette.responses import Response
@@ -604,6 +605,7 @@ async def admin_soundboard(
                 clip_url=f"/{RELATIVE_SOUNDBOARD_FILES_DIRECTORY.as_posix()}/{cmd.filename}",
                 uploader_twitch_login=cmd.uploader_twitch_login,
                 uploader_twitch_display_name=cmd.uploader_twitch_display_name,
+                volume=cmd.volume,
             )
             for cmd in db_commands
         ),
@@ -718,6 +720,38 @@ async def update_soundboard_command(
     app_state.reload_command_handlers()
 
     return RedirectResponse(request.url_for("admin_soundboard"), status_code=303)
+
+
+@final
+class _UpdateSoundboardVolumeRequest(BaseModel):
+    volume: float
+
+    @field_validator("volume", mode="after")
+    @classmethod
+    def validate_volume_range(cls, v: float) -> float:
+        if v < 0.0 or v > 1.0:
+            raise ValueError("Volume must be between 0.0 and 1.0")
+        return v
+
+
+@router.post("/soundboard/volume/{command_name}", name="update_soundboard_clip_volume")
+async def update_soundboard_clip_volume(
+    command_name: str,
+    request_data: _UpdateSoundboardVolumeRequest,
+    app_state: Annotated[AppState, Depends(get_app_state)],
+) -> Response:
+    """Update the volume of a soundboard clip."""
+    try:
+        app_state.database.update_soundboard_command_volume(name=command_name, volume=request_data.volume)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e)) from e
+    except KeyError as e:
+        raise HTTPException(status_code=404, detail=str(e)) from e
+
+    # Reload command handlers to pick up the new volume
+    app_state.reload_command_handlers()
+
+    return Response(status_code=200)
 
 
 @router.post("/soundboard/delete/{command_name}", name="delete_soundboard_clip")

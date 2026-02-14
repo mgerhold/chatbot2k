@@ -64,7 +64,7 @@
         el.play();
       }
 
-      function playClip(url) {
+      function playClip(url, volume) {
         const key = canonicalKey(url);
         const existing = playing.get(key);
 
@@ -84,6 +84,10 @@
         el.preload = "auto";
         el.autoplay = true;
         el.crossOrigin = "anonymous";
+        
+        // Set volume (clamp to valid range 0.0-1.0)
+        el.volume = Math.max(0.0, Math.min(1.0, volume));
+        
         if (!isAudio) {
           el.className = "overlay-video";
           el.playsInline = true;
@@ -139,7 +143,8 @@
           try {
             const data = JSON.parse(ev.data);
             if (data && typeof data.clip_url === "string" && data.clip_url.length) {
-              playClip(data.clip_url);
+              const volume = typeof data.volume === "number" ? data.volume : 1.0;
+              playClip(data.clip_url, volume);
             }
           } catch {}
         };

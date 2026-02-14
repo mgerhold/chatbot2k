@@ -6,3 +6,4 @@ from pydantic.main import BaseModel
 @final
 class SoundboardEvent(BaseModel):
     clip_url: str
+    volume: float

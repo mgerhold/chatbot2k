@@ -264,6 +264,22 @@ class Database:
             s.add(obj)
             s.commit()
 
+    def update_soundboard_command_volume(self, *, name: str, volume: float) -> None:
+        """Update the volume of a soundboard command."""
+        if volume < 0.0 or volume > 1.0:
+            raise ValueError("Volume must be between 0.0 and 1.0")
+
+        with self._session() as s:
+            obj: Final = s.exec(
+                select(SoundboardCommand).where(func.lower(SoundboardCommand.name) == name.lower())
+            ).one_or_none()
+            if obj is None:
+                raise KeyError(f"SoundboardCommand '{name}' not found")
+
+            obj.volume = volume
+            s.add(obj)
+            s.commit()
+
     def add_broadcast(
         self,
         *,

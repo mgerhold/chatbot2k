@@ -34,7 +34,7 @@ class EntranceSoundHandler:
 
         async def trigger(self) -> None:
             self._handler._entrance_sounds_already_played_for.add(self._sender_twitch_user_id)
-            await self._handler._app_state.enqueue_soundboard_clip_url(self._clip_url)
+            await self._handler._app_state.enqueue_soundboard_clip_url(self._clip_url, 1.0)
 
     def __init__(self, app_state: AppState) -> None:
         self._app_state: Final = app_state

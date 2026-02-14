@@ -15,7 +15,6 @@ from starlette.templating import Jinja2Templates
 from chatbot2k.app_state import AppState
 from chatbot2k.dependencies import get_app_state
 from chatbot2k.dependencies import get_templates
-from chatbot2k.models.soundboard_event import SoundboardEvent
 from chatbot2k.utils.sse import sse_encode
 
 router: Final = APIRouter()
@@ -43,31 +42,27 @@ async def overlay_events(
     async def _generate() -> AsyncIterator[bytes]:
         uuid: Final = uuid4()
         logging.info(f"Client connected to `/overlay/events` with UUID {uuid}")
-        app_state.soundboard_clips_url_queues[uuid] = asyncio.Queue()
+        app_state.soundboard_event_queues[uuid] = asyncio.Queue()
         try:
             while True:
                 if app_state.is_shutting_down.is_set() or await request.is_disconnected():
                     break
                 try:
-                    clip_url = await asyncio.wait_for(
-                        app_state.soundboard_clips_url_queues[uuid].get(),
+                    event = await asyncio.wait_for(
+                        app_state.soundboard_event_queues[uuid].get(),
                         timeout=_SSE_KEEP_ALIVE_INTERVAL,
                     )
                 except TimeoutError:
                     # No new soundboard clips--we send a comment message as keep-alive and continue waiting.
                     yield b": keep-alive\r\n\r\n"
                     continue
-                yield sse_encode(
-                    SoundboardEvent(
-                        clip_url=clip_url,
-                    )
-                ).encode("utf-8")
+                yield sse_encode(event).encode("utf-8")
         except asyncio.CancelledError:
             # Client went away, stop sending events.
             pass
         finally:
             logging.info(f"Client disconnected from `/overlay/events` with UUID {uuid}")
-            del app_state.soundboard_clips_url_queues[uuid]
+            del app_state.soundboard_event_queues[uuid]
 
     headers: Final = {
         "Cache-Control": "no-cache",
