@@ -748,6 +748,9 @@ async def update_soundboard_clip_volume(
     except KeyError as e:
         raise HTTPException(status_code=404, detail=str(e)) from e
 
+    # Reload command handlers to pick up the new volume
+    app_state.reload_command_handlers()
+
     return Response(status_code=200)
 
 
