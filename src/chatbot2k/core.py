@@ -127,7 +127,7 @@ async def _handle_channel_being_raided(
             logger.error(f"Soundboard command '{action.soundboard_clip_to_play}' not found.")
             return
         clip_url: Final = f"/{RELATIVE_SOUNDBOARD_FILES_DIRECTORY.as_posix()}/{soundboard_command.filename}"
-        await app_state.enqueue_soundboard_clip_url(clip_url)
+        await app_state.enqueue_soundboard_clip_url(clip_url, soundboard_command.volume)
 
 
 async def run_main_loop(app_state: AppState) -> None:

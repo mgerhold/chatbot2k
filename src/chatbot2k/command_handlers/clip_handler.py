@@ -48,7 +48,7 @@ class ClipHandler(CommandHandler):
     @override
     async def handle_command(self, chat_command: ChatCommand) -> Optional[list[ChatResponse]]:
         if chat_command.source_chat.feature_flags.can_trigger_soundboard:
-            await self._app_state.enqueue_soundboard_clip_url(self._clip_url)
+            await self._app_state.enqueue_soundboard_clip_url(self._clip_url, self._volume)
         return []
 
     @property
