@@ -64,8 +64,11 @@ class AppState(ABC):
         (full match) the given string, or `None` if no match is found.
         """
         normalized_command: Final = string.removeprefix("!").lower()
+
         for handler in self.command_handlers:
-            if handler.regular_expression.matches(normalized_command):
+            if (not handler.is_regular_expression and handler.name == normalized_command) or (
+                handler.is_regular_expression and handler.regular_expression.matches(normalized_command)
+            ):
                 return handler
         return None
 
