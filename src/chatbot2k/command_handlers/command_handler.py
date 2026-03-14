@@ -4,21 +4,32 @@ from typing import Final
 from typing import Optional
 from typing import final
 
+from greenery import Pattern  # type: ignore[reportMissingTypeStubs]
+
 from chatbot2k.app_state import AppState
 from chatbot2k.types.chat_command import ChatCommand
 from chatbot2k.types.chat_response import ChatResponse
 from chatbot2k.types.permission_level import PermissionLevel
+from chatbot2k.utils.regular_expressions import parse_regular_expression
 
 
 class CommandHandler(ABC):
     def __init__(self, app_state: AppState, *, name: str) -> None:
         self._app_state: Final = app_state
         self._name: Final = name
+        # `name` can be a regular expression pattern. Therefore, we compile it into a pattern
+        # object and store it.
+        self._regular_expression: Final = parse_regular_expression(name)
 
     @final
     @property
     def name(self) -> str:
         return self._name
+
+    @final
+    @property
+    def regular_expression(self) -> Pattern:
+        return self._regular_expression
 
     @abstractmethod
     async def handle_command(self, chat_command: ChatCommand) -> Optional[list[ChatResponse]]:

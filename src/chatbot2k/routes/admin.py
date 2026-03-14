@@ -612,7 +612,7 @@ async def admin_soundboard(
         key=lambda cmd: cmd.command,
     )
 
-    existing_commands: Final = [command.lower() for command in app_state.command_handlers]
+    existing_commands: Final = [command.name.lower() for command in app_state.command_handlers]
 
     context: Final = AdminSoundboardContext(
         **common_context.model_dump(),
@@ -641,7 +641,7 @@ async def upload_soundboard_clip(
     if not command_name:
         raise HTTPException(status_code=400, detail="Command name cannot be empty")
 
-    if command_name.lower() in (name.lower() for name in app_state.command_handlers):
+    if command_name.lower() in (command.name.lower() for command in app_state.command_handlers):
         raise HTTPException(status_code=400, detail=f"Command '!{command_name}' already exists")
 
     if not file.filename:
@@ -816,7 +816,7 @@ async def admin_pending_clips(
         **common_context.model_dump(),
         active_page=AdminDashboardActivePage.PENDING_CLIPS,
         pending_clips=pending_clips,
-        existing_commands=[name.lower() for name in app_state.command_handlers],
+        existing_commands=[command.name.lower() for command in app_state.command_handlers],
     )
 
     return templates.TemplateResponse(
@@ -845,7 +845,7 @@ async def approve_pending_clip(
     if not command_name:
         raise HTTPException(status_code=400, detail="Command name cannot be empty")
 
-    if command_name.lower() in (name.lower() for name in app_state.command_handlers):
+    if command_name.lower() in (command.name.lower() for command in app_state.command_handlers):
         raise HTTPException(status_code=400, detail=f"Command '!{command_name}' already exists")
 
     # Add to soundboard commands.

@@ -2,6 +2,7 @@ from datetime import datetime
 from typing import Optional
 from typing import final
 
+from greenery import Pattern  # type: ignore[reportMissingTypeStubs]
 from sqlalchemy import Column
 from sqlalchemy import Float
 from sqlalchemy import ForeignKey
@@ -12,6 +13,7 @@ from sqlmodel import Relationship
 
 from chatbot2k.database.metadata import SQLModel
 from chatbot2k.translation_key import TranslationKey
+from chatbot2k.utils.regular_expressions import parse_regular_expression
 
 
 @final
@@ -24,6 +26,10 @@ class ConfigurationSetting(SQLModel, table=True):
 class StaticCommand(SQLModel, table=True):
     name: str = Field(primary_key=True)
     response: str
+
+    @property
+    def regular_expression(self) -> Pattern:
+        return parse_regular_expression(self.name)
 
 
 @final
@@ -51,6 +57,10 @@ class ParameterizedCommand(SQLModel, table=True):
         sa_relationship_kwargs={"cascade": "all, delete-orphan"},
     )
 
+    @property
+    def regular_expression(self) -> Pattern:
+        return parse_regular_expression(self.name)
+
 
 @final
 class SoundboardCommand(SQLModel, table=True):
@@ -65,6 +75,10 @@ class SoundboardCommand(SQLModel, table=True):
     uploader_twitch_id: Optional[str] = Field(default=None)
     uploader_twitch_login: Optional[str] = Field(default=None)
     uploader_twitch_display_name: Optional[str] = Field(default=None)
+
+    @property
+    def regular_expression(self) -> Pattern:
+        return parse_regular_expression(self.name)
 
 
 @final
@@ -109,6 +123,10 @@ class Script(SQLModel, table=True):
         back_populates="script",
         sa_relationship_kwargs={"cascade": "all, delete-orphan"},
     )
+
+    @property
+    def regular_expression(self) -> Pattern:
+        return parse_regular_expression(self.command)
 
 
 @final

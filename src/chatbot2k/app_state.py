@@ -5,6 +5,7 @@ from abc import ABC
 from abc import abstractmethod
 from typing import TYPE_CHECKING
 from typing import Final
+from typing import Optional
 from typing import final
 from uuid import UUID
 
@@ -33,7 +34,7 @@ class AppState(ABC):
 
     @property
     @abstractmethod
-    def command_handlers(self) -> dict[str, CommandHandler]: ...
+    def command_handlers(self) -> list[CommandHandler]: ...
 
     @property
     @abstractmethod
@@ -54,6 +55,19 @@ class AppState(ABC):
     @property
     @abstractmethod
     def soundboard_event_queues(self) -> dict[UUID, asyncio.Queue[SoundboardEvent]]: ...
+
+    @final
+    def lookup_command(self, string: str) -> Optional[CommandHandler]:
+        """
+        Performs a lookup for the given string in the command handlers using their internal
+        regular expressions. Returns the first `CommandHandler` object whose regex matches
+        (full match) the given string, or `None` if no match is found.
+        """
+        normalized_command: Final = string.removeprefix("!").lower()
+        for handler in self.command_handlers:
+            if handler.regular_expression.matches(normalized_command):
+                return handler
+        return None
 
     @final
     async def enqueue_soundboard_clip_url(self, clip_url: str, volume: float) -> None:
