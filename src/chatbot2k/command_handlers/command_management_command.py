@@ -8,6 +8,7 @@ from typing import override
 import requests
 
 from chatbot2k.app_state import AppState
+from chatbot2k.command_handlers.clip_handler import ClipHandler
 from chatbot2k.command_handlers.command_handler import CommandHandler
 from chatbot2k.database.engine import ScriptStoreData
 from chatbot2k.scripting_engine.lexer import Lexer
@@ -307,29 +308,31 @@ class CommandManagementCommand(CommandHandler):
 
     @staticmethod
     def _remove_command(app_state: AppState, chat_command: ChatCommand) -> tuple[bool, str]:
-        name: Final = chat_command.arguments[1].lstrip("!")
+        name: Final = chat_command.arguments[1].lstrip("!").lower()
+
+        existing_command: Final = next(
+            (command for command in app_state.command_handlers if command.regular_expression.matches(name)),
+            None,
+        )
+
+        if existing_command is None:
+            return (
+                False,
+                app_state.translations_manager.get_translation(TranslationKey.COMMAND_TO_DELETE_NOT_FOUND),
+            )
 
         # Check if this is a soundboard command—if so, prevent removal via chat.
-        soundboard_commands: Final = app_state.database.get_soundboard_commands()
-        if any(cmd.name.lower() == name.lower() for cmd in soundboard_commands):
+        if isinstance(existing_command, ClipHandler):
             return (
                 False,
                 app_state.translations_manager.get_translation(TranslationKey.SOUNDBOARD_MANAGED_VIA_WEB_UI),
             )
 
-        was_removed: Final = app_state.database.remove_command_case_insensitive(name=name)
+        was_removed: Final = app_state.database.remove_command_case_insensitive(name=existing_command.name)
         if was_removed:
             return (
                 True,
                 app_state.translations_manager.get_translation(TranslationKey.COMMAND_REMOVED),
-            )
-
-        # If no command has been found, it could still be the case that this is a builtin command.
-        # For that case, we want to provide a different error message.
-        if name.lower() in (command.name.lower() for command in app_state.command_handlers):
-            return (
-                False,
-                app_state.translations_manager.get_translation(TranslationKey.BUILTIN_COMMAND_CANNOT_BE_DELETED),
             )
 
         return (
