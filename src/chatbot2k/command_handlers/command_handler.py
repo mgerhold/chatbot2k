@@ -20,6 +20,13 @@ class CommandHandler(ABC):
         # `name` can be a regular expression pattern. Therefore, we compile it into a pattern
         # object and store it.
         self._regular_expression: Final = parse_regular_expression(name)
+        # We consider this command handler to be triggered by a regular expression if
+        # there are multiple possible strings that could be used to trigger the command. For this,
+        # we check if the regular expression leads to more than one possible match. This can be used
+        # to avoid performing an expensive regex match instead of a simple string comparison.
+        self._is_regular_expression: Final = (
+            len(list(zip(range(2), self._regular_expression.strings(), strict=False))) > 1
+        )
 
     @final
     @property
@@ -30,6 +37,11 @@ class CommandHandler(ABC):
     @property
     def regular_expression(self) -> Pattern:
         return self._regular_expression
+
+    @final
+    @property
+    def is_regular_expression(self) -> bool:
+        return self._is_regular_expression
 
     @abstractmethod
     async def handle_command(self, chat_command: ChatCommand) -> Optional[list[ChatResponse]]:
