@@ -28,7 +28,7 @@ class ChatCommand(NamedTuple):
         lexer.commenters = ""  # treat '#' as normal char, not a comment
 
         try:
-            parts = list(lexer)
+            parts: Final = list(lexer)
         except ValueError:
             # Unbalanced quotes -> not a valid command
             return None
@@ -37,7 +37,7 @@ class ChatCommand(NamedTuple):
             return None
 
         # First token is the command; strip the leading '!'
-        name = parts.pop(0).removeprefix("!").strip()
+        name: Final = parts.pop(0).removeprefix("!").strip()
         if not name:
             return None
 
