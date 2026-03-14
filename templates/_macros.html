@@ -23,7 +23,11 @@
     <tbody>
       {% for c in commands %}
       <tr>
-        <td class="mono"><code>{{ c.command | e }}</code></td>
+        <td class="mono">
+            {% for alias in c.aliases %}
+            <code>{{ alias | e }}</code><br/>
+            {% endfor %}
+        </td>
         <td>{{ c.description|safe }}</td> {# already sanitized Markup #}
         <td><span class="badge">{{ c.required_permission_level | e }}</span></td>
       </tr>

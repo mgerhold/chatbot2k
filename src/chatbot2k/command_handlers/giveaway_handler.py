@@ -79,11 +79,11 @@ class GiveawayCommand(CommandHandler):
 
     @property
     @override
-    def usage(self) -> str:
-        return (
+    def usages(self) -> list[str]:
+        return [
             "!giveaway "
             + f"<{GiveawayCommand._START_COMMAND}|{GiveawayCommand._END_COMMAND}|{GiveawayCommand._PICK_COMMAND}>"
-        )
+        ]
 
     @property
     @override

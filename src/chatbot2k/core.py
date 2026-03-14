@@ -272,10 +272,11 @@ async def _process_chat_message(
                 await callback(explanation_result, chat)
             return None
 
-        if command.name not in app_state.command_handlers:
+        command_handler: Final = app_state.lookup_command(command.name)
+
+        if command_handler is None:
             return None  # No known command.
 
-        command_handler: Final = app_state.command_handlers[command.name]
         if command_handler.min_required_permission_level > chat_message.sender_permission_level:
             logging.info(
                 f"User {chat_message.sender_name} does not have permission to use command {command.name}. "
@@ -304,7 +305,7 @@ async def _process_chat_message(
             if responses is not None
             else [
                 ChatResponse(
-                    text=f"Usage: {command_handler.usage}",
+                    text=f"Usages: {', '.join(command_handler.usages)}",
                     chat_message=chat_message,
                 )
             ]

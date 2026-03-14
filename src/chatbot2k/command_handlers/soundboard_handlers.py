@@ -1,5 +1,6 @@
 from typing import Optional
 from typing import final
+from typing import override
 
 from chatbot2k.app_state import AppState
 from chatbot2k.command_handlers.command_handler import CommandHandler
@@ -48,11 +49,12 @@ class SoundboardHandler(CommandHandler):
         return PermissionLevel.ADMIN
 
     @property
-    def usage(self) -> str:
-        return (
+    @override
+    def usages(self) -> list[str]:
+        return [
             f"!{SoundboardHandler.COMMAND_NAME} "
             + f"[{SoundboardHandler._ENABLE_COMMAND}|{SoundboardHandler._DISABLE_COMMAND}]"
-        )
+        ]
 
     @property
     def description(self) -> str:

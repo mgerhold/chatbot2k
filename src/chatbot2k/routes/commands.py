@@ -85,18 +85,18 @@ async def show_main_page(
     commands: Final = sorted(
         (
             Command(
-                command=handler.usage,
+                aliases=handler.usages,
                 description=markdown_to_sanitized_html(handler.description),
                 required_permission_level=_permission_level_to_string(handler.min_required_permission_level),
             )
-            for handler in app_state.command_handlers.values()
+            for handler in app_state.command_handlers
             if not isinstance(handler, ClipHandler) and not isinstance(handler, ScriptCommandHandler)
         ),
-        key=lambda x: x.command,
+        key=lambda x: x.aliases[0],
     )
     # Fetch script commands and their source code (from URL if needed).
     script_commands_data: Final[list[ScriptCommandData]] = []
-    for handler in app_state.command_handlers.values():
+    for handler in app_state.command_handlers:
         if not isinstance(handler, ScriptCommandHandler):
             continue
         script = app_state.database.get_script(handler.name)
@@ -105,7 +105,7 @@ async def show_main_page(
             continue
         script_commands_data.append(
             ScriptCommandData(
-                command=handler.usage,
+                aliases=handler.usages,
                 source_code=(
                     await _fetch_script_source(script.source_code, app_state)
                     if _looks_like_url(script.source_code)
@@ -115,7 +115,7 @@ async def show_main_page(
             )
         )
 
-    script_commands: Final = sorted(script_commands_data, key=lambda x: x.command)
+    script_commands: Final = sorted(script_commands_data, key=lambda x: x.aliases[0])
     constants: Final = sorted(
         (
             Constant(
@@ -129,16 +129,16 @@ async def show_main_page(
     soundboard_commands: Final = sorted(
         (
             SoundboardCommand(
-                command=handler.usage,
+                aliases=handler.usages,
                 clip_url=handler.clip_url,
                 uploader_twitch_login=handler.uploader_twitch_login,
                 uploader_twitch_display_name=handler.uploader_twitch_display_name,
                 volume=handler.volume,
             )
-            for handler in app_state.command_handlers.values()
+            for handler in app_state.command_handlers
             if isinstance(handler, ClipHandler)
         ),
-        key=lambda x: x.command,
+        key=lambda x: x.aliases[0],
     )
 
     # Turn dictionary mapping into rows and sanitize description as Markdown
@@ -194,11 +194,11 @@ async def fetch_soundboard_commands_as_json(
     return _SoundboardCommandResponse(
         commands=[
             _SoundboardCommandsResponseItem(
-                command=handler.usage,
+                command=handler.usages[0],
                 clip_url=f"{root_url}/{handler.clip_url.removeprefix('/')}",
                 uploader_twitch_display_name=handler.uploader_twitch_display_name,
             )
-            for handler in app_state.command_handlers.values()
+            for handler in app_state.command_handlers
             if isinstance(handler, ClipHandler)
         ]
     )
@@ -211,7 +211,10 @@ async def refresh_script_source_code(
     _: Annotated[UserInfo, Depends(get_broadcaster_user)],  # Require broadcaster permissions.
 ) -> None:
     normalized_name: Final = script_name.removeprefix("!").lower()
-    handler: Final = app_state.command_handlers.get(normalized_name)
+    handler: Final = next(
+        (command for command in app_state.command_handlers if command.name.lower() == normalized_name),
+        None,
+    )
     if not isinstance(handler, ScriptCommandHandler):
         raise HTTPException(status_code=404, detail=f"Script command '{script_name}' not found.")
     script: Final = app_state.database.get_script(handler.name)

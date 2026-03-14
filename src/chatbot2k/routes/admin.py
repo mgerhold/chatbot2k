@@ -52,6 +52,7 @@ from chatbot2k.types.template_contexts import RaidEventAction
 from chatbot2k.types.template_contexts import RaidEventUserInfo
 from chatbot2k.types.template_contexts import SoundboardCommand
 from chatbot2k.types.user_info import UserInfo
+from chatbot2k.utils.command_aliases import get_aliases
 from chatbot2k.utils.discord import get_available_discord_text_channels
 from chatbot2k.utils.mime_types import get_file_extension_by_mime_type
 from chatbot2k.utils.notifications import notify_user
@@ -601,7 +602,7 @@ async def admin_soundboard(
     soundboard_commands: Final = sorted(
         (
             SoundboardCommand(
-                command=cmd.name,
+                aliases=get_aliases(cmd.regular_expression),
                 clip_url=f"/{RELATIVE_SOUNDBOARD_FILES_DIRECTORY.as_posix()}/{cmd.filename}",
                 uploader_twitch_login=cmd.uploader_twitch_login,
                 uploader_twitch_display_name=cmd.uploader_twitch_display_name,
@@ -609,10 +610,10 @@ async def admin_soundboard(
             )
             for cmd in db_commands
         ),
-        key=lambda cmd: cmd.command,
+        key=lambda cmd: cmd.aliases[0],
     )
 
-    existing_commands: Final = [command.lower() for command in app_state.command_handlers]
+    existing_commands: Final = [command.name.lower() for command in app_state.command_handlers]
 
     context: Final = AdminSoundboardContext(
         **common_context.model_dump(),
@@ -641,7 +642,7 @@ async def upload_soundboard_clip(
     if not command_name:
         raise HTTPException(status_code=400, detail="Command name cannot be empty")
 
-    if command_name.lower() in (name.lower() for name in app_state.command_handlers):
+    if command_name.lower() in (command.name.lower() for command in app_state.command_handlers):
         raise HTTPException(status_code=400, detail=f"Command '!{command_name}' already exists")
 
     if not file.filename:
@@ -816,7 +817,7 @@ async def admin_pending_clips(
         **common_context.model_dump(),
         active_page=AdminDashboardActivePage.PENDING_CLIPS,
         pending_clips=pending_clips,
-        existing_commands=[name.lower() for name in app_state.command_handlers],
+        existing_commands=[command.name.lower() for command in app_state.command_handlers],
     )
 
     return templates.TemplateResponse(
@@ -845,7 +846,7 @@ async def approve_pending_clip(
     if not command_name:
         raise HTTPException(status_code=400, detail="Command name cannot be empty")
 
-    if command_name.lower() in (name.lower() for name in app_state.command_handlers):
+    if command_name.lower() in (command.name.lower() for command in app_state.command_handlers):
         raise HTTPException(status_code=400, detail=f"Command '!{command_name}' already exists")
 
     # Add to soundboard commands.

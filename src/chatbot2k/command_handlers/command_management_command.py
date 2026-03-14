@@ -8,6 +8,7 @@ from typing import override
 import requests
 
 from chatbot2k.app_state import AppState
+from chatbot2k.command_handlers.clip_handler import ClipHandler
 from chatbot2k.command_handlers.command_handler import CommandHandler
 from chatbot2k.database.engine import ScriptStoreData
 from chatbot2k.scripting_engine.lexer import Lexer
@@ -18,6 +19,7 @@ from chatbot2k.translation_key import TranslationKey
 from chatbot2k.types.chat_command import ChatCommand
 from chatbot2k.types.chat_response import ChatResponse
 from chatbot2k.types.permission_level import PermissionLevel
+from chatbot2k.utils.regular_expressions import parse_regular_expression
 
 
 @final
@@ -86,8 +88,8 @@ class CommandManagementCommand(CommandHandler):
 
     @property
     @override
-    def usage(self) -> str:
-        return "!command [add|add-script|update|remove] <parameters>..."
+    def usages(self) -> list[str]:
+        return ["!command [add|add-script|update|remove] <parameters>..."]
 
     @property
     @override
@@ -106,16 +108,22 @@ class CommandManagementCommand(CommandHandler):
         is_update: bool,
     ) -> tuple[bool, str]:
         name: Final = chat_command.arguments[1].lstrip("!")
+        name_regex: Final = parse_regular_expression(name)
+
+        # For each category of commands, we check if the FSM (finite state machine) of the command name regular
+        # expression has any overlap with the FSM of any existing command. If there is an overlap, it means that
+        # there is at least one string input that would match both the new command and the existing command,
+        # which would lead to ambiguity. Therefore, we do not allow adding/updating the command in that case.
 
         soundboard_commands: Final = app_state.database.get_soundboard_commands()
-        if name.lower() in (command.name.lower() for command in soundboard_commands):
+        if any(not (name_regex & command.regular_expression).empty() for command in soundboard_commands):
             return (
                 False,
                 app_state.translations_manager.get_translation(TranslationKey.CANNOT_ADD_OR_UPDATE_SOUNDBOARD_COMMAND),
             )
 
         scripts: Final = app_state.database.get_scripts()
-        if name.lower() in (script.command.lower() for script in scripts):
+        if any(not (name_regex & script.regular_expression).empty() for script in scripts):
             return (
                 False,
                 app_state.translations_manager.get_translation(TranslationKey.CANNOT_ADD_OR_UPDATE_SCRIPT_COMMAND),
@@ -125,12 +133,20 @@ class CommandManagementCommand(CommandHandler):
         parameterized_commands: Final = app_state.database.get_parameterized_commands()
         commands: Final = static_commands + parameterized_commands
 
-        existing_command: Final = next((command for command in commands if command.name.lower() == name.lower()), None)
+        existing_command: Final = next(
+            (command for command in commands if not (name_regex & command.regular_expression).empty()),
+            None,
+        )
+        existing_command_has_same_pattern: Final = (
+            False if existing_command is None else existing_command.name.lower() == name.lower()
+        )
 
         # We need a special check for *all* registered command handlers, because there are
         # also builtin ones that are not included in the database. Those can neither be
         # added nor updated, so we return an error message.
-        if existing_command is None and name.lower() in (command.lower() for command in app_state.command_handlers):
+        if existing_command is None and any(
+            not (name_regex & handler.regular_expression).empty() for handler in app_state.command_handlers
+        ):
             return (
                 False,
                 app_state.translations_manager.get_translation(TranslationKey.BUILTIN_COMMAND_CANNOT_BE_CHANGED),
@@ -140,6 +156,11 @@ class CommandManagementCommand(CommandHandler):
             return (
                 False,
                 app_state.translations_manager.get_translation(TranslationKey.COMMAND_TO_UPDATE_NOT_FOUND),
+            )
+        if existing_command is not None and is_update and not existing_command_has_same_pattern:
+            return (
+                False,
+                app_state.translations_manager.get_translation(TranslationKey.COMMAND_UPDATE_CAUSES_AMBIGUITY),
             )
         if existing_command is not None and not is_update:
             return (
@@ -183,10 +204,11 @@ class CommandManagementCommand(CommandHandler):
             Tuple of (success: bool, response_message: str)
         """
         name: Final = chat_command.arguments[1].lstrip("!")
+        name_regex: Final = parse_regular_expression(name)
         source_code: Final = chat_command.arguments[2]
 
         # Check if command already exists.
-        if name.lower() in (command.lower() for command in app_state.command_handlers):
+        if any(not (name_regex & handler.regular_expression).empty() for handler in app_state.command_handlers):
             return (
                 False,
                 app_state.translations_manager.get_translation(TranslationKey.COMMAND_ALREADY_EXISTS),
@@ -286,29 +308,31 @@ class CommandManagementCommand(CommandHandler):
 
     @staticmethod
     def _remove_command(app_state: AppState, chat_command: ChatCommand) -> tuple[bool, str]:
-        name: Final = chat_command.arguments[1].lstrip("!")
+        name: Final = chat_command.arguments[1].lstrip("!").lower()
+
+        existing_command: Final = next(
+            (command for command in app_state.command_handlers if command.regular_expression.matches(name)),
+            None,
+        )
+
+        if existing_command is None:
+            return (
+                False,
+                app_state.translations_manager.get_translation(TranslationKey.COMMAND_TO_DELETE_NOT_FOUND),
+            )
 
         # Check if this is a soundboard command—if so, prevent removal via chat.
-        soundboard_commands: Final = app_state.database.get_soundboard_commands()
-        if any(cmd.name.lower() == name.lower() for cmd in soundboard_commands):
+        if isinstance(existing_command, ClipHandler):
             return (
                 False,
                 app_state.translations_manager.get_translation(TranslationKey.SOUNDBOARD_MANAGED_VIA_WEB_UI),
             )
 
-        was_removed: Final = app_state.database.remove_command_case_insensitive(name=name)
+        was_removed: Final = app_state.database.remove_command_case_insensitive(name=existing_command.name)
         if was_removed:
             return (
                 True,
                 app_state.translations_manager.get_translation(TranslationKey.COMMAND_REMOVED),
-            )
-
-        # If no command has been found, it could still be the case that this is a builtin command.
-        # For that case, we want to provide a different error message.
-        if name.lower() in (command.lower() for command in app_state.command_handlers):
-            return (
-                False,
-                app_state.translations_manager.get_translation(TranslationKey.BUILTIN_COMMAND_CANNOT_BE_DELETED),
             )
 
         return (

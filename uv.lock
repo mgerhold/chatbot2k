@@ -306,6 +306,7 @@ dependencies = [
     { name = "dotenv" },
     { name = "fastapi" },
     { name = "filetype" },
+    { name = "greenery" },
     { name = "httpx" },
     { name = "jinja2" },
     { name = "markdown-it-py" },
@@ -342,6 +343,7 @@ requires-dist = [
     { name = "dotenv", specifier = ">=0.9.9" },
     { name = "fastapi", specifier = ">=0.116.1" },
     { name = "filetype", specifier = ">=1.2.0" },
+    { name = "greenery", specifier = ">=4.2.2" },
     { name = "httpx", specifier = ">=0.28.1" },
     { name = "jinja2", specifier = ">=3.1.6" },
     { name = "markdown-it-py", specifier = ">=4.0.0" },
@@ -591,6 +593,15 @@ wheels = [
     { url = "https://files.pythonhosted.org/packages/89/76/c615883b7b521ead2944bb3480398cbb07e12b7b4e4d073d3752eb721558/frozenlist-1.8.0-cp314-cp314t-win_amd64.whl", hash = "sha256:06be8f67f39c8b1dc671f5d83aaefd3358ae5cdcf8314552c57e7ed3e6475bdd", size = 49451, upload-time = "2025-10-06T05:37:53.425Z" },
     { url = "https://files.pythonhosted.org/packages/e0/a3/5982da14e113d07b325230f95060e2169f5311b1017ea8af2a29b374c289/frozenlist-1.8.0-cp314-cp314t-win_arm64.whl", hash = "sha256:102e6314ca4da683dca92e3b1355490fed5f313b768500084fbe6371fddfdb79", size = 42507, upload-time = "2025-10-06T05:37:54.513Z" },
     { url = "https://files.pythonhosted.org/packages/9a/9a/e35b4a917281c0b8419d4207f4334c8e8c5dbf4f3f5f9ada73958d937dcc/frozenlist-1.8.0-py3-none-any.whl", hash = "sha256:0c18a16eab41e82c295618a77502e17b195883241c563b00f0aa5106fc4eaa0d", size = 13409, upload-time = "2025-10-06T05:38:16.721Z" },
+]
+
+[[package]]
+name = "greenery"
+version = "4.2.2"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/a3/84/7ab4ea60ceaf9d5594cc4fe98c585ba7f9137b2203e84ac5b72c3f8a258b/greenery-4.2.2.tar.gz", hash = "sha256:6221d5727d19b4f46fc794635aa00b3dbbab33ed7ff1d686a0011d9197a4b7a0", size = 50696, upload-time = "2024-06-08T12:09:00.185Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/de/12/e604674ba0ce89bb710e60ed57e165e088787216cd7b27302c0cd7e7b095/greenery-4.2.2-py3-none-any.whl", hash = "sha256:df82131963230c9e9ff7d356eed7556626accef52c1c6c2abda8eb57565f7197", size = 51158, upload-time = "2024-06-08T12:08:58.335Z" },
 ]
 
 [[package]]

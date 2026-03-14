@@ -12,43 +12,49 @@ from chatbot2k.scripting_engine.parser import Script
 from chatbot2k.scripting_engine.types.execution_error import ExecutionError
 
 
-def load_commands(app_state: AppState) -> dict[str, CommandHandler]:
-    result: dict[str, CommandHandler] = {}
+def load_commands(app_state: AppState) -> list[CommandHandler]:
+    result: list[CommandHandler] = []
     for static_command in app_state.database.get_static_commands():
-        if static_command.name.lower() in (name.lower() for name in result):
+        if static_command.name.lower() in (command.name.lower() for command in result):
             raise AssertionError
         logging.info(f"Loaded static command: !{static_command.name}")
-        result[static_command.name] = StaticResponseCommand(
-            app_state=app_state,
-            name=static_command.name,
-            response=static_command.response,
+        result.append(
+            StaticResponseCommand(
+                app_state=app_state,
+                name=static_command.name,
+                response=static_command.response,
+            )
         )
 
     for parameterized_command in app_state.database.get_parameterized_commands():
-        if parameterized_command.name.lower() in (name.lower() for name in result):
+        if parameterized_command.name.lower() in (command.name.lower() for command in result):
             raise AssertionError
         logging.info(
             f"Loaded parameterized command: !{parameterized_command.name} "
             + f"{' '.join(f'{parameter}' for parameter in parameterized_command.parameters)}"
         )
-        result[parameterized_command.name] = ParameterizedResponseCommand(
-            app_state=app_state,
-            name=parameterized_command.name,
-            parameters=parameterized_command.parameters,
-            format_string=parameterized_command.response,
+        result.append(
+            ParameterizedResponseCommand(
+                app_state=app_state,
+                name=parameterized_command.name,
+                parameters=parameterized_command.parameters,
+                format_string=parameterized_command.response,
+            )
         )
 
     for soundboard_command in app_state.database.get_soundboard_commands():
-        if soundboard_command.name.lower() in (name.lower() for name in result):
+        if soundboard_command.name.lower() in (command.name.lower() for command in result):
             raise AssertionError
         logging.info(f"Loaded soundboard command: !{soundboard_command.name}")
-        result[soundboard_command.name] = ClipHandler(
-            app_state=app_state,
-            name=soundboard_command.name,
-            filename=soundboard_command.filename,
-            volume=soundboard_command.volume,
-            uploader_twitch_login=soundboard_command.uploader_twitch_login,
-            uploader_twitch_display_name=soundboard_command.uploader_twitch_display_name,
+        result.append(
+            ClipHandler(
+                app_state=app_state,
+                name=soundboard_command.name,
+                filename=soundboard_command.filename,
+                volume=soundboard_command.volume,
+                uploader_twitch_login=soundboard_command.uploader_twitch_login,
+                uploader_twitch_display_name=soundboard_command.uploader_twitch_display_name,
+            )
         )
 
     database_persistent_store: Final = DatabasePersistentStore(app_state.database)
@@ -73,14 +79,16 @@ def load_commands(app_state: AppState) -> dict[str, CommandHandler]:
         return script_output
 
     for script in app_state.database.get_scripts():
-        if script.command.lower() in (name.lower() for name in result):
+        if script.command.lower() in (script.name.lower() for script in result):
             raise AssertionError
         logging.info(f"Loaded script command: !{script.command}")
-        result[script.command] = ScriptCommandHandler(
-            app_state=app_state,
-            name=script.command,
-            script_json=script.script_json,
-            call_script=_call_script,
+        result.append(
+            ScriptCommandHandler(
+                app_state=app_state,
+                name=script.command,
+                script_json=script.script_json,
+                call_script=_call_script,
+            )
         )
 
     return result

@@ -244,7 +244,11 @@
                     <tbody>
                     {% for script in script_commands %}
                     <tr>
-                        <td class="mono"><code>{{ script.command | e }}</code></td>
+                        <td class="mono">
+                            {% for alias in script.aliases %}
+                            <code>{{ alias | e }}</code><br/>
+                            {% endfor %}
+                        </td>
                         <td class="source-code-cell">
                             <div class="script-editor-container" data-script-command="{{ script.command | e }}"></div>
                             {% if script.source_code %}
@@ -304,7 +308,11 @@
                     {% set lower = (sb.clip_url|lower) %}
                     {% set base = lower.split('?')[0] %}
                     <tr>
-                        <td class="mono"><code>{{ sb.command | e }}</code></td>
+                        <td class="mono">
+                            {% for alias in sb.aliases %}
+                            <code>{{ alias | e }}</code><br/>
+                            {% endfor %}
+                        </td>
                         <td>
                             {% if base.endswith('.mp3') %}
                             <audio controls controlsList="novolume" preload="metadata" src="{{ sb.clip_url }}" type="audio/mpeg" data-volume="{{ sb.volume }}">

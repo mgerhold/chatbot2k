@@ -95,7 +95,7 @@ class _MockAppState(AppState):
 
     @property
     @override
-    def command_handlers(self) -> dict[str, CommandHandler]:
+    def command_handlers(self) -> list[CommandHandler]:
         raise NotImplementedError
 
     @property

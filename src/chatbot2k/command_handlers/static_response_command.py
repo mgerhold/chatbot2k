@@ -11,6 +11,7 @@ from chatbot2k.command_handlers.utils import replace_placeholders_in_message
 from chatbot2k.types.chat_command import ChatCommand
 from chatbot2k.types.chat_response import ChatResponse
 from chatbot2k.types.permission_level import PermissionLevel
+from chatbot2k.utils.command_aliases import get_aliases
 from chatbot2k.utils.markdown import quote_braced_with_backticks
 
 
@@ -47,8 +48,8 @@ class StaticResponseCommand(CommandHandler):
 
     @property
     @override
-    def usage(self) -> str:
-        return f"!{self._name}"
+    def usages(self) -> list[str]:
+        return get_aliases(self.regular_expression)
 
     @property
     @override

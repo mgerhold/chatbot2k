@@ -435,12 +435,12 @@
                     <div class="action-buttons">
                         <form 
                             id="save-form-{{ loop.index }}"
-                            action="{{ request.app.url_path_for('update_soundboard_command', old_command_name=sb.command) }}" 
+                            action="{{ request.app.url_path_for('update_soundboard_command', old_command_name=sb.command|urlencode) }}"
                             method="post"
                         >
                             <button type="submit" class="btn btn-primary">Save</button>
                         </form>
-                        <form action="{{ request.app.url_path_for('delete_soundboard_clip', command_name=sb.command) }}" method="post" onsubmit="return confirm('Are you sure you want to delete this clip?');">
+                        <form action="{{ request.app.url_path_for('delete_soundboard_clip', command_name=sb.command|urlencode) }}" method="post" onsubmit="return confirm('Are you sure you want to delete this clip?');">
                             <button type="submit" class="btn btn-danger">Delete</button>
                         </form>
                     </div>

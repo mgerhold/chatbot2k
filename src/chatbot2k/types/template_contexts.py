@@ -34,7 +34,7 @@ class ErrorContext(CommonContext):
 class Command(BaseModel):
     model_config = ConfigDict(frozen=True)
 
-    command: str
+    aliases: list[str]
     description: str
     required_permission_level: str
 
@@ -59,7 +59,7 @@ class Constant(BaseModel):
 class ScriptCommandData(BaseModel):
     model_config = ConfigDict(frozen=True)
 
-    command: str
+    aliases: list[str]
     source_code: Optional[str]
     source_code_url: Optional[str]
 
@@ -68,7 +68,7 @@ class ScriptCommandData(BaseModel):
 class SoundboardCommand(BaseModel):
     model_config = ConfigDict(frozen=True)
 
-    command: str
+    aliases: list[str]
     clip_url: str
     uploader_twitch_login: Optional[str]
     uploader_twitch_display_name: Optional[str]

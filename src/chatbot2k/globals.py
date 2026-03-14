@@ -54,7 +54,7 @@ class Globals(AppState):
 
     @property
     @override
-    def command_handlers(self) -> dict[str, CommandHandler]:
+    def command_handlers(self) -> list[CommandHandler]:
         return self._command_handlers
 
     @property
@@ -106,7 +106,7 @@ class Globals(AppState):
     def reload_command_handlers(self) -> None:
         """Reload all command handlers from the database."""
         self._command_handlers.clear()
-        self._command_handlers.update(self._reload_command_handlers())
+        self._command_handlers.extend(self._reload_command_handlers())
 
     @override
     async def reload_broadcasters(self) -> None:
@@ -123,13 +123,13 @@ class Globals(AppState):
     def is_shutting_down(self) -> asyncio.Event:
         return self._is_shutting_down
 
-    def _reload_command_handlers(self) -> dict[str, CommandHandler]:
+    def _reload_command_handlers(self) -> list[CommandHandler]:
         command_handlers: Final = load_commands(self)
-        command_handlers[CommandManagementCommand.COMMAND_NAME] = CommandManagementCommand(self)
-        command_handlers[GiveawayCommand.COMMAND_NAME] = GiveawayCommand(self)
-        command_handlers[GiveawayEnterCommand.COMMAND_NAME] = GiveawayEnterCommand(self)
-        command_handlers[DictionaryHandler.COMMAND_NAME] = DictionaryHandler(self)
-        command_handlers[SoundboardHandler.COMMAND_NAME] = SoundboardHandler(self)
+        command_handlers.append(CommandManagementCommand(self))
+        command_handlers.append(GiveawayCommand(self))
+        command_handlers.append(GiveawayEnterCommand(self))
+        command_handlers.append(DictionaryHandler(self))
+        command_handlers.append(SoundboardHandler(self))
         return command_handlers
 
     @staticmethod
