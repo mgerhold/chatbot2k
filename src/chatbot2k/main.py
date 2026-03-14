@@ -32,10 +32,7 @@ from chatbot2k.routes import overlay
 from chatbot2k.routes import viewer
 from chatbot2k.types.template_contexts import ErrorContext
 
-logging.basicConfig(
-    level=logging.INFO,
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
-)
+logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s")
 
 
 logger: Final = logging.getLogger(__name__)
