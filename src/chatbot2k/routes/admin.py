@@ -602,7 +602,8 @@ async def admin_soundboard(
     soundboard_commands: Final = sorted(
         (
             SoundboardCommand(
-                aliases=get_aliases(cmd.regular_expression),
+                command=cmd.name,
+                aliases=get_aliases(cmd.regular_expression),  # Not used in template.
                 clip_url=f"/{RELATIVE_SOUNDBOARD_FILES_DIRECTORY.as_posix()}/{cmd.filename}",
                 uploader_twitch_login=cmd.uploader_twitch_login,
                 uploader_twitch_display_name=cmd.uploader_twitch_display_name,
@@ -610,7 +611,7 @@ async def admin_soundboard(
             )
             for cmd in db_commands
         ),
-        key=lambda cmd: cmd.aliases[0],
+        key=lambda cmd: cmd.command,
     )
 
     existing_commands: Final = [command.name.lower() for command in app_state.command_handlers]
