@@ -56,7 +56,7 @@ class ParameterizedResponseCommand(CommandHandler):
     @override
     def usages(self) -> list[str]:
         return [
-            f"!{alias} {' '.join(f'{{{placeholder}}}' for placeholder in self._placeholders)}"
+            f"{alias} {' '.join(f'{{{placeholder}}}' for placeholder in self._placeholders)}"
             for alias in get_aliases(self.regular_expression)
         ]
 
