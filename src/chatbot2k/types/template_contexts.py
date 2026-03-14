@@ -68,6 +68,7 @@ class ScriptCommandData(BaseModel):
 class SoundboardCommand(BaseModel):
     model_config = ConfigDict(frozen=True)
 
+    command: str
     aliases: list[str]
     clip_url: str
     uploader_twitch_login: Optional[str]

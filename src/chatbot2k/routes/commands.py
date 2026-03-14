@@ -129,6 +129,7 @@ async def show_main_page(
     soundboard_commands: Final = sorted(
         (
             SoundboardCommand(
+                command=handler.name,  # Not used in template.
                 aliases=handler.usages,
                 clip_url=handler.clip_url,
                 uploader_twitch_login=handler.uploader_twitch_login,
