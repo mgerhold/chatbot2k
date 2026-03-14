@@ -267,12 +267,17 @@
             }
         });
 
-        // Handle volume changes and send to backend
+        // Handle volume changes and send to backend (attach listeners AFTER setting initial volume)
         const volumeDebounceTimers = new Map();
+        let initializationComplete = false;
         
-        mediaElements.forEach(element => {
+        mediaElements.forEach((element, index) => {
+            const commandName = element.getAttribute('data-command');
             element.addEventListener('volumechange', function() {
-                const commandName = element.getAttribute('data-command');
+                // Ignore volumechange events during initialization
+                if (!initializationComplete) {
+                    return;
+                }
                 if (!commandName) {
                     console.error('Missing data-command attribute on media element:', element);
                     return;
@@ -317,6 +322,12 @@
                 volumeDebounceTimers.set(element, timerId);
             });
         });
+        
+        // Mark initialization as complete after a short delay to allow queued events to be ignored
+        setTimeout(() => {
+            initializationComplete = true;
+            console.log('[DEBUG] Initialization flag set to true - POST requests now enabled');
+        }, 100);
     });
 </script>
 {% endblock %}
