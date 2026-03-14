@@ -105,6 +105,7 @@ async def show_main_page(
             continue
         script_commands_data.append(
             ScriptCommandData(
+                command=handler.name,
                 aliases=handler.usages,
                 source_code=(
                     await _fetch_script_source(script.source_code, app_state)

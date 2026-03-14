@@ -59,6 +59,7 @@ class Constant(BaseModel):
 class ScriptCommandData(BaseModel):
     model_config = ConfigDict(frozen=True)
 
+    command: str
     aliases: list[str]
     source_code: Optional[str]
     source_code_url: Optional[str]
