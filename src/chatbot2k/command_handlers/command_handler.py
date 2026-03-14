@@ -49,7 +49,7 @@ class CommandHandler(ABC):
 
     @property
     @abstractmethod
-    def usage(self) -> str:
+    def usages(self) -> list[str]:
         pass
 
     @property

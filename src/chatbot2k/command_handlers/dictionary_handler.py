@@ -59,8 +59,8 @@ class DictionaryHandler(CommandHandler):
 
     @property
     @override
-    def usage(self) -> str:
-        return f"!{self.COMMAND_NAME} [add|remove] <word> [explanation]"
+    def usages(self) -> list[str]:
+        return [f"!{self.COMMAND_NAME} [add|remove] <word> [explanation]"]
 
     @property
     @override

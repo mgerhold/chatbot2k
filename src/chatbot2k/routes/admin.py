@@ -52,6 +52,7 @@ from chatbot2k.types.template_contexts import RaidEventAction
 from chatbot2k.types.template_contexts import RaidEventUserInfo
 from chatbot2k.types.template_contexts import SoundboardCommand
 from chatbot2k.types.user_info import UserInfo
+from chatbot2k.utils.command_aliases import get_aliases
 from chatbot2k.utils.discord import get_available_discord_text_channels
 from chatbot2k.utils.mime_types import get_file_extension_by_mime_type
 from chatbot2k.utils.notifications import notify_user
@@ -601,7 +602,7 @@ async def admin_soundboard(
     soundboard_commands: Final = sorted(
         (
             SoundboardCommand(
-                command=cmd.name,
+                aliases=get_aliases(cmd.regular_expression),
                 clip_url=f"/{RELATIVE_SOUNDBOARD_FILES_DIRECTORY.as_posix()}/{cmd.filename}",
                 uploader_twitch_login=cmd.uploader_twitch_login,
                 uploader_twitch_display_name=cmd.uploader_twitch_display_name,
@@ -609,7 +610,7 @@ async def admin_soundboard(
             )
             for cmd in db_commands
         ),
-        key=lambda cmd: cmd.command,
+        key=lambda cmd: cmd.aliases[0],
     )
 
     existing_commands: Final = [command.name.lower() for command in app_state.command_handlers]

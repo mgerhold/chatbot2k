@@ -40,8 +40,8 @@ class GiveawayEnterCommand(CommandHandler):
 
     @property
     @override
-    def usage(self) -> str:
-        return f"!{ENTER_GIVEAWAY_COMMAND}"
+    def usages(self) -> list[str]:
+        return [f"!{ENTER_GIVEAWAY_COMMAND}"]
 
     @property
     @override

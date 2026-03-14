@@ -305,7 +305,7 @@ async def _process_chat_message(
             if responses is not None
             else [
                 ChatResponse(
-                    text=f"Usage: {command_handler.usage}",
+                    text=f"Usages: {', '.join(command_handler.usages)}",
                     chat_message=chat_message,
                 )
             ]

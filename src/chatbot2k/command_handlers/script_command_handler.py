@@ -14,6 +14,7 @@ from chatbot2k.types.chat_command import ChatCommand
 from chatbot2k.types.chat_response import ChatResponse
 from chatbot2k.types.configuration_setting_kind import ConfigurationSettingKind
 from chatbot2k.types.permission_level import PermissionLevel
+from chatbot2k.utils.command_aliases import get_aliases
 
 logger: Final = logging.getLogger(__name__)
 
@@ -101,8 +102,8 @@ class ScriptCommandHandler(CommandHandler):
 
     @property
     @override
-    def usage(self) -> str:
-        return f"!{self._name}"
+    def usages(self) -> list[str]:
+        return get_aliases(self.regular_expression)
 
     @property
     @override

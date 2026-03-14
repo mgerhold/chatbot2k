@@ -88,8 +88,8 @@ class CommandManagementCommand(CommandHandler):
 
     @property
     @override
-    def usage(self) -> str:
-        return "!command [add|add-script|update|remove] <parameters>..."
+    def usages(self) -> list[str]:
+        return ["!command [add|add-script|update|remove] <parameters>..."]
 
     @property
     @override

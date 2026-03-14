@@ -9,6 +9,7 @@ from chatbot2k.constants import RELATIVE_SOUNDBOARD_FILES_DIRECTORY
 from chatbot2k.types.chat_command import ChatCommand
 from chatbot2k.types.chat_response import ChatResponse
 from chatbot2k.types.permission_level import PermissionLevel
+from chatbot2k.utils.command_aliases import get_aliases
 
 
 @final
@@ -58,8 +59,8 @@ class ClipHandler(CommandHandler):
 
     @property
     @override
-    def usage(self) -> str:
-        return f"!{self.name}"
+    def usages(self) -> list[str]:
+        return get_aliases(self.regular_expression)
 
     @property
     @override
