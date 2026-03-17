@@ -49,7 +49,7 @@ class StaticResponseCommand(CommandHandler):
     @property
     @override
     def usages(self) -> list[str]:
-        return get_aliases(self.regular_expression)
+        return list(get_aliases(self.regular_expression))
 
     @property
     @override

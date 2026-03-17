@@ -603,7 +603,7 @@ async def admin_soundboard(
         (
             SoundboardCommand(
                 command=cmd.name,
-                aliases=get_aliases(cmd.regular_expression),  # Not used in template.
+                aliases=list(get_aliases(cmd.regular_expression)),  # Not used in template.
                 clip_url=f"/{RELATIVE_SOUNDBOARD_FILES_DIRECTORY.as_posix()}/{cmd.filename}",
                 uploader_twitch_login=cmd.uploader_twitch_login,
                 uploader_twitch_display_name=cmd.uploader_twitch_display_name,
@@ -615,7 +615,6 @@ async def admin_soundboard(
     )
 
     existing_commands: Final = [command.name.lower() for command in app_state.command_handlers]
-
     context: Final = AdminSoundboardContext(
         **common_context.model_dump(),
         active_page=AdminDashboardActivePage.SOUNDBOARD,
