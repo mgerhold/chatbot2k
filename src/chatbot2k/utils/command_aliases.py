@@ -1,3 +1,4 @@
+from functools import cache
 from typing import Final
 
 from greenery import Pattern  # type: ignore[reportMissingTypeStubs]
@@ -5,7 +6,10 @@ from greenery import Pattern  # type: ignore[reportMissingTypeStubs]
 _MAX_NUM_COMMAND_ALIASES = 3
 
 
-def get_aliases(pattern: Pattern) -> list[str]:
+@cache
+def get_aliases(pattern: Pattern) -> tuple[str, ...]:
+    # Returns a `tuple` because tuples are immutable and cached values
+    # are shared between callers.
     aliases: Final = sorted(
         f"!{alias}"
         for _, alias in zip(
@@ -16,4 +20,4 @@ def get_aliases(pattern: Pattern) -> list[str]:
     )
     if len(aliases) > _MAX_NUM_COMMAND_ALIASES:
         aliases[-1] = "!..."
-    return aliases
+    return tuple(aliases)
