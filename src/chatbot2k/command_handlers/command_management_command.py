@@ -1,4 +1,5 @@
 import asyncio
+from functools import cache
 from typing import Final
 from typing import NamedTuple
 from typing import Optional
@@ -33,6 +34,7 @@ class _SerializedScript(NamedTuple):
 type _ErrorMessage = str
 
 
+@cache
 def _triggers_overlap(new_pattern: Pattern, existing_pattern: Pattern) -> bool:
     """Returns `True` if the two command triggers could match the same chat message.
 
