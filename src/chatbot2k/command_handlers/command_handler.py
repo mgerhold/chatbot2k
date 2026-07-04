@@ -25,7 +25,7 @@ class CommandHandler(ABC):
         # there are multiple possible strings that could be used to trigger the command. For this,
         # we check if the regular expression leads to more than one possible match. This can be used
         # to avoid performing an expensive regex match instead of a simple string comparison.
-        # Using `is_regex_pattern()` (rather than inline code) also warms its LRU cache so that
+        # Using `is_regex_pattern()` (rather than inline code) also warms its cache so that
         # `_add_or_update_command()` pays no cold-start cost for any already-loaded command.
         self._is_regular_expression: Final = is_regex_pattern(self._regular_expression)
 

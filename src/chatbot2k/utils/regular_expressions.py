@@ -1,10 +1,10 @@
-from functools import lru_cache
+from functools import cache
 
 from greenery import Pattern  # type: ignore[reportMissingTypeStubs]
 from greenery import parse  # type: ignore[reportMissingTypeStubs]
 
 
-@lru_cache
+@cache
 def parse_regular_expression(name: str) -> Pattern:
     """
     Parses a regular expression pattern from the given name. To avoid
@@ -13,7 +13,7 @@ def parse_regular_expression(name: str) -> Pattern:
     return parse(name.lower())
 
 
-@lru_cache
+@cache
 def is_regex_pattern(pattern: Pattern) -> bool:
     """
     Returns `True` if the pattern matches more than one distinct string, i.e. it
