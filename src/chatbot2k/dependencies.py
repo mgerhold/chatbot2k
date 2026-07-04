@@ -1,5 +1,5 @@
 from datetime import datetime
-from functools import lru_cache
+from functools import cache
 from http import HTTPStatus
 from pathlib import Path
 from typing import Annotated
@@ -26,14 +26,14 @@ from chatbot2k.utils.auth import is_user_broadcaster
 from chatbot2k.utils.auth import is_user_moderator
 
 
-@lru_cache
+@cache
 def get_app_state() -> AppState:
     # Returns a singleton instance of `Globals` which implements
     # the `AppState` interface.
     return Globals()
 
 
-@lru_cache
+@cache
 def get_templates() -> Jinja2Templates:
     templates_path: Final = Path(__file__).parent.parent.parent / "templates"
     if not templates_path.exists():
