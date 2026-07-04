@@ -7,7 +7,7 @@ requires-python = ">=3.13"
 dependencies = [
     "babel>=2.18.0",
     "beautifulsoup4>=4.13.4",
-    "bleach>=6.2.0",
+    "bleach>=6.4.0",
     "cachetools>=5.5.0",
     "discord-py>=2.6.0",
     "dotenv>=0.9.9",
