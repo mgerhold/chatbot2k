@@ -6,6 +6,7 @@ from typing import final
 from typing import override
 
 import requests
+from greenery import Pattern  # type: ignore[reportMissingTypeStubs]
 
 from chatbot2k.app_state import AppState
 from chatbot2k.command_handlers.clip_handler import ClipHandler
@@ -19,6 +20,7 @@ from chatbot2k.translation_key import TranslationKey
 from chatbot2k.types.chat_command import ChatCommand
 from chatbot2k.types.chat_response import ChatResponse
 from chatbot2k.types.permission_level import PermissionLevel
+from chatbot2k.utils.regular_expressions import is_regex_pattern
 from chatbot2k.utils.regular_expressions import parse_regular_expression
 
 
@@ -29,6 +31,27 @@ class _SerializedScript(NamedTuple):
 
 
 type _ErrorMessage = str
+
+
+def _triggers_overlap(new_pattern: Pattern, existing_pattern: Pattern) -> bool:
+    """Returns `True` if the two command triggers could match the same chat message.
+
+    For the common case where both sides are plain constant strings this uses
+    pattern equality (which is blazingly fast™ and also cached). A full FSM
+    intersection is only performed when at least one side is a genuine regular
+    expression, which is rare in practice.
+
+    Pattern equality correctly handles unusual notations such as "hell[o]" and
+    "hello", which describe the same single accepted string.
+
+    The comparison is case-insensitive: `parse_regular_expression()` always
+    lower-cases its input, so two names that differ only in case produce the
+    same `Pattern` object via `@lru_cache` and compare equal here.
+    """
+    if not is_regex_pattern(new_pattern) and not is_regex_pattern(existing_pattern):
+        return new_pattern == existing_pattern  # Note: Pattern comparison, not string comparison.
+    # At least one side is a genuine regex — full FSM intersection (rare case). This is slow.
+    return not (new_pattern & existing_pattern).empty()
 
 
 @final
@@ -110,20 +133,15 @@ class CommandManagementCommand(CommandHandler):
         name: Final = chat_command.arguments[1].lstrip("!")
         name_regex: Final = parse_regular_expression(name)
 
-        # For each category of commands, we check if the FSM (finite state machine) of the command name regular
-        # expression has any overlap with the FSM of any existing command. If there is an overlap, it means that
-        # there is at least one string input that would match both the new command and the existing command,
-        # which would lead to ambiguity. Therefore, we do not allow adding/updating the command in that case.
-
         soundboard_commands: Final = app_state.database.get_soundboard_commands()
-        if any(not (name_regex & command.regular_expression).empty() for command in soundboard_commands):
+        if any(_triggers_overlap(name_regex, cmd.regular_expression) for cmd in soundboard_commands):
             return (
                 False,
                 app_state.translations_manager.get_translation(TranslationKey.CANNOT_ADD_OR_UPDATE_SOUNDBOARD_COMMAND),
             )
 
         scripts: Final = app_state.database.get_scripts()
-        if any(not (name_regex & script.regular_expression).empty() for script in scripts):
+        if any(_triggers_overlap(name_regex, script.regular_expression) for script in scripts):
             return (
                 False,
                 app_state.translations_manager.get_translation(TranslationKey.CANNOT_ADD_OR_UPDATE_SCRIPT_COMMAND),
@@ -134,7 +152,7 @@ class CommandManagementCommand(CommandHandler):
         commands: Final = static_commands + parameterized_commands
 
         existing_command: Final = next(
-            (command for command in commands if not (name_regex & command.regular_expression).empty()),
+            (command for command in commands if _triggers_overlap(name_regex, command.regular_expression)),
             None,
         )
         existing_command_has_same_pattern: Final = (
@@ -145,7 +163,7 @@ class CommandManagementCommand(CommandHandler):
         # also builtin ones that are not included in the database. Those can neither be
         # added nor updated, so we return an error message.
         if existing_command is None and any(
-            not (name_regex & handler.regular_expression).empty() for handler in app_state.command_handlers
+            _triggers_overlap(name_regex, handler.regular_expression) for handler in app_state.command_handlers
         ):
             return (
                 False,
@@ -208,7 +226,7 @@ class CommandManagementCommand(CommandHandler):
         source_code: Final = chat_command.arguments[2]
 
         # Check if command already exists.
-        if any(not (name_regex & handler.regular_expression).empty() for handler in app_state.command_handlers):
+        if any(_triggers_overlap(name_regex, handler.regular_expression) for handler in app_state.command_handlers):
             return (
                 False,
                 app_state.translations_manager.get_translation(TranslationKey.COMMAND_ALREADY_EXISTS),
