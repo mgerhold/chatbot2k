@@ -56,12 +56,21 @@ def get_current_user(
             key=app_state.config.jwt_secret,
             algorithms=[JWT_ALG],
         )
+        sub: Final = payload.get("sub")
+        if not isinstance(sub, str):
+            raise ValueError("Invalid 'sub' claim in JWT payload")
+        login: Final = payload.get("login")
+        if not isinstance(login, str):
+            raise ValueError("Invalid 'login' claim in JWT payload")
+        display_name: Final = payload.get("display_name")
+        if not isinstance(display_name, str):
+            raise ValueError("Invalid 'display_name' claim in JWT payload")
         return UserInfo(
-            id=payload.get("sub"),
-            login=payload.get("login"),
-            display_name=payload.get("display_name"),
+            id=sub,
+            login=login,
+            display_name=display_name,
         )
-    except (jwt.InvalidTokenError, KeyError):
+    except (jwt.InvalidTokenError, KeyError, ValueError):
         return None
 
 
