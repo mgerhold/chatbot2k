@@ -13,8 +13,8 @@ from chatbot2k.routes.auth_constants import SCOPES
 
 logger: Final = logging.getLogger(__name__)
 
-_PROFILE_IMAGE_CACHE: TTLCache[str, str] = TTLCache(maxsize=1000, ttl=5.0 * 60.0)
-_BROADCASTER_CHECK_CACHE: TTLCache[str, bool] = TTLCache(maxsize=100, ttl=5.0 * 60.0)
+_PROFILE_IMAGE_CACHE = TTLCache[str, str](maxsize=1000, ttl=5.0 * 60.0)
+_BROADCASTER_CHECK_CACHE = TTLCache[str, bool](maxsize=100, ttl=5.0 * 60.0)
 
 
 async def get_authenticated_twitch_client(app_state: AppState, user_id: str) -> Twitch:

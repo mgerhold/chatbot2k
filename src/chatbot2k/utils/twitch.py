@@ -17,8 +17,8 @@ class TwitchUserInfo(NamedTuple):
     profile_image_url: str
 
 
-_USERS_BY_ID_CACHE: TTLCache[str, TwitchUserInfo] = TTLCache(maxsize=100, ttl=5.0 * 60.0)
-_USERS_BY_LOGIN_CACHE: TTLCache[str, TwitchUserInfo] = TTLCache(maxsize=100, ttl=5.0 * 60.0)
+_USERS_BY_ID_CACHE = TTLCache[str, TwitchUserInfo](maxsize=100, ttl=5.0 * 60.0)
+_USERS_BY_LOGIN_CACHE = TTLCache[str, TwitchUserInfo](maxsize=100, ttl=5.0 * 60.0)
 
 
 async def get_twitch_user_info_by_ids(
