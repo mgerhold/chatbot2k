@@ -35,7 +35,7 @@ build-backend = "hatchling.build"
 
 [dependency-groups]
 dev = [
-    "alembic>=1.16.5",
+    "alembic>=1.18.5",
     "poethepoet>=0.37.0",
     "pyright[nodejs]>=1.1.411",
     "pytest>=9.0.3",
