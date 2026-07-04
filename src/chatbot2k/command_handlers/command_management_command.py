@@ -1,4 +1,5 @@
 import asyncio
+from functools import cache
 from typing import Final
 from typing import NamedTuple
 from typing import Optional
@@ -33,6 +34,7 @@ class _SerializedScript(NamedTuple):
 type _ErrorMessage = str
 
 
+@cache
 def _triggers_overlap(new_pattern: Pattern, existing_pattern: Pattern) -> bool:
     """Returns `True` if the two command triggers could match the same chat message.
 
@@ -46,7 +48,7 @@ def _triggers_overlap(new_pattern: Pattern, existing_pattern: Pattern) -> bool:
 
     The comparison is case-insensitive: `parse_regular_expression()` always
     lower-cases its input, so two names that differ only in case produce the
-    same `Pattern` object via `@lru_cache` and compare equal here.
+    same `Pattern` object via `@cache` and compare equal here.
     """
     if not is_regex_pattern(new_pattern) and not is_regex_pattern(existing_pattern):
         return new_pattern == existing_pattern  # Note: Pattern comparison, not string comparison.
