@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import asyncio
+import re
 from abc import ABC
 from abc import abstractmethod
 from typing import TYPE_CHECKING
@@ -15,6 +16,7 @@ from chatbot2k.database.engine import Database
 from chatbot2k.dictionary import Dictionary
 from chatbot2k.translations_manager import TranslationsManager
 from chatbot2k.types.commands import Command
+from chatbot2k.utils.regular_expressions import parse_regular_expression
 
 if TYPE_CHECKING:
     # We have to avoid circular imports, so we use a string annotation below.
@@ -64,12 +66,19 @@ class AppState(ABC):
         (full match) the given string, or `None` if no match is found.
         """
         normalized_command: Final = string.removeprefix("!").lower()
+        # Parse the incoming command as a literal pattern (once) so that non-regex
+        # handlers can be matched with a cheap pattern-equality check instead of a
+        # full FSM traversal.  `parse_regular_expression()` caches its results, so
+        # repeated invocations for the same trigger string are essentially free.
+        incoming: Final = parse_regular_expression(re.escape(normalized_command))
 
         for handler in self.command_handlers:
-            if (not handler.is_regular_expression and handler.name == normalized_command) or (
-                handler.is_regular_expression and handler.regular_expression.matches(normalized_command)
-            ):
-                return handler
+            if handler.is_regular_expression:
+                if handler.regular_expression.matches(normalized_command):
+                    return handler
+            else:
+                if incoming == handler.regular_expression:
+                    return handler
         return None
 
     @final
