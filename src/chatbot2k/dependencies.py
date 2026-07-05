@@ -11,6 +11,9 @@ from fastapi import Depends
 from fastapi import HTTPException
 from starlette.requests import Request
 from starlette.templating import Jinja2Templates
+from twitchAPI.type import InvalidRefreshTokenException
+from twitchAPI.type import InvalidTokenException
+from twitchAPI.type import UnauthorizedException
 
 from chatbot2k.app_state import AppState
 from chatbot2k.globals import Globals
@@ -65,6 +68,10 @@ def get_current_user(
         display_name: Final = payload.get("display_name")
         if not isinstance(display_name, str):
             raise ValueError("Invalid 'display_name' claim in JWT payload")
+        if app_state.database.get_twitch_token_set(user_id=sub) is None:
+            # The JWT may outlive the stored Twitch tokens (e.g. after a logout
+            # on another device). Treat such a session as expired.
+            return None
         return UserInfo(
             id=sub,
             login=login,
@@ -122,14 +129,17 @@ async def get_common_context(
     current_user: Annotated[Optional[UserInfo], Depends(get_current_user)],
     app_state: Annotated[AppState, Depends(get_app_state)],
 ) -> CommonContext:
-    profile_image_url: Final = (
-        None
-        if current_user is None
-        else await get_user_profile_image_url(
-            app_state,
-            current_user.id,
-        )
-    )
+    profile_image_url: Optional[str] = None
+    if current_user is not None:
+        try:
+            profile_image_url = await get_user_profile_image_url(
+                app_state,
+                current_user.id,
+            )
+        except (InvalidRefreshTokenException, InvalidTokenException, UnauthorizedException):
+            # Twitch rejected the stored tokens (revoked, password change, ...),
+            # so the session is stale even though the JWT is still valid.
+            current_user = None
     is_broadcaster: Final = False if current_user is None else await is_user_broadcaster(app_state, current_user.id)
     pending_clips_count: Final = app_state.database.get_number_of_pending_soundboard_clips()
 
