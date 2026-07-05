@@ -14,6 +14,7 @@ from chatbot2k.database.tables import StaticCommand
 from chatbot2k.translation_key import TranslationKey
 from chatbot2k.types.chat_command import ChatCommand
 from chatbot2k.types.chat_message import ChatMessage
+from chatbot2k.utils.regular_expressions import is_regex_pattern
 from chatbot2k.utils.regular_expressions import parse_regular_expression
 
 # ---------------------------------------------------------------------------
@@ -33,22 +34,24 @@ def _make_chat_command(*arguments: str) -> ChatCommand:
 
 def _make_handler_mock(name: str) -> MagicMock:
     """Create a minimal CommandHandler mock that exposes name and regular_expression."""
-    handler = MagicMock()
+    handler: Final = MagicMock()
     handler.name = name
-    handler.regular_expression = parse_regular_expression(name)
+    pattern: Final = parse_regular_expression(name)
+    handler.regular_expression = pattern
+    handler.is_regular_expression = is_regex_pattern(pattern)
     return handler
 
 
 def _make_soundboard_mock(name: str) -> MagicMock:
     """Create a minimal soundboard command mock that exposes regular_expression."""
-    cmd = MagicMock()
+    cmd: Final = MagicMock()
     cmd.regular_expression = parse_regular_expression(name)
     return cmd
 
 
 def _make_script_mock(name: str) -> MagicMock:
     """Create a minimal script mock that exposes regular_expression."""
-    script = MagicMock()
+    script: Final = MagicMock()
     script.regular_expression = parse_regular_expression(name)
     return script
 
@@ -260,3 +263,43 @@ def test_case_insensitive_conflict(existing_name: str, new_name: str) -> None:
     success, msg = _add(state, new_name)
     assert not success, f"Adding '{new_name}' when '{existing_name}' exists should be rejected"
     assert TranslationKey.COMMAND_ALREADY_EXISTS in msg
+
+
+# ---------------------------------------------------------------------------
+# Regression tests for lookup_command with regex-escaped special characters
+# ---------------------------------------------------------------------------
+# Commands whose names contain regex escape sequences (e.g. `anders\+\+` for
+# the literal trigger `anders++`) must still be matched when users invoke them.
+# Previously, the non-regex fast-path in `lookup_command()` compared `handler.name`
+# (which contains the raw escape sequences) against the normalized user input
+# (which contains the literal characters), causing the lookup to always fail.
+
+
+@pytest.mark.parametrize(
+    ("stored_name", "trigger"),
+    [
+        ("anders\\+\\+", "!anders++"),  # production case: plus signs
+        ("hello\\?", "!hello?"),  # question mark
+        ("test\\.result", "!test.result"),  # dot
+        ("cmd\\*", "!cmd*"),  # asterisk
+        ("my\\(cmd\\)", "!my(cmd)"),  # parentheses
+    ],
+)
+def test_lookup_command_with_regex_escaped_special_characters(stored_name: str, trigger: str) -> None:
+    """Commands whose stored names use regex escaping for special characters must be triggerable."""
+    handler: Final = _make_handler_mock(stored_name)
+    mock_state: Final = MagicMock(spec=AppState)
+    mock_state.command_handlers = [handler]
+    result: Final = AppState.lookup_command(mock_state, trigger)
+    assert result is handler, (
+        f"Command stored as '{stored_name!r}' should be triggered by '{trigger}', but lookup returned None"
+    )
+
+
+def test_lookup_command_plain_name_still_works() -> None:
+    """Plain (non-escaped) command names must still be found after the fix."""
+    handler: Final = _make_handler_mock("simple")
+    mock_state: Final = MagicMock(spec=AppState)
+    mock_state.command_handlers = [handler]
+    assert AppState.lookup_command(mock_state, "!simple") is handler
+    assert AppState.lookup_command(mock_state, "!other") is None
