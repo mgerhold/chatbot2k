@@ -25,7 +25,7 @@ dependencies = [
     "sqlmodel>=0.0.39",
     "twitchapi>=4.5.0",
     "urlextract>=1.9.0",
-    "uvicorn>=0.35.0",
+    "uvicorn>=0.51.0",
     "yappi>=1.7.6",
 ]
 
