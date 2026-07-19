@@ -41,7 +41,7 @@ dev = [
     "pytest>=9.0.3",
     "pytest-asyncio>=1.4.0",
     "pytest-cov>=7.0.0",
-    "ruff>=0.15.20",
+    "ruff>=0.15.22",
 ]
 
 [tool.setuptools.package-data]
