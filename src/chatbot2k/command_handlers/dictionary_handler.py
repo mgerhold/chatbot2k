@@ -41,6 +41,14 @@ class DictionaryHandler(CommandHandler):
                         chat_message=chat_command.source_message,
                     )
                 ]
+            case "append" if len(chat_command.arguments) == 3:
+                append_result: Final = self._append_dict_entry(chat_command)
+                return [
+                    ChatResponse(
+                        text=append_result,
+                        chat_message=chat_command.source_message,
+                    )
+                ]
             case "remove" if len(chat_command.arguments) == 2:
                 remove_result: Final = self._remove_dict_entry(chat_command)
                 return [
@@ -62,6 +70,7 @@ class DictionaryHandler(CommandHandler):
     def usages(self) -> list[str]:
         return [
             f"!{self.COMMAND_NAME} [add|update] <word> <explanation>",
+            f"!{self.COMMAND_NAME} append <word> <text>",
             f"!{self.COMMAND_NAME} remove <word>",
         ]
 
@@ -71,7 +80,9 @@ class DictionaryHandler(CommandHandler):
         return (
             "Manage the dictionary of words and their explanations. "
             + f"Use `!{DictionaryHandler.COMMAND_NAME} add` to add a word with its explanation, "
-            + f"`!{DictionaryHandler.COMMAND_NAME} update` to change a word's explanation, and "
+            + f"`!{DictionaryHandler.COMMAND_NAME} update` to change a word's explanation, "
+            + f"`!{DictionaryHandler.COMMAND_NAME} append` to append text to a word's existing "
+            + "explanation, and "
             + f"`!{DictionaryHandler.COMMAND_NAME} remove` to remove a word."
         )
 
@@ -102,6 +113,21 @@ class DictionaryHandler(CommandHandler):
             new_explanation=explanation,
         )
         return f"Updated '{word}' in the dictionary."
+
+    def _append_dict_entry(
+        self,
+        chat_command: ChatCommand,
+    ) -> str:
+        word: Final = chat_command.arguments[1]
+        text_to_append: Final = chat_command.arguments[2]
+        for existing_word, explanation in self._app_state.dictionary.as_dict().items():
+            if existing_word.lower() == word.lower():
+                self._app_state.dictionary.update_entry(
+                    word=existing_word,
+                    new_explanation=f"{explanation} {text_to_append}",
+                )
+                return f"Appended to '{existing_word}' in the dictionary."
+        return f"Cannot append to '{word}': it does not exist in the dictionary."
 
     def _remove_dict_entry(
         self,
