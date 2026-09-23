@@ -1,4 +1,6 @@
+import asyncio
 import logging
+from collections.abc import AsyncIterator
 from datetime import UTC
 from datetime import datetime
 from pathlib import Path
@@ -6,6 +8,7 @@ from typing import Annotated
 from typing import Final
 from typing import Optional
 from typing import final
+from uuid import uuid4
 
 import httpx
 from fastapi import Depends
@@ -14,6 +17,7 @@ from fastapi import Request
 from fastapi.routing import APIRouter
 from pydantic import BaseModel
 from starlette.responses import Response
+from starlette.responses import StreamingResponse
 from starlette.templating import Jinja2Templates
 
 from chatbot2k.app_state import AppState
@@ -38,6 +42,7 @@ from chatbot2k.types.user_info import UserInfo
 from chatbot2k.utils.markdown import markdown_to_sanitized_html
 from chatbot2k.utils.soundboard import get_soundboard_clip_uploaded_at
 from chatbot2k.utils.soundboard import sort_order_to_reverse
+from chatbot2k.utils.sse import sse_encode
 
 router: Final = APIRouter()
 
@@ -191,6 +196,7 @@ async def show_main_page(
         active_section=section,
         sort_by=sort_by,
         order=order,
+        is_soundboard_enabled=app_state.is_soundboard_enabled,
     )
 
     return templates.TemplateResponse(
@@ -232,6 +238,53 @@ async def fetch_soundboard_commands_as_json(
             if isinstance(handler, ClipHandler)
         ]
     )
+
+
+_SOUNDBOARD_STATE_SSE_KEEP_ALIVE_INTERVAL = 1.0
+
+
+@router.get("/soundboard/events", name="soundboard_events")
+async def soundboard_events(
+    request: Request,
+    app_state: Annotated[AppState, Depends(get_app_state)],
+) -> StreamingResponse:
+    """
+    Public server-sent events stream notifying connected clients whenever the soundboard is
+    enabled or disabled, whether that happened via the admin web interface or a chat command.
+    Whether the soundboard is enabled isn't sensitive information, so this stream is public;
+    only actually changing it (the admin POST route) requires broadcaster permissions.
+    """
+
+    async def _generate() -> AsyncIterator[bytes]:
+        uuid: Final = uuid4()
+        logger.info(f"Client connected to `/soundboard/events` with UUID {uuid}")
+        app_state.soundboard_state_event_queues[uuid] = asyncio.Queue()
+        try:
+            while True:
+                if app_state.is_shutting_down.is_set() or await request.is_disconnected():
+                    break
+                try:
+                    event = await asyncio.wait_for(
+                        app_state.soundboard_state_event_queues[uuid].get(),
+                        timeout=_SOUNDBOARD_STATE_SSE_KEEP_ALIVE_INTERVAL,
+                    )
+                except TimeoutError:
+                    # No state change--we send a comment message as keep-alive and continue waiting.
+                    yield b": keep-alive\r\n\r\n"
+                    continue
+                yield sse_encode(event).encode("utf-8")
+        except asyncio.CancelledError:
+            # Client went away, stop sending events.
+            pass
+        finally:
+            logger.info(f"Client disconnected from `/soundboard/events` with UUID {uuid}")
+            del app_state.soundboard_state_event_queues[uuid]
+
+    headers: Final = {
+        "Cache-Control": "no-cache",
+        "X-Accel-Buffering": "no",  # If behind nginx, prevents buffering.
+    }
+    return StreamingResponse(_generate(), media_type="text/event-stream", headers=headers)
 
 
 @router.post("/api/refresh-source-code/{script_name:path}", name="refresh_source_code")

@@ -34,7 +34,12 @@ def _make_clip_handler(name: str, filename: str) -> ClipHandler:
     return ClipHandler(cast(AppState, object()), name=name, filename=filename, volume=1.0)
 
 
-def _make_client(tmp_path: Path, handlers: list[ClipHandler]) -> TestClient:
+def _make_client(
+    tmp_path: Path,
+    handlers: list[ClipHandler],
+    *,
+    is_soundboard_enabled: bool = True,
+) -> TestClient:
     soundboard_utils.SOUNDBOARD_FILES_DIRECTORY = tmp_path  # type: ignore[assignment]
 
     app_state_mock = type(
@@ -44,6 +49,7 @@ def _make_client(tmp_path: Path, handlers: list[ClipHandler]) -> TestClient:
             "command_handlers": handlers,
             "database": _FakeDatabase(),
             "dictionary": _FakeDictionary(),
+            "is_soundboard_enabled": is_soundboard_enabled,
         },
     )()
 

@@ -90,6 +90,29 @@
         background: #dc2626;
     }
 
+    .dashboard-header-title {
+        display: flex;
+        align-items: center;
+        gap: 1rem;
+        margin-bottom: 0.5rem;
+    }
+
+    .dashboard-header-title h1 {
+        margin: 0;
+    }
+
+    .soundboard-status {
+        font-weight: 600;
+    }
+
+    .soundboard-status.enabled {
+        color: #22c55e;
+    }
+
+    .soundboard-status.disabled {
+        color: #ef4444;
+    }
+
     .table-container {
         border: 1px solid var(--border);
         border-radius: var(--radius);
@@ -346,12 +369,90 @@
         }, 100);
     });
 </script>
+<script>
+    document.addEventListener('DOMContentLoaded', function () {
+        const toggleButton = document.getElementById('soundboard-toggle-button');
+        const statusSpan = document.getElementById('soundboard-status');
+
+        function applyState(isEnabled) {
+            statusSpan.textContent = isEnabled ? 'enabled' : 'disabled';
+            statusSpan.className = 'soundboard-status ' + (isEnabled ? 'enabled' : 'disabled');
+            toggleButton.textContent = isEnabled ? 'Disable Soundboard' : 'Enable Soundboard';
+            toggleButton.className = 'btn ' + (isEnabled ? 'btn-danger' : 'btn-primary');
+        }
+
+        toggleButton.addEventListener('click', async function () {
+            const isCurrentlyEnabled = statusSpan.classList.contains('enabled');
+            toggleButton.disabled = true;
+            try {
+                const response = await fetch('{{ request.app.url_path_for("set_soundboard_enabled") }}', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ is_enabled: !isCurrentlyEnabled }),
+                });
+                if (!response.ok) {
+                    console.error('Failed to update soundboard state:', await response.text());
+                }
+                // On success, the SSE stream below applies the confirmed new state,
+                // so every open tab (including this one) stays in sync.
+            } catch (error) {
+                console.error('Error updating soundboard state:', error);
+            } finally {
+                toggleButton.disabled = false;
+            }
+        });
+
+        // ---- SSE hookup with auto-reconnect, mirroring the overlay page ----
+        let eventSource = null;
+        const RECONNECT_DELAY = 5000; // 5 seconds
+
+        function connect() {
+            if (eventSource) {
+                try { eventSource.close(); } catch {}
+                eventSource = null;
+            }
+
+            eventSource = new EventSource('{{ request.app.url_path_for("soundboard_events") }}');
+
+            eventSource.onmessage = (ev) => {
+                try {
+                    const data = JSON.parse(ev.data);
+                    if (data && typeof data.is_enabled === 'boolean') {
+                        applyState(data.is_enabled);
+                    }
+                } catch {}
+            };
+
+            eventSource.onerror = () => {
+                eventSource.close();
+                setTimeout(connect, RECONNECT_DELAY);
+            };
+        }
+
+        connect();
+    });
+</script>
 {% endblock %}
 
 {% block dashboard_content %}
 <div class="dashboard-header">
-    <h1>Soundboard</h1>
-    <p>Manage and preview soundboard clips</p>
+    <div class="dashboard-header-title">
+        <h1>Soundboard</h1>
+        <button
+            type="button"
+            id="soundboard-toggle-button"
+            class="btn {{ 'btn-danger' if is_soundboard_enabled else 'btn-primary' }}"
+        >
+            {{ 'Disable Soundboard' if is_soundboard_enabled else 'Enable Soundboard' }}
+        </button>
+    </div>
+    <p>
+        Manage and preview soundboard clips. The soundboard is currently
+        <span id="soundboard-status" class="soundboard-status {{ 'enabled' if is_soundboard_enabled else 'disabled' }}">
+            {{ 'enabled' if is_soundboard_enabled else 'disabled' }}
+        </span>.
+        This also reflects changes made via <code>!soundboard enable|disable</code> in chat.
+    </p>
 </div>
 
 <!-- Upload Form -->

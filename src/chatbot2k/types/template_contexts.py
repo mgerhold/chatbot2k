@@ -111,6 +111,7 @@ class MainPageContext(CommonContext):
     active_section: MainPageSection
     sort_by: SoundboardSortBy
     order: SortOrder
+    is_soundboard_enabled: bool
 
 
 @final
@@ -204,6 +205,7 @@ class AdminSoundboardContext(AdminContext):
     existing_commands: list[str]
     sort_by: SoundboardSortBy
     order: SortOrder
+    is_soundboard_enabled: bool
 
 
 @final

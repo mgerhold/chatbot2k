@@ -24,6 +24,7 @@ if TYPE_CHECKING:
     from chatbot2k.command_handlers.command_handler import CommandHandler
     from chatbot2k.entrance_sounds import EntranceSoundHandler
     from chatbot2k.models.soundboard_event import SoundboardEvent
+    from chatbot2k.models.soundboard_state_event import SoundboardStateEvent
 
 
 class AppState(ABC):
@@ -58,6 +59,15 @@ class AppState(ABC):
     @property
     @abstractmethod
     def soundboard_event_queues(self) -> dict[UUID, asyncio.Queue[SoundboardEvent]]: ...
+
+    @property
+    @abstractmethod
+    def soundboard_state_event_queues(self) -> dict[UUID, asyncio.Queue[SoundboardStateEvent]]:
+        """
+        Per-client queues for admin listeners (SSE), notified whenever
+        `is_soundboard_enabled` changes, regardless of whether the change came from a
+        chat command or the admin web interface.
+        """
 
     @final
     def lookup_command(self, string: str) -> Optional[CommandHandler]:

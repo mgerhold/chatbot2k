@@ -38,7 +38,7 @@ from chatbot2k.types.shoutout_command import ShoutoutCommand
 @final
 class TwitchChat(Chat):
     _SCOPES = [AuthScope.CHAT_READ, AuthScope.CHAT_EDIT, AuthScope.MODERATOR_MANAGE_SHOUTOUTS]
-    _DEFAULT_DICTIONARY_COOLDOWN_SECONDS: Final = 60.0
+    _DEFAULT_DICTIONARY_COOLDOWN_SECONDS = 60.0
 
     def __init__(
         self,

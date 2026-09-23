@@ -692,6 +692,7 @@ async def admin_soundboard(
         existing_commands=existing_commands,
         sort_by=sort_by,
         order=order,
+        is_soundboard_enabled=app_state.is_soundboard_enabled,
     )
 
     return templates.TemplateResponse(
@@ -852,6 +853,21 @@ async def delete_soundboard_clip(
     app_state.reload_command_handlers()
 
     return RedirectResponse(request.url_for("admin_soundboard"), status_code=303)
+
+
+@final
+class _SetSoundboardEnabledRequest(BaseModel):
+    is_enabled: bool
+
+
+@router.post("/soundboard/enabled", name="set_soundboard_enabled")
+async def set_soundboard_enabled(
+    request_data: _SetSoundboardEnabledRequest,
+    app_state: Annotated[AppState, Depends(get_app_state)],
+) -> Response:
+    """Enable or disable the soundboard, notifying any connected listeners of the change."""
+    app_state.is_soundboard_enabled = request_data.is_enabled
+    return Response(status_code=200)
 
 
 # endregion
