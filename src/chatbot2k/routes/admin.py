@@ -101,6 +101,12 @@ async def admin_general_settings(
     current_script_execution_timeout_string: Final = app_state.database.retrieve_configuration_setting_or_raise(
         ConfigurationSettingKind.SCRIPT_EXECUTION_TIMEOUT,
     )
+    dictionary_twitch_cooldown_seconds: Final = app_state.database.retrieve_configuration_setting(
+        ConfigurationSettingKind.DICTIONARY_TWITCH_COOLDOWN_SECONDS
+    )
+    dictionary_discord_cooldown_messages: Final = app_state.database.retrieve_configuration_setting(
+        ConfigurationSettingKind.DICTIONARY_DISCORD_COOLDOWN_MESSAGES
+    )
 
     if (
         not current_script_execution_timeout_string
@@ -120,6 +126,8 @@ async def admin_general_settings(
         current_max_pending_soundboard_clips_per_user=max_pending_soundboard_clips_per_user,
         current_broadcaster_email_address=broadcaster_email_address,
         current_script_execution_timeout=int(current_script_execution_timeout_string),
+        current_dictionary_twitch_cooldown_seconds=dictionary_twitch_cooldown_seconds,
+        current_dictionary_discord_cooldown_messages=dictionary_discord_cooldown_messages,
         available_timezones=get_common_timezones(),
         available_locales=get_common_locales(),
     )
@@ -142,6 +150,8 @@ async def update_general_settings(
     max_pending_soundboard_clips: Annotated[str, Form()],
     max_pending_soundboard_clips_per_user: Annotated[str, Form()],
     script_execution_timeout: Annotated[str, Form()],
+    dictionary_twitch_cooldown_seconds: Annotated[str, Form()],
+    dictionary_discord_cooldown_messages: Annotated[str, Form()],
     broadcaster_email_address: Annotated[str, Form()] = "",
 ) -> Response:
     """Update general settings."""
@@ -193,6 +203,34 @@ async def update_general_settings(
             detail="Script execution timeout must be a positive integer",
         ) from e
 
+    # Validate dictionary_twitch_cooldown_seconds is a non-negative integer.
+    try:
+        twitch_cooldown_seconds: Final = int(dictionary_twitch_cooldown_seconds.strip())
+        if twitch_cooldown_seconds < 0:
+            raise HTTPException(
+                status_code=400,
+                detail="Twitch dictionary cooldown must be a non-negative integer",
+            )
+    except ValueError as e:
+        raise HTTPException(
+            status_code=400,
+            detail="Twitch dictionary cooldown must be a non-negative integer",
+        ) from e
+
+    # Validate dictionary_discord_cooldown_messages is a non-negative integer.
+    try:
+        discord_cooldown_messages: Final = int(dictionary_discord_cooldown_messages.strip())
+        if discord_cooldown_messages < 0:
+            raise HTTPException(
+                status_code=400,
+                detail="Discord dictionary cooldown must be a non-negative integer",
+            )
+    except ValueError as e:
+        raise HTTPException(
+            status_code=400,
+            detail="Discord dictionary cooldown must be a non-negative integer",
+        ) from e
+
     app_state.database.store_configuration_setting(
         ConfigurationSettingKind.BOT_NAME,
         bot_name.strip(),
@@ -226,6 +264,14 @@ async def update_general_settings(
     app_state.database.store_configuration_setting(
         ConfigurationSettingKind.SCRIPT_EXECUTION_TIMEOUT,
         str(timeout_seconds),
+    )
+    app_state.database.store_configuration_setting(
+        ConfigurationSettingKind.DICTIONARY_TWITCH_COOLDOWN_SECONDS,
+        str(twitch_cooldown_seconds),
+    )
+    app_state.database.store_configuration_setting(
+        ConfigurationSettingKind.DICTIONARY_DISCORD_COOLDOWN_MESSAGES,
+        str(discord_cooldown_messages),
     )
 
     return RedirectResponse(request.url_for("admin_general_settings"), status_code=303)

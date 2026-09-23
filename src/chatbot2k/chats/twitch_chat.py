@@ -1,5 +1,6 @@
 import asyncio
 import logging
+import time
 from collections.abc import AsyncGenerator
 from collections.abc import Sequence
 from typing import Final
@@ -26,6 +27,7 @@ from chatbot2k.types.broadcast_message import BroadcastMessage
 from chatbot2k.types.chat_message import ChatMessage
 from chatbot2k.types.chat_platform import ChatPlatform
 from chatbot2k.types.chat_response import ChatResponse
+from chatbot2k.types.configuration_setting_kind import ConfigurationSettingKind
 from chatbot2k.types.feature_flags import FeatureFlags
 from chatbot2k.types.feature_flags import FormattingSupport
 from chatbot2k.types.live_notification import LiveNotification
@@ -36,6 +38,7 @@ from chatbot2k.types.shoutout_command import ShoutoutCommand
 @final
 class TwitchChat(Chat):
     _SCOPES = [AuthScope.CHAT_READ, AuthScope.CHAT_EDIT, AuthScope.MODERATOR_MANAGE_SHOUTOUTS]
+    _DEFAULT_DICTIONARY_COOLDOWN_SECONDS: Final = 60.0
 
     def __init__(
         self,
@@ -43,6 +46,7 @@ class TwitchChat(Chat):
         *,
         channel: str,
         bot_user: TwitchUser,
+        app_state: AppState,
     ) -> None:
         super().__init__(
             FeatureFlags(
@@ -61,6 +65,8 @@ class TwitchChat(Chat):
         self._message_queue: Final[asyncio.Queue[ChatMessage]] = asyncio.Queue()
         self._channel: Final = channel
         self._bot_user: Final = bot_user
+        self._app_state: Final = app_state
+        self._dictionary_last_shown: Final[dict[str, float]] = {}
 
         async def _on_ready(ready_event: EventData) -> None:
             await self._on_ready(ready_event)
@@ -120,6 +126,7 @@ class TwitchChat(Chat):
             chat,
             channel=app_state.config.twitch_channel,
             bot_user=bot_user,
+            app_state=app_state,
         )
 
     @override
@@ -167,6 +174,24 @@ class TwitchChat(Chat):
     @override
     def platform(self) -> ChatPlatform:
         return ChatPlatform.TWITCH
+
+    @override
+    def should_show_dictionary_explanation(self, word: str, chat_message: ChatMessage) -> bool:
+        last_shown: Final = self._dictionary_last_shown.get(word)
+        if last_shown is None:
+            return True
+        return (time.monotonic() - last_shown) >= self._dictionary_cooldown_seconds()
+
+    @override
+    def record_dictionary_explanation_shown(self, word: str, chat_message: ChatMessage) -> None:
+        self._dictionary_last_shown[word] = time.monotonic()
+
+    def _dictionary_cooldown_seconds(self) -> float:
+        value: Final = self._app_state.database.retrieve_configuration_setting_or_default(
+            ConfigurationSettingKind.DICTIONARY_TWITCH_COOLDOWN_SECONDS,
+            str(TwitchChat._DEFAULT_DICTIONARY_COOLDOWN_SECONDS),
+        )
+        return float(value)
 
     async def _on_ready(self, ready_event: EventData) -> None:
         logging.info(f"Twitch chat client is ready. Going to join channel '{self._channel}'...")

@@ -58,3 +58,11 @@ class MockChat(Chat):
     @override
     def platform(self) -> ChatPlatform:
         return ChatPlatform.MOCK
+
+    @override
+    def should_show_dictionary_explanation(self, word: str, chat_message: ChatMessage) -> bool:
+        return True
+
+    @override
+    def record_dictionary_explanation_shown(self, word: str, chat_message: ChatMessage) -> None:
+        pass

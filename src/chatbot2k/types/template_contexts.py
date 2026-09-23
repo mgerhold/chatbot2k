@@ -144,6 +144,8 @@ class AdminGeneralSettingsContext(AdminContext):
     current_max_pending_soundboard_clips_per_user: Optional[str]
     current_broadcaster_email_address: Optional[str]
     current_script_execution_timeout: int
+    current_dictionary_twitch_cooldown_seconds: Optional[str]
+    current_dictionary_discord_cooldown_messages: Optional[str]
     available_timezones: list[str]
     available_locales: list[tuple[str, str]]
 
