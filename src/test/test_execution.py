@@ -10,6 +10,7 @@ from uuid import UUID
 import pytest
 
 from chatbot2k.app_state import AppState
+from chatbot2k.automatic_shoutouts import AutomaticShoutoutHandler
 from chatbot2k.broadcasters.broadcaster import Broadcaster
 from chatbot2k.command_handlers.command_handler import CommandHandler
 from chatbot2k.config import Config
@@ -136,6 +137,11 @@ class _MockAppState(AppState):
     @property
     @override
     def entrance_sound_handler(self) -> EntranceSoundHandler:
+        raise NotImplementedError
+
+    @property
+    @override
+    def automatic_shoutout_handler(self) -> AutomaticShoutoutHandler:
         raise NotImplementedError
 
     @property

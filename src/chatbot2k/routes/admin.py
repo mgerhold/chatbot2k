@@ -28,6 +28,7 @@ from chatbot2k.dependencies import get_broadcaster_user
 from chatbot2k.dependencies import get_common_context
 from chatbot2k.dependencies import get_templates
 from chatbot2k.types.configuration_setting_kind import ConfigurationSettingKind
+from chatbot2k.types.template_contexts import AdminAutomaticShoutoutsContext
 from chatbot2k.types.template_contexts import AdminBroadcastsContext
 from chatbot2k.types.template_contexts import AdminConstantsContext
 from chatbot2k.types.template_contexts import AdminContext
@@ -38,6 +39,7 @@ from chatbot2k.types.template_contexts import AdminGeneralSettingsContext
 from chatbot2k.types.template_contexts import AdminLiveNotificationsContext
 from chatbot2k.types.template_contexts import AdminPendingClipsContext
 from chatbot2k.types.template_contexts import AdminSoundboardContext
+from chatbot2k.types.template_contexts import AutomaticShoutout
 from chatbot2k.types.template_contexts import Broadcast
 from chatbot2k.types.template_contexts import ClipApprovedContext
 from chatbot2k.types.template_contexts import ClipApprovedEmailContext
@@ -1104,6 +1106,94 @@ async def reset_entry_sounds_session(
 ) -> Response:
     app_state.entrance_sound_handler.reset_entrance_sounds_session()
     return RedirectResponse(request.url_for("admin_entrance_sounds"), status_code=303)
+
+
+# endregion
+
+# region Automatic Shoutouts
+
+
+@router.get("/automatic-shoutouts", name="admin_automatic_shoutouts")
+async def admin_automatic_shoutouts(
+    request: Request,
+    app_state: Annotated[AppState, Depends(get_app_state)],
+    templates: Annotated[Jinja2Templates, Depends(get_templates)],
+    common_context: Annotated[CommonContext, Depends(get_common_context)],
+) -> Response:
+    """Admin dashboard page for managing users who receive automatic shoutouts."""
+    configured_shoutouts: Final = app_state.database.get_all_automatic_shoutouts()
+    users_by_id: Final = await get_twitch_user_info_by_ids(
+        user_ids=[shoutout.twitch_user_id for shoutout in configured_shoutouts],
+        app_state=app_state,
+    )
+
+    automatic_shoutouts: Final = sorted(
+        (
+            AutomaticShoutout(
+                twitch_user_id=shoutout.twitch_user_id,
+                twitch_display_name=users_by_id[shoutout.twitch_user_id].display_name,
+                twitch_profile_image_url=users_by_id[shoutout.twitch_user_id].profile_image_url,
+                twitch_url=f"https://twitch.tv/{users_by_id[shoutout.twitch_user_id].login}",
+            )
+            for shoutout in configured_shoutouts
+        ),
+        key=lambda entry: entry.twitch_display_name,
+    )
+
+    admin_context: Final = AdminContext(
+        **common_context.model_dump(),
+        active_page=AdminDashboardActivePage.AUTOMATIC_SHOUTOUTS,
+    )
+
+    context: Final = AdminAutomaticShoutoutsContext(
+        **admin_context.model_dump(),
+        automatic_shoutouts=automatic_shoutouts,
+    )
+
+    return templates.TemplateResponse(
+        request=request,
+        name="admin/automatic_shoutouts.html",
+        context=context.model_dump(),
+    )
+
+
+@router.post("/automatic-shoutouts/add", name="add_automatic_shoutout")
+async def add_automatic_shoutout(
+    request: Request,
+    app_state: Annotated[AppState, Depends(get_app_state)],
+    twitch_user_id: Annotated[str, Form()],
+) -> Response:
+    """Add a Twitch user to receive automatic shoutouts."""
+    try:
+        app_state.database.add_automatic_shoutout(twitch_user_id=twitch_user_id)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e)) from e
+
+    return RedirectResponse(request.url_for("admin_automatic_shoutouts"), status_code=303)
+
+
+@router.post("/automatic-shoutouts/{twitch_user_id}/delete", name="delete_automatic_shoutout")
+async def delete_automatic_shoutout(
+    request: Request,
+    twitch_user_id: str,
+    app_state: Annotated[AppState, Depends(get_app_state)],
+) -> Response:
+    """Remove a Twitch user from receiving automatic shoutouts."""
+    try:
+        app_state.database.delete_automatic_shoutout(twitch_user_id=twitch_user_id)
+    except KeyError as e:
+        raise HTTPException(status_code=400, detail=str(e)) from e
+
+    return RedirectResponse(request.url_for("admin_automatic_shoutouts"), status_code=303)
+
+
+@router.post("/automatic-shoutouts/reset-session", name="reset_automatic_shoutouts_session")
+async def reset_automatic_shoutouts_session(
+    request: Request,
+    app_state: Annotated[AppState, Depends(get_app_state)],
+) -> Response:
+    app_state.automatic_shoutout_handler.reset_automatic_shoutouts_session()
+    return RedirectResponse(request.url_for("admin_automatic_shoutouts"), status_code=303)
 
 
 # endregion

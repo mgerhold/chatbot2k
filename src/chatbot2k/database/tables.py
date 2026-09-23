@@ -195,6 +195,13 @@ class EntranceSound(SQLModel, table=True):
 
 
 @final
+class AutomaticShoutout(SQLModel, table=True):
+    """Represents a Twitch user configured to receive an automatic shoutout."""
+
+    twitch_user_id: str = Field(primary_key=True)
+
+
+@final
 class CachedSourceCode(SQLModel, table=True):
     """Represents cached source code for scripts to optimize performance."""
 

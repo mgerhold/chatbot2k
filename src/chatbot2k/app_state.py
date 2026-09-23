@@ -20,6 +20,7 @@ from chatbot2k.utils.regular_expressions import parse_regular_expression
 
 if TYPE_CHECKING:
     # We have to avoid circular imports, so we use a string annotation below.
+    from chatbot2k.automatic_shoutouts import AutomaticShoutoutHandler
     from chatbot2k.command_handlers.command_handler import CommandHandler
     from chatbot2k.entrance_sounds import EntranceSoundHandler
     from chatbot2k.models.soundboard_event import SoundboardEvent
@@ -104,6 +105,10 @@ class AppState(ABC):
     @property
     @abstractmethod
     def entrance_sound_handler(self) -> EntranceSoundHandler: ...
+
+    @property
+    @abstractmethod
+    def automatic_shoutout_handler(self) -> AutomaticShoutoutHandler: ...
 
     @property
     @abstractmethod

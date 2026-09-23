@@ -54,6 +54,7 @@ async def test_dict_add_does_not_echo_the_new_entry() -> None:
         callback,
         cast(Chat, MagicMock()),
         entrance_sound_to_play=None,
+        shoutout_to_give=None,
     )
 
     assert len(responses) == 1
@@ -82,6 +83,7 @@ async def test_dict_update_does_not_echo_the_entry() -> None:
         callback,
         cast(Chat, MagicMock()),
         entrance_sound_to_play=None,
+        shoutout_to_give=None,
     )
 
     assert len(responses) == 1
