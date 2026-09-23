@@ -1,4 +1,6 @@
 import logging
+from datetime import UTC
+from datetime import datetime
 from typing import Annotated
 from typing import Final
 from typing import Literal
@@ -52,12 +54,16 @@ from chatbot2k.types.template_contexts import LiveNotificationChannel
 from chatbot2k.types.template_contexts import PendingClip
 from chatbot2k.types.template_contexts import RaidEventAction
 from chatbot2k.types.template_contexts import RaidEventUserInfo
+from chatbot2k.types.template_contexts import SortOrder
 from chatbot2k.types.template_contexts import SoundboardCommand
+from chatbot2k.types.template_contexts import SoundboardSortBy
 from chatbot2k.types.user_info import UserInfo
 from chatbot2k.utils.command_aliases import get_aliases
 from chatbot2k.utils.discord import get_available_discord_text_channels
 from chatbot2k.utils.mime_types import get_file_extension_by_mime_type
 from chatbot2k.utils.notifications import notify_user
+from chatbot2k.utils.soundboard import get_soundboard_clip_uploaded_at
+from chatbot2k.utils.soundboard import sort_order_to_reverse
 from chatbot2k.utils.time_and_locale import get_common_locales
 from chatbot2k.utils.time_and_locale import get_common_timezones
 from chatbot2k.utils.twitch import get_twitch_user_by_login
@@ -598,23 +604,39 @@ async def admin_soundboard(
     app_state: Annotated[AppState, Depends(get_app_state)],
     templates: Annotated[Jinja2Templates, Depends(get_templates)],
     common_context: Annotated[CommonContext, Depends(get_common_context)],
+    sort_by: SoundboardSortBy = SoundboardSortBy.NAME,
+    order: SortOrder = SortOrder.ASC,
 ) -> Response:
     """Admin dashboard page for viewing soundboard clips."""
     db_commands = app_state.database.get_soundboard_commands()
-    soundboard_commands: Final = sorted(
-        (
-            SoundboardCommand(
-                command=cmd.name,
-                aliases=list(get_aliases(cmd.regular_expression)),  # Not used in template.
-                clip_url=f"/{RELATIVE_SOUNDBOARD_FILES_DIRECTORY.as_posix()}/{cmd.filename}",
-                uploader_twitch_login=cmd.uploader_twitch_login,
-                uploader_twitch_display_name=cmd.uploader_twitch_display_name,
-                volume=cmd.volume,
+    unsorted_soundboard_commands: Final = [
+        SoundboardCommand(
+            command=cmd.name,
+            aliases=list(get_aliases(cmd.regular_expression)),  # Not used in template.
+            clip_url=f"/{RELATIVE_SOUNDBOARD_FILES_DIRECTORY.as_posix()}/{cmd.filename}",
+            uploader_twitch_login=cmd.uploader_twitch_login,
+            uploader_twitch_display_name=cmd.uploader_twitch_display_name,
+            volume=cmd.volume,
+            uploaded_at=get_soundboard_clip_uploaded_at(cmd.filename),
+        )
+        for cmd in db_commands
+    ]
+
+    reverse: Final = sort_order_to_reverse(order)
+    soundboard_commands: list[SoundboardCommand]
+    match sort_by:
+        case SoundboardSortBy.NAME:
+            soundboard_commands = sorted(
+                unsorted_soundboard_commands,
+                key=lambda cmd: cmd.command.lower(),
+                reverse=reverse,
             )
-            for cmd in db_commands
-        ),
-        key=lambda cmd: cmd.command,
-    )
+        case SoundboardSortBy.DATE:
+            soundboard_commands = sorted(
+                unsorted_soundboard_commands,
+                key=lambda cmd: cmd.uploaded_at or datetime.min.replace(tzinfo=UTC),
+                reverse=reverse,
+            )
 
     existing_commands: Final = [command.name.lower() for command in app_state.command_handlers]
     context: Final = AdminSoundboardContext(
@@ -622,6 +644,8 @@ async def admin_soundboard(
         active_page=AdminDashboardActivePage.SOUNDBOARD,
         soundboard_commands=soundboard_commands,
         existing_commands=existing_commands,
+        sort_by=sort_by,
+        order=order,
     )
 
     return templates.TemplateResponse(

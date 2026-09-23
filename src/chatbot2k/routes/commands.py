@@ -1,4 +1,7 @@
 import logging
+from datetime import UTC
+from datetime import datetime
+from pathlib import Path
 from typing import Annotated
 from typing import Final
 from typing import Optional
@@ -26,10 +29,15 @@ from chatbot2k.types.template_contexts import CommonContext
 from chatbot2k.types.template_contexts import Constant
 from chatbot2k.types.template_contexts import DictionaryEntry
 from chatbot2k.types.template_contexts import MainPageContext
+from chatbot2k.types.template_contexts import MainPageSection
 from chatbot2k.types.template_contexts import ScriptCommandData
+from chatbot2k.types.template_contexts import SortOrder
 from chatbot2k.types.template_contexts import SoundboardCommand
+from chatbot2k.types.template_contexts import SoundboardSortBy
 from chatbot2k.types.user_info import UserInfo
 from chatbot2k.utils.markdown import markdown_to_sanitized_html
+from chatbot2k.utils.soundboard import get_soundboard_clip_uploaded_at
+from chatbot2k.utils.soundboard import sort_order_to_reverse
 
 router: Final = APIRouter()
 
@@ -81,6 +89,9 @@ async def show_main_page(
     app_state: Annotated[AppState, Depends(get_app_state)],
     templates: Annotated[Jinja2Templates, Depends(get_templates)],
     common_context: Annotated[CommonContext, Depends(get_common_context)],
+    section: MainPageSection = MainPageSection.COMMANDS,
+    sort_by: SoundboardSortBy = SoundboardSortBy.NAME,
+    order: SortOrder = SortOrder.ASC,
 ) -> Response:
     commands: Final = sorted(
         (
@@ -127,21 +138,35 @@ async def show_main_page(
         ),
         key=lambda x: x.name,
     )
-    soundboard_commands: Final = sorted(
-        (
-            SoundboardCommand(
-                command=handler.name,  # Not used in template.
-                aliases=handler.usages,
-                clip_url=handler.clip_url,
-                uploader_twitch_login=handler.uploader_twitch_login,
-                uploader_twitch_display_name=handler.uploader_twitch_display_name,
-                volume=handler.volume,
+    unsorted_soundboard_commands: Final = [
+        SoundboardCommand(
+            command=handler.name,  # Not used in template.
+            aliases=handler.usages,
+            clip_url=handler.clip_url,
+            uploader_twitch_login=handler.uploader_twitch_login,
+            uploader_twitch_display_name=handler.uploader_twitch_display_name,
+            volume=handler.volume,
+            uploaded_at=get_soundboard_clip_uploaded_at(Path(handler.clip_url).name),
+        )
+        for handler in app_state.command_handlers
+        if isinstance(handler, ClipHandler)
+    ]
+
+    reverse: Final = sort_order_to_reverse(order)
+    soundboard_commands: list[SoundboardCommand]
+    match sort_by:
+        case SoundboardSortBy.NAME:
+            soundboard_commands = sorted(
+                unsorted_soundboard_commands,
+                key=lambda cmd: cmd.aliases[0].lower(),
+                reverse=reverse,
             )
-            for handler in app_state.command_handlers
-            if isinstance(handler, ClipHandler)
-        ),
-        key=lambda x: x.aliases[0],
-    )
+        case SoundboardSortBy.DATE:
+            soundboard_commands = sorted(
+                unsorted_soundboard_commands,
+                key=lambda cmd: cmd.uploaded_at or datetime.min.replace(tzinfo=UTC),
+                reverse=reverse,
+            )
 
     # Turn dictionary mapping into rows and sanitize description as Markdown
     raw_dict: Final = app_state.dictionary.as_dict()  # {word: explanation}
@@ -163,6 +188,9 @@ async def show_main_page(
         constants=constants,
         script_commands=script_commands,
         soundboard_commands=soundboard_commands,
+        active_section=section,
+        sort_by=sort_by,
+        order=order,
     )
 
     return templates.TemplateResponse(

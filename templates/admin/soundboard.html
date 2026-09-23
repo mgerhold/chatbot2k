@@ -118,6 +118,22 @@
         top: 0;
     }
 
+    .data-table .sort-link {
+        color: inherit;
+        text-decoration: none;
+        display: inline-flex;
+        align-items: center;
+        gap: 0.35rem;
+    }
+
+    .data-table .sort-link:hover {
+        color: var(--accent);
+    }
+
+    .sort-indicator {
+        font-size: 0.75rem;
+    }
+
     .data-table tbody tr:last-child td {
         border-bottom: none;
     }
@@ -363,9 +379,20 @@
             <caption class="sr-only">Soundboard commands</caption>
             <thead>
             <tr>
-                <th scope="col">Command</th>
+                <th scope="col">
+                    <a class="sort-link" href="{{ request.app.url_path_for('admin_soundboard') }}?sort_by=name&amp;order={{ 'desc' if (sort_by == 'name' and order == 'asc') else 'asc' }}">
+                        Command
+                        {% if sort_by == 'name' %}<span class="sort-indicator">{{ '▲' if order == 'asc' else '▼' }}</span>{% endif %}
+                    </a>
+                </th>
                 <th scope="col">Clip</th>
                 <th scope="col">Uploader</th>
+                <th scope="col">
+                    <a class="sort-link" href="{{ request.app.url_path_for('admin_soundboard') }}?sort_by=date&amp;order={{ 'desc' if (sort_by == 'date' and order == 'asc') else 'asc' }}">
+                        Uploaded
+                        {% if sort_by == 'date' %}<span class="sort-indicator">{{ '▲' if order == 'asc' else '▼' }}</span>{% endif %}
+                    </a>
+                </th>
                 <th scope="col">Actions</th>
             </tr>
             </thead>
@@ -443,6 +470,13 @@
                     {% endif %}
                 </td>
                 <td>
+                    {% if sb.uploaded_at %}
+                    {{ sb.uploaded_at.strftime('%Y-%m-%d %H:%M') }}
+                    {% else %}
+                    <span style="color: var(--muted);">—</span>
+                    {% endif %}
+                </td>
+                <td>
                     <div class="action-buttons">
                         <form 
                             id="save-form-{{ loop.index }}"
@@ -459,7 +493,7 @@
             </tr>
             {% else %}
             <tr>
-                <td colspan="4" class="empty">No soundboard commands available.</td>
+                <td colspan="5" class="empty">No soundboard commands available.</td>
             </tr>
             {% endfor %}
             </tbody>

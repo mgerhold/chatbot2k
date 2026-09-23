@@ -75,6 +75,28 @@ class SoundboardCommand(BaseModel):
     uploader_twitch_login: Optional[str]
     uploader_twitch_display_name: Optional[str]
     volume: float
+    uploaded_at: Optional[datetime] = None
+
+
+@final
+class SoundboardSortBy(StrEnum):
+    NAME = "name"
+    DATE = "date"
+
+
+@final
+class SortOrder(StrEnum):
+    ASC = "asc"
+    DESC = "desc"
+
+
+@final
+class MainPageSection(StrEnum):
+    COMMANDS = "commands"
+    CONSTANTS = "constants"
+    SCRIPTS = "scripts"
+    DICTIONARY = "dictionary"
+    SOUNDBOARD = "soundboard"
 
 
 @final
@@ -86,6 +108,9 @@ class MainPageContext(CommonContext):
     constants: list[Constant]
     script_commands: list[ScriptCommandData]
     soundboard_commands: list[SoundboardCommand]
+    active_section: MainPageSection
+    sort_by: SoundboardSortBy
+    order: SortOrder
 
 
 @final
@@ -175,6 +200,8 @@ class AdminSoundboardContext(AdminContext):
 
     soundboard_commands: list[SoundboardCommand]
     existing_commands: list[str]
+    sort_by: SoundboardSortBy
+    order: SortOrder
 
 
 @final
