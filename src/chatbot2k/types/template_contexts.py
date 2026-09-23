@@ -97,6 +97,7 @@ class AdminDashboardActivePage(StrEnum):
     SOUNDBOARD = "soundboard"
     PENDING_CLIPS = "pending_clips"
     ENTRANCE_SOUNDS = "entrance_sounds"
+    AUTOMATIC_SHOUTOUTS = "automatic_shoutouts"
     EVENT_ACTIONS = "event_actions"
 
 
@@ -212,6 +213,23 @@ class AdminEntranceSoundsContext(AdminContext):
     model_config = ConfigDict(frozen=True)
 
     entrance_sounds: list[EntranceSound]
+
+
+@final
+class AutomaticShoutout(BaseModel):
+    model_config = ConfigDict(frozen=True)
+
+    twitch_user_id: str
+    twitch_display_name: str
+    twitch_profile_image_url: str
+    twitch_url: str
+
+
+@final
+class AdminAutomaticShoutoutsContext(AdminContext):
+    model_config = ConfigDict(frozen=True)
+
+    automatic_shoutouts: list[AutomaticShoutout]
 
 
 @final

@@ -149,6 +149,11 @@
                     </a>
                 </li>
                 <li>
+                    <a href="{{ request.app.url_path_for('admin_automatic_shoutouts') }}" class="{% if active_page == 'automatic_shoutouts' %}active{% endif %}">
+                        Automatic Shoutouts
+                    </a>
+                </li>
+                <li>
                     <a href="{{ request.app.url_path_for('admin_event_actions') }}" class="{% if active_page == 'event_actions' %}active{% endif %}">
                         Event Actions
                     </a>

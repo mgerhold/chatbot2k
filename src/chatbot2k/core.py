@@ -11,6 +11,7 @@ from typing import final
 from twitchAPI.object.eventsub import ChannelRaidEvent
 
 from chatbot2k.app_state import AppState
+from chatbot2k.automatic_shoutouts import AutomaticShoutoutHandler
 from chatbot2k.broadcasters.broadcaster import Broadcaster
 from chatbot2k.chats.chat import Chat
 from chatbot2k.chats.discord_chat import DiscordChat
@@ -50,9 +51,10 @@ async def _handle_channel_going_live(
     logger.info(f"Stream has gone live: {event.broadcaster_name} (ID = {event.broadcaster_id})")
 
     # If this channel is the channel of our broadcaster (which we monitor automatically), we
-    # have to reset the entrance sounds session.
+    # have to reset the entrance sounds and automatic shoutouts sessions.
     if event.broadcaster_login.lower() == app_state.config.twitch_channel.lower():
         app_state.entrance_sound_handler.reset_entrance_sounds_session()
+        app_state.automatic_shoutout_handler.reset_automatic_shoutouts_session()
 
     channels: Final = app_state.database.get_live_notification_channels()
     notification_channel: Final = next(
@@ -212,6 +214,11 @@ async def run_main_loop(app_state: AppState) -> None:
                         if not chats[i].feature_flags.can_trigger_entrance_sounds
                         else await app_state.entrance_sound_handler.get_entrance_sound(chat_message)
                     )
+                    shoutout_to_give = (
+                        None
+                        if not chats[i].feature_flags.can_shoutout
+                        else await app_state.automatic_shoutout_handler.get_shoutout_to_give(chat_message, chats[i])
+                    )
 
                     # Notify broadcasters about the chat message so they can react to it,
                     # e.g. by delaying the next broadcast if it was already triggered by
@@ -224,6 +231,8 @@ async def run_main_loop(app_state: AppState) -> None:
                     if not chats[i].feature_flags.regular_chat:
                         if entrance_sound_to_play is not None:
                             await entrance_sound_to_play.trigger()
+                        if shoutout_to_give is not None:
+                            await shoutout_to_give.trigger()
                         # This chat is not capable of processing regular chat messages.
                         continue
 
@@ -238,6 +247,7 @@ async def run_main_loop(app_state: AppState) -> None:
                             _callback,
                             chats[i],
                             entrance_sound_to_play=entrance_sound_to_play,
+                            shoutout_to_give=shoutout_to_give,
                         )
                     )
                 case BroadcastMessage():
@@ -262,6 +272,7 @@ async def _process_chat_message(
     chat: Chat,
     *,
     entrance_sound_to_play: Optional[EntranceSoundHandler.EntranceSoundCommand],
+    shoutout_to_give: Optional[AutomaticShoutoutHandler.AutomaticShoutoutCommand],
 ) -> None:
     can_trigger_entrance_sound = True
     try:
@@ -323,6 +334,8 @@ async def _process_chat_message(
     finally:
         if can_trigger_entrance_sound and entrance_sound_to_play is not None:
             await entrance_sound_to_play.trigger()
+        if shoutout_to_give is not None:
+            await shoutout_to_give.trigger()
 
 
 def _preprocess_outbound_messages_for_chat[T: ChatResponse | BroadcastMessage](

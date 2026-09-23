@@ -7,6 +7,7 @@ from typing import override
 from uuid import UUID
 
 from chatbot2k.app_state import AppState
+from chatbot2k.automatic_shoutouts import AutomaticShoutoutHandler
 from chatbot2k.broadcasters.broadcaster import Broadcaster
 from chatbot2k.broadcasters.parser import parse_broadcasters
 from chatbot2k.command_handlers.command_handler import CommandHandler
@@ -39,6 +40,7 @@ class Globals(AppState):
         self._dictionary: Final = Globals._load_dictionary(self.database)
         self._translations_manager: Final = TranslationsManager(self.database)
         self._entrance_sound_handler: Final = EntranceSoundHandler(self)
+        self._automatic_shoutout_handler: Final = AutomaticShoutoutHandler(self)
         self._command_queue: Final = asyncio.Queue[Command]()
         self._is_shutting_down: Final = asyncio.Event()
 
@@ -96,6 +98,11 @@ class Globals(AppState):
     @override
     def entrance_sound_handler(self) -> EntranceSoundHandler:
         return self._entrance_sound_handler
+
+    @property
+    @override
+    def automatic_shoutout_handler(self) -> AutomaticShoutoutHandler:
+        return self._automatic_shoutout_handler
 
     @property
     @override

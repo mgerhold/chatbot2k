@@ -25,6 +25,7 @@ from sqlmodel import create_engine
 from sqlmodel import desc
 from sqlmodel import select
 
+from chatbot2k.database.tables import AutomaticShoutout
 from chatbot2k.database.tables import Broadcast
 from chatbot2k.database.tables import CachedSourceCode
 from chatbot2k.database.tables import ConfigurationSetting
@@ -728,6 +729,41 @@ class Database:
             if entrance_sound is None:
                 raise KeyError(f"EntranceSound for Twitch user ID '{twitch_user_id}' not found")
             s.delete(entrance_sound)
+            s.commit()
+
+    def add_automatic_shoutout(self, *, twitch_user_id: str) -> None:
+        """Add a Twitch user to receive automatic shoutouts."""
+        with self._session() as s:
+            existing: Final = s.exec(
+                select(AutomaticShoutout).where(AutomaticShoutout.twitch_user_id == twitch_user_id)
+            ).one_or_none()
+            if existing is not None:
+                raise ValueError(f"AutomaticShoutout for Twitch user ID '{twitch_user_id}' already exists")
+            automatic_shoutout: Final = AutomaticShoutout(twitch_user_id=twitch_user_id)
+            s.add(automatic_shoutout)
+            s.commit()
+
+    def get_all_automatic_shoutouts(self) -> list[AutomaticShoutout]:
+        """Get all Twitch users configured to receive automatic shoutouts."""
+        with self._session() as s:
+            return list(s.exec(select(AutomaticShoutout)).all())
+
+    def get_automatic_shoutout_by_twitch_user_id(self, *, twitch_user_id: str) -> Optional[AutomaticShoutout]:
+        """Get the automatic shoutout configuration for a specific Twitch user ID."""
+        with self._session() as s:
+            return s.exec(
+                select(AutomaticShoutout).where(AutomaticShoutout.twitch_user_id == twitch_user_id)
+            ).one_or_none()
+
+    def delete_automatic_shoutout(self, *, twitch_user_id: str) -> None:
+        """Remove a Twitch user from receiving automatic shoutouts."""
+        with self._session() as s:
+            automatic_shoutout: Final = s.exec(
+                select(AutomaticShoutout).where(AutomaticShoutout.twitch_user_id == twitch_user_id)
+            ).one_or_none()
+            if automatic_shoutout is None:
+                raise KeyError(f"AutomaticShoutout for Twitch user ID '{twitch_user_id}' not found")
+            s.delete(automatic_shoutout)
             s.commit()
 
     def add_or_update_cached_source_code(self, *, url: str, source_code: str) -> None:
