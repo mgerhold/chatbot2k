@@ -96,7 +96,7 @@ class _DiscordClient(Client):
 
 @final
 class DiscordChat(Chat):
-    _DEFAULT_DICTIONARY_COOLDOWN_MESSAGES: Final = 20
+    _DEFAULT_DICTIONARY_COOLDOWN_MESSAGES = 20
 
     @final
     class _Passkey: ...

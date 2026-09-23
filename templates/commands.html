@@ -125,6 +125,58 @@
         font-size: 0.75rem;
     }
 
+    .soundboard-status-indicator {
+        position: relative;
+        display: inline-flex;
+        align-items: center;
+        margin-left: 0.4rem;
+        vertical-align: middle;
+    }
+
+    .status-dot {
+        display: inline-block;
+        width: 8px;
+        height: 8px;
+        border-radius: 50%;
+    }
+
+    .status-dot.enabled {
+        background: #22c55e;
+        box-shadow: 0 0 4px rgba(34, 197, 94, 0.7);
+    }
+
+    .status-dot.disabled {
+        background: #ef4444;
+        box-shadow: 0 0 4px rgba(239, 68, 68, 0.7);
+    }
+
+    .status-tooltip {
+        position: absolute;
+        bottom: 100%;
+        left: 50%;
+        transform: translateX(-50%);
+        margin-bottom: 6px;
+        padding: 0.35rem 0.6rem;
+        background: rgba(15, 23, 42, 0.95);
+        color: #fff;
+        font-size: 0.75rem;
+        font-weight: 500;
+        white-space: nowrap;
+        border-radius: 4px;
+        opacity: 0;
+        visibility: hidden;
+        pointer-events: none;
+        transition: none;
+        z-index: 20;
+    }
+
+    .soundboard-status-indicator:hover .status-tooltip,
+    .soundboard-status-indicator:focus .status-tooltip,
+    .soundboard-status-indicator:focus-within .status-tooltip {
+        opacity: 1;
+        visibility: visible;
+    }
+
     #panel-soundboard .data-table audio,
     #panel-soundboard .data-table video {
         max-width: 100%;
@@ -229,7 +281,15 @@
         <label class="tab" for="tab-constants" id="label-constants" role="tab" aria-controls="panel-constants">Constants</label>
         <label class="tab" for="tab-scripts" id="label-scripts" role="tab" aria-controls="panel-scripts">Scripts</label>
         <label class="tab" for="tab-dictionary" id="label-dictionary" role="tab" aria-controls="panel-dictionary">Dictionary</label>
-        <label class="tab" for="tab-soundboard" id="label-soundboard" role="tab" aria-controls="panel-soundboard">Soundboard</label>
+        <label class="tab" for="tab-soundboard" id="label-soundboard" role="tab" aria-controls="panel-soundboard">
+            Soundboard
+            <span class="soundboard-status-indicator" tabindex="0">
+                <span class="status-dot {{ 'enabled' if is_soundboard_enabled else 'disabled' }}" aria-hidden="true"></span>
+                <span class="status-tooltip" role="tooltip">
+                    Soundboard is currently {{ 'enabled' if is_soundboard_enabled else 'disabled' }}
+                </span>
+            </span>
+        </label>
     </div>
 
     <div class="tab-panels">
@@ -483,6 +543,50 @@
         }
       });
     });
+  });
+</script>
+
+<!-- Live-updating soundboard status indicator -->
+<script>
+  document.addEventListener("DOMContentLoaded", () => {
+    const dot = document.querySelector(".soundboard-status-indicator .status-dot");
+    const tooltip = document.querySelector(".soundboard-status-indicator .status-tooltip");
+    if (!dot || !tooltip) {
+      return;
+    }
+
+    function applyState(isEnabled) {
+      dot.className = "status-dot " + (isEnabled ? "enabled" : "disabled");
+      tooltip.textContent = "Soundboard is currently " + (isEnabled ? "enabled" : "disabled");
+    }
+
+    let eventSource = null;
+    const RECONNECT_DELAY = 5000; // 5 seconds
+
+    function connect() {
+      if (eventSource) {
+        try { eventSource.close(); } catch {}
+        eventSource = null;
+      }
+
+      eventSource = new EventSource("{{ request.app.url_path_for('soundboard_events') }}");
+
+      eventSource.onmessage = (ev) => {
+        try {
+          const data = JSON.parse(ev.data);
+          if (data && typeof data.is_enabled === "boolean") {
+            applyState(data.is_enabled);
+          }
+        } catch {}
+      };
+
+      eventSource.onerror = () => {
+        eventSource.close();
+        setTimeout(connect, RECONNECT_DELAY);
+      };
+    }
+
+    connect();
   });
 </script>
 {% endblock %}

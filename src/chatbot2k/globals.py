@@ -22,6 +22,7 @@ from chatbot2k.database.engine import Database
 from chatbot2k.dictionary import Dictionary
 from chatbot2k.entrance_sounds import EntranceSoundHandler
 from chatbot2k.models.soundboard_event import SoundboardEvent
+from chatbot2k.models.soundboard_state_event import SoundboardStateEvent
 from chatbot2k.translations_manager import TranslationsManager
 from chatbot2k.types.commands import Command
 from chatbot2k.types.commands import ReloadBroadcastersCommand
@@ -35,6 +36,7 @@ class Globals(AppState):
         self._database: Final = Database(self.config.database_file, echo=False)
         self._monitored_channels_changed: Final = asyncio.Event()
         self._soundboard_event_queues: Final[dict[UUID, asyncio.Queue[SoundboardEvent]]] = {}
+        self._soundboard_state_event_queues: Final[dict[UUID, asyncio.Queue[SoundboardStateEvent]]] = {}
         self._command_handlers = self._reload_command_handlers()
         self._broadcasters: Final = Globals._load_broadcasters(self)
         self._dictionary: Final = Globals._load_dictionary(self.database)
@@ -86,13 +88,23 @@ class Globals(AppState):
 
     @property
     @override
+    def soundboard_state_event_queues(self) -> dict[UUID, asyncio.Queue[SoundboardStateEvent]]:
+        return self._soundboard_state_event_queues
+
+    @property
+    @override
     def is_soundboard_enabled(self) -> bool:
         return self._is_soundboard_enabled
 
     @is_soundboard_enabled.setter
     @override
     def is_soundboard_enabled(self, value: bool) -> None:
+        if value == self._is_soundboard_enabled:
+            return
         self._is_soundboard_enabled = value
+        event: Final = SoundboardStateEvent(is_enabled=value)
+        for queue in self._soundboard_state_event_queues.values():
+            queue.put_nowait(event)
 
     @property
     @override

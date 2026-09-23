@@ -15,6 +15,7 @@ from chatbot2k.dependencies import get_app_state
 from chatbot2k.dependencies import get_broadcaster_user
 from chatbot2k.dependencies import get_common_context
 from chatbot2k.routes import admin
+from chatbot2k.routes import commands as commands_routes
 from chatbot2k.routes import viewer
 from chatbot2k.types.template_contexts import CommonContext
 from chatbot2k.types.user_info import UserInfo
@@ -33,6 +34,7 @@ class _FakeAppState:
     def __init__(self, database: _FakeDatabase) -> None:
         self.database = database
         self.command_handlers: list[object] = []
+        self.is_soundboard_enabled = True
 
 
 def _make_client(tmp_path: Path, commands: list[DbSoundboardCommand]) -> TestClient:
@@ -41,6 +43,7 @@ def _make_client(tmp_path: Path, commands: list[DbSoundboardCommand]) -> TestCli
 
     app = FastAPI()
     app.include_router(admin.router)
+    app.include_router(commands_routes.router)
     app.include_router(viewer.router)
     app.dependency_overrides[get_app_state] = lambda: _FakeAppState(_FakeDatabase(commands))
     app.dependency_overrides[get_broadcaster_user] = lambda: UserInfo(id="1", login="mod", display_name="Mod")

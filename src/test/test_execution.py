@@ -18,6 +18,7 @@ from chatbot2k.database.engine import Database
 from chatbot2k.dictionary import Dictionary
 from chatbot2k.entrance_sounds import EntranceSoundHandler
 from chatbot2k.models.soundboard_event import SoundboardEvent
+from chatbot2k.models.soundboard_state_event import SoundboardStateEvent
 from chatbot2k.scripting_engine.lexer import Lexer
 from chatbot2k.scripting_engine.parser import AssignmentTypeError
 from chatbot2k.scripting_engine.parser import EmptyListLiteralAssignmentToNonListError
@@ -122,6 +123,11 @@ class _MockAppState(AppState):
     @property
     @override
     def soundboard_event_queues(self) -> dict[UUID, asyncio.Queue[SoundboardEvent]]:
+        raise NotImplementedError
+
+    @property
+    @override
+    def soundboard_state_event_queues(self) -> dict[UUID, asyncio.Queue[SoundboardStateEvent]]:
         raise NotImplementedError
 
     @property
