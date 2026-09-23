@@ -60,14 +60,18 @@ class DictionaryHandler(CommandHandler):
     @property
     @override
     def usages(self) -> list[str]:
-        return [f"!{self.COMMAND_NAME} [add|remove] <word> [explanation]"]
+        return [
+            f"!{self.COMMAND_NAME} [add|update] <word> <explanation>",
+            f"!{self.COMMAND_NAME} remove <word>",
+        ]
 
     @property
     @override
     def description(self) -> str:
         return (
             "Manage the dictionary of words and their explanations. "
-            + f"Use `!{DictionaryHandler.COMMAND_NAME} add` to add a word with its explanation and "
+            + f"Use `!{DictionaryHandler.COMMAND_NAME} add` to add a word with its explanation, "
+            + f"`!{DictionaryHandler.COMMAND_NAME} update` to change a word's explanation, and "
             + f"`!{DictionaryHandler.COMMAND_NAME} remove` to remove a word."
         )
 
