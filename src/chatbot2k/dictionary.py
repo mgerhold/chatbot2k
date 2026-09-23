@@ -1,6 +1,4 @@
 import re
-import time
-from collections import defaultdict
 from typing import Final
 from typing import NamedTuple
 from typing import Optional
@@ -8,14 +6,12 @@ from typing import final
 
 from chatbot2k.database.engine import Database
 from chatbot2k.types.chat_message import ChatMessage
-from chatbot2k.types.chat_platform import ChatPlatform
 from chatbot2k.types.chat_response import ChatResponse
 from chatbot2k.utils.urls import remove_urls
 
 
 @final
 class Dictionary:
-    _DEFAULT_COOLDOWN_SECONDS = 60.0
     _MAX_NUM_EXPLANATIONS_AT_ONCE = 4
 
     @final
@@ -24,12 +20,7 @@ class Dictionary:
         pattern: re.Pattern[str]
         explanation: str
 
-    def __init__(
-        self,
-        database: Database,
-        *,
-        cooldown: float = _DEFAULT_COOLDOWN_SECONDS,
-    ) -> None:
+    def __init__(self, database: Database) -> None:
         loaded: Final = database.get_dictionary_entries()
         self._database = database
         self._entries = [
@@ -40,11 +31,8 @@ class Dictionary:
             )
             for entry in loaded
         ]
-        self._cooldown: Final = cooldown
-        self._usage_timestamps: Final[defaultdict[ChatPlatform, dict[str, float]]] = defaultdict(dict)
 
     def get_explanations(self, chat_message: ChatMessage) -> Optional[list[ChatResponse]]:
-        chat_platform: Final = chat_message.sender_chat.platform
         # If a dictionary entry is found in a URL, we ignore it. E.g., to avoid
         # explaining "COM" in "example.com".
         stripped_text: Final = remove_urls(chat_message.text)
@@ -52,10 +40,7 @@ class Dictionary:
             (entry.word, entry.explanation)
             for entry in self._entries
             if entry.pattern.search(stripped_text) is not None
-            and not self._is_in_cooldown(
-                chat_platform,
-                entry.word,
-            )
+            and chat_message.sender_chat.should_show_dictionary_explanation(entry.word, chat_message)
         ]
         if not matching_entries:
             return None
@@ -65,9 +50,10 @@ class Dictionary:
             # Cap the number of explanations to the maximum allowed (minus one for the additional
             # info message).
             matching_entries = matching_entries[: Dictionary._MAX_NUM_EXPLANATIONS_AT_ONCE - 1]
-        now: Final = time.monotonic()
         for word, _ in matching_entries:
-            self._usage_timestamps[chat_platform][word] = now
+            # Each chat implementation owns its own cooldown strategy/state (e.g. time-based
+            # for Twitch, per-channel message-count-based for Discord).
+            chat_message.sender_chat.record_dictionary_explanation_shown(word, chat_message)
 
         responses = [
             ChatResponse(
@@ -119,16 +105,9 @@ class Dictionary:
                 return
         raise KeyError(f"Dictionary entry for word '{word}' not found.")
 
-    def remove_entry(self, chat_platform: ChatPlatform, word: str) -> None:
+    def remove_entry(self, word: str) -> None:
         self._entries = [entry for entry in self._entries if entry.word.lower() != word.lower()]
-        self._usage_timestamps[chat_platform].pop(word, None)
         self._database.remove_dictionary_entry_case_insensitive(word=word)
-
-    def _is_in_cooldown(self, chat_platform: ChatPlatform, word: str) -> bool:
-        last_used: Final = self._usage_timestamps[chat_platform].get(word)
-        if last_used is None:
-            return False
-        return (time.monotonic() - last_used) < self._cooldown
 
     @staticmethod
     def _build_regex(word: str) -> re.Pattern[str]:

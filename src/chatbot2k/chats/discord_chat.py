@@ -1,6 +1,7 @@
 import asyncio
 import logging
 import time
+from collections import defaultdict
 from collections.abc import AsyncGenerator
 from collections.abc import Sequence
 from typing import TYPE_CHECKING
@@ -22,6 +23,7 @@ from chatbot2k.types.broadcast_message import BroadcastMessage
 from chatbot2k.types.chat_message import ChatMessage
 from chatbot2k.types.chat_platform import ChatPlatform
 from chatbot2k.types.chat_response import ChatResponse
+from chatbot2k.types.configuration_setting_kind import ConfigurationSettingKind
 from chatbot2k.types.feature_flags import FeatureFlags
 from chatbot2k.types.feature_flags import FormattingSupport
 from chatbot2k.types.live_notification import LiveNotification
@@ -94,6 +96,8 @@ class _DiscordClient(Client):
 
 @final
 class DiscordChat(Chat):
+    _DEFAULT_DICTIONARY_COOLDOWN_MESSAGES: Final = 20
+
     @final
     class _Passkey: ...
 
@@ -102,6 +106,7 @@ class DiscordChat(Chat):
         client: _DiscordClient,
         chat_message_queue: asyncio.Queue[DiscordChatMessage],
         discord_token: str,
+        app_state: "AppState",
         _: _Passkey,
     ) -> None:
         super().__init__(
@@ -122,6 +127,10 @@ class DiscordChat(Chat):
         self._client_task: Optional[asyncio.Task[None]] = None
         self._discord_token: Final = discord_token
         self._text_channels_by_name: dict[str, discord.TextChannel] = {}
+        self._app_state: Final = app_state
+        # Per-channel, so cooldowns are independent between Discord channels.
+        self._dictionary_message_counts: Final[defaultdict[int, int]] = defaultdict(int)
+        self._dictionary_last_shown: Final[defaultdict[int, dict[str, int]]] = defaultdict(dict)
 
     @classmethod
     async def create(cls, app_state: "AppState") -> Self:
@@ -138,6 +147,7 @@ class DiscordChat(Chat):
             client,
             chat_message_queue,
             app_state.config.discord_token,
+            app_state,
             DiscordChat._Passkey(),
         )
         await instance._ensure_started()
@@ -147,7 +157,13 @@ class DiscordChat(Chat):
     async def get_message_stream(self) -> AsyncGenerator[ChatMessage]:
         await self._ensure_started()
         while True:
-            yield (await self._chat_message_queue.get()).to_chat_message(self)
+            discord_chat_message = await self._chat_message_queue.get()
+            metadata = discord_chat_message.meta_data
+            if isinstance(metadata, DiscordChatMessageMetadata):
+                # Counted regardless of whether the message ends up triggering a dictionary
+                # explanation, since this is what the Discord message-count cooldown counts against.
+                self._dictionary_message_counts[metadata.message.channel.id] += 1
+            yield discord_chat_message.to_chat_message(self)
 
     @override
     async def send_responses(self, responses: Sequence[ChatResponse]) -> None:
@@ -231,6 +247,33 @@ class DiscordChat(Chat):
     @override
     def platform(self) -> ChatPlatform:
         return ChatPlatform.DISCORD
+
+    @override
+    def should_show_dictionary_explanation(self, word: str, chat_message: ChatMessage) -> bool:
+        metadata = chat_message.meta_data
+        if not isinstance(metadata, DiscordChatMessageMetadata):
+            return True
+        channel_id: Final = metadata.message.channel.id
+        last_shown_count: Final = self._dictionary_last_shown[channel_id].get(word)
+        if last_shown_count is None:
+            return True
+        messages_since: Final = self._dictionary_message_counts[channel_id] - last_shown_count
+        return messages_since >= self._dictionary_cooldown_messages()
+
+    @override
+    def record_dictionary_explanation_shown(self, word: str, chat_message: ChatMessage) -> None:
+        metadata = chat_message.meta_data
+        if not isinstance(metadata, DiscordChatMessageMetadata):
+            return
+        channel_id: Final = metadata.message.channel.id
+        self._dictionary_last_shown[channel_id][word] = self._dictionary_message_counts[channel_id]
+
+    def _dictionary_cooldown_messages(self) -> int:
+        value: Final = self._app_state.database.retrieve_configuration_setting_or_default(
+            ConfigurationSettingKind.DICTIONARY_DISCORD_COOLDOWN_MESSAGES,
+            str(DiscordChat._DEFAULT_DICTIONARY_COOLDOWN_MESSAGES),
+        )
+        return int(value)
 
     def get_writable_text_channels(self, *, force_refresh: bool) -> dict[str, discord.TextChannel]:
         if not self._text_channels_by_name or force_refresh:

@@ -43,3 +43,16 @@ class Chat(ABC):
     @property
     @abstractmethod
     def platform(self) -> ChatPlatform: ...
+
+    @abstractmethod
+    def should_show_dictionary_explanation(self, word: str, chat_message: ChatMessage) -> bool:
+        """
+        Decides whether a dictionary word's explanation should currently be shown, i.e.
+        whether it is not in cooldown. Each chat implementation owns its own cooldown
+        strategy and state (e.g. time-based globally for Twitch, message-count-based
+        per channel for Discord).
+        """
+
+    @abstractmethod
+    def record_dictionary_explanation_shown(self, word: str, chat_message: ChatMessage) -> None:
+        """Records that a dictionary word's explanation was just shown, resetting its cooldown."""

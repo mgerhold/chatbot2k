@@ -254,6 +254,36 @@
         <span class="help-text">Maximum duration for executing any single script (in seconds).</span>
     </div>
 
+    <div class="form-group">
+        <label for="dictionary_twitch_cooldown_seconds">Dictionary Cooldown (Twitch, seconds)</label>
+        <input
+            type="number"
+            id="dictionary_twitch_cooldown_seconds"
+            name="dictionary_twitch_cooldown_seconds"
+            value="{{ current_dictionary_twitch_cooldown_seconds | e if current_dictionary_twitch_cooldown_seconds else '60' }}"
+            required
+            min="0"
+            step="1"
+            placeholder="Enter Twitch dictionary cooldown"
+        >
+        <span class="help-text">How long (in seconds) a dictionary word stays on cooldown after being explained on Twitch.</span>
+    </div>
+
+    <div class="form-group">
+        <label for="dictionary_discord_cooldown_messages">Dictionary Cooldown (Discord, messages)</label>
+        <input
+            type="number"
+            id="dictionary_discord_cooldown_messages"
+            name="dictionary_discord_cooldown_messages"
+            value="{{ current_dictionary_discord_cooldown_messages | e if current_dictionary_discord_cooldown_messages else '20' }}"
+            required
+            min="0"
+            step="1"
+            placeholder="Enter Discord dictionary cooldown"
+        >
+        <span class="help-text">How many messages must pass in a Discord channel before a dictionary word can be explained there again.</span>
+    </div>
+
     <div class="form-actions">
         <button type="submit" class="btn btn-primary">Save Settings</button>
     </div>
