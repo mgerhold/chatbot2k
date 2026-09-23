@@ -16,6 +16,7 @@ from chatbot2k.chats.chat import Chat
 from chatbot2k.chats.discord_chat import DiscordChat
 from chatbot2k.chats.twitch_chat import TwitchChat
 from chatbot2k.command_handlers.clip_handler import ClipHandler
+from chatbot2k.command_handlers.dictionary_handler import DictionaryHandler
 from chatbot2k.constants import RELATIVE_SOUNDBOARD_FILES_DIRECTORY
 from chatbot2k.entrance_sounds import EntranceSoundHandler
 from chatbot2k.live_notifications import MonitoredStreamsManager
@@ -296,7 +297,13 @@ async def _process_chat_message(
             + f"({chat_message.sender_permission_level.name})"
         )
         responses: Final = await asyncio.create_task(command_handler.handle_command(command))
-        dictionary_entries: Final = app_state.dictionary.get_explanations(chat_message)
+        # Dictionary management commands carry the affected word as a literal argument, so
+        # scanning them for dictionary matches would immediately echo the entry they just
+        # added, updated, or appended to.
+        is_dictionary_command: Final = isinstance(command_handler, DictionaryHandler)
+        dictionary_entries: Final = (
+            None if is_dictionary_command else app_state.dictionary.get_explanations(chat_message)
+        )
         if dictionary_entries is not None and responses is not None:
             responses.extend(dictionary_entries)
 
