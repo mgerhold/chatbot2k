@@ -963,7 +963,7 @@ async def approve_pending_clip(
     await notify_user(
         twitch_user_id=pending_clip.uploader_twitch_id,
         templates=templates,
-        notification_template_name="notifications/clip_approved.txt.j2",
+        notification_template_name="notifications/clip_approved.html",
         notification_template_context=ClipApprovedContext(
             suggested_command=f"!{pending_clip.name}",
             approved_command=f"!{command_name}",
@@ -1004,7 +1004,7 @@ async def reject_pending_clip(
     await notify_user(
         twitch_user_id=pending_clip.uploader_twitch_id,
         templates=templates,
-        notification_template_name="notifications/clip_rejected.txt.j2",
+        notification_template_name="notifications/clip_rejected.html",
         notification_template_context=ClipRejectedContext(
             suggested_command=f"!{pending_clip.name}",
             reason=rejection_reason,

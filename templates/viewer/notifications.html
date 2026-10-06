@@ -220,7 +220,7 @@
                     {{ notification.sent_at.strftime('%Y-%m-%d %H:%M:%S UTC') }}
                 </div>
             </div>
-            <p class="notification-message">{{ notification.message }}</p>
+            <p class="notification-message">{{ notification.message | safe }}</p>
             <div class="notification-actions">
                 <span title="{% if notification.has_been_read %}Mark as unread{% else %}Mark as read{% endif %}">
                     <svg class="notification-icon icon-read-toggle {% if notification.has_been_read %}icon-read{% else %}icon-unread{% endif %}" 
