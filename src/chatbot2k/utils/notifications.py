@@ -20,6 +20,11 @@ async def notify_user(
     email_template_context: BaseModel,
     app_state: AppState,
 ) -> None:
+    # Notification messages are stored and displayed as HTML (so they can contain links). Thus, the
+    # notification template must be autoescaped to prevent user-provided values from injecting HTML.
+    autoescape: Final = templates.env.autoescape
+    if not (autoescape(notification_template_name) if callable(autoescape) else autoescape):
+        raise ValueError(f"Notification template '{notification_template_name}' is not autoescaped.")
     app_state.database.add_notification(
         twitch_user_id=twitch_user_id,
         message=templates.get_template(notification_template_name).render(notification_template_context.model_dump()),  # type: ignore[reportUnknownMemberType]

@@ -241,7 +241,7 @@ class Notification(SQLModel, table=True):
 
     id: Optional[int] = Field(default=None, primary_key=True)
     twitch_user_id: str
-    message: str
+    message: str  # HTML (user-provided values must be escaped).
     sent_at: datetime
     has_been_read: bool
 
