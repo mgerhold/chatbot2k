@@ -32,6 +32,7 @@ from chatbot2k.dependencies import get_common_context
 from chatbot2k.dependencies import get_templates
 from chatbot2k.types.configuration_setting_kind import ConfigurationSettingKind
 from chatbot2k.types.template_contexts import CommonContext
+from chatbot2k.types.template_contexts import NewPendingClipContext
 from chatbot2k.types.template_contexts import NewPendingClipEmailContext
 from chatbot2k.types.template_contexts import Notification
 from chatbot2k.types.template_contexts import PendingClip
@@ -42,8 +43,10 @@ from chatbot2k.types.template_contexts import ViewerNotificationsContext
 from chatbot2k.types.template_contexts import ViewerProfileContext
 from chatbot2k.types.template_contexts import ViewerSoundboardContext
 from chatbot2k.types.user_info import UserInfo
+from chatbot2k.utils.auth import resolve_broadcaster_id
 from chatbot2k.utils.email import send_email
 from chatbot2k.utils.mime_types import get_file_extension_by_mime_type
+from chatbot2k.utils.notifications import notify_user
 
 router: Final = APIRouter(prefix="/viewer", dependencies=[Depends(get_authenticated_user)])
 
@@ -472,20 +475,22 @@ async def upload_pending_soundboard_clip(
         file_path.unlink(missing_ok=True)
         raise HTTPException(status_code=400, detail=str(e)) from e
 
-    to_address: Final = app_state.database.retrieve_configuration_setting(
-        ConfigurationSettingKind.BROADCASTER_EMAIL_ADDRESS
-    )
-    if to_address is None or not to_address:
-        logger.error(
-            "Broadcaster email address is not configured; cannot send notification "
-            + "email for new pending soundboard clip."
-        )
+    broadcaster_id: Final = await resolve_broadcaster_id(app_state, current_user.id)
+    if broadcaster_id is None:
+        logger.error("Cannot notify the broadcaster about the new pending soundboard clip.")
     else:
-        await send_email(
-            to_address=to_address,
-            subject="New Soundboard Clip Upload",
-            template=templates.get_template("emails/new_pending_clip.txt.j2"),  # type: ignore[reportUnknownMemberType]
-            context=NewPendingClipEmailContext(
+        await notify_user(
+            twitch_user_id=broadcaster_id,
+            templates=templates,
+            notification_template_name="notifications/new_pending_clip.html",
+            notification_template_context=NewPendingClipContext(
+                uploader_display_name=current_user.display_name,
+                command_name=command_name,
+                pending_clips_url=request.app.url_path_for("admin_pending_clips"),
+            ),
+            email_template_name="emails/new_pending_clip.txt.j2",
+            email_subject="New Soundboard Clip Upload",
+            email_template_context=NewPendingClipEmailContext(
                 broadcaster_name=app_state.config.twitch_channel,
                 uploader_display_name=current_user.display_name,
                 uploader_id=current_user.id,
@@ -495,7 +500,7 @@ async def upload_pending_soundboard_clip(
                     ConfigurationSettingKind.BOT_NAME, f"Chatbot of {app_state.config.twitch_channel}"
                 ),
             ),
-            settings=app_state.config.smtp_settings,
+            app_state=app_state,
         )
 
     return RedirectResponse(request.url_for("viewer_soundboard"), status_code=303)

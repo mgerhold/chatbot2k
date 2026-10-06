@@ -228,18 +228,6 @@
     </div>
 
     <div class="form-group">
-        <label for="broadcaster_email_address">Broadcaster Email Address</label>
-        <input
-            type="email"
-            id="broadcaster_email_address"
-            name="broadcaster_email_address"
-            value="{{ current_broadcaster_email_address | e if current_broadcaster_email_address else '' }}"
-            placeholder="noreply@example.com"
-        >
-        <span class="help-text">Email address of the broadcaster used for notifications.</span>
-    </div>
-
-    <div class="form-group">
         <label for="script_execution_timeout">Time limit (in seconds) for script execution.</label>
         <input
             type="number"
