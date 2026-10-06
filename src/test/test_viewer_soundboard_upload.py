@@ -1,5 +1,7 @@
-"""Tests for notifying the broadcaster (in-app and via email) when a user uploads a soundboard clip."""
+"""Tests for the side effects of a user uploading a soundboard clip: notifying the broadcaster (in-app and
+via email) and posting a message to the Twitch chat."""
 
+import asyncio
 from datetime import datetime
 from pathlib import Path
 from types import SimpleNamespace
@@ -15,6 +17,9 @@ from chatbot2k.dependencies import get_app_state
 from chatbot2k.dependencies import get_authenticated_user
 from chatbot2k.routes import admin
 from chatbot2k.routes import viewer
+from chatbot2k.translation_key import TranslationKey
+from chatbot2k.types.commands import Command
+from chatbot2k.types.commands import SendTwitchBroadcastCommand
 from chatbot2k.types.configuration_setting_kind import ConfigurationSettingKind
 from chatbot2k.types.template_contexts import NewPendingClipEmailContext
 from chatbot2k.types.user_info import UserInfo
@@ -22,6 +27,10 @@ from chatbot2k.utils import notifications
 
 _BROADCASTER_ID = "1000"
 _UPLOADER = UserInfo(id="2000", login="uploader", display_name="<b>Uploader</b>")
+_TRANSLATIONS = {
+    TranslationKey.SOUNDBOARD_CLIP_SUGGESTED: "@{broadcaster} New clip! Upload at {soundboard_url}",
+    TranslationKey.SOUNDBOARD_CLIP_SUGGESTED_BY_USER: "@{broadcaster} By @{uploader}! Upload at {soundboard_url}",
+}
 
 
 class _FakeDatabase:
@@ -60,6 +69,7 @@ def _make_client(
     database: _FakeDatabase,
     *,
     broadcaster_id: Optional[str],
+    command_queue: Optional[asyncio.Queue[Command]] = None,
 ) -> TestClient:
     async def _resolve_broadcaster_id(app_state: object, user_id: str) -> Optional[str]:
         return broadcaster_id
@@ -74,6 +84,8 @@ def _make_client(
     app_state = SimpleNamespace(
         database=database,
         config=SimpleNamespace(twitch_channel="the_broadcaster", smtp_settings=object()),
+        translations_manager=SimpleNamespace(get_translation=_TRANSLATIONS.__getitem__),
+        command_queue=asyncio.Queue[Command]() if command_queue is None else command_queue,
     )
 
     app = FastAPI()
@@ -84,10 +96,14 @@ def _make_client(
     return TestClient(app, follow_redirects=False)
 
 
-def _upload(client: TestClient) -> int:
+def _upload(client: TestClient, *, may_persist_uploader_info: bool = False) -> int:
     response = client.post(
         "/viewer/soundboard/upload",
-        data={"command_name": "!<i>boom</i>", "agree_terms": "on"},
+        data={
+            "command_name": "!<i>boom</i>",
+            "agree_terms": "on",
+            "may_persist_uploader_info": "on" if may_persist_uploader_info else "off",
+        },
         files={"file": ("boom.mp3", b"fake audio", "audio/mpeg")},
     )
     return response.status_code
@@ -147,3 +163,51 @@ def test_upload_succeeds_if_broadcaster_cannot_be_resolved(monkeypatch: pytest.M
 
     assert database.pending_clips == ["<i>boom</i>"]
     assert database.notifications == []
+
+
+def _get_twitch_chat_message(command_queue: asyncio.Queue[Command]) -> str:
+    assert command_queue.qsize() == 1
+    command = command_queue.get_nowait()
+    assert isinstance(command, SendTwitchBroadcastCommand)
+    return command.message.text
+
+
+def test_upload_posts_generic_chat_message_if_uploader_did_not_opt_in(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    command_queue = asyncio.Queue[Command]()
+    database = _FakeDatabase(broadcaster_profile=None)
+    client = _make_client(monkeypatch, tmp_path, database, broadcaster_id=_BROADCASTER_ID, command_queue=command_queue)
+
+    assert _upload(client, may_persist_uploader_info=False) == 303
+
+    assert _get_twitch_chat_message(command_queue) == (
+        "@the_broadcaster New clip! Upload at http://testserver/viewer/soundboard"
+    )
+
+
+def test_upload_posts_chat_message_mentioning_uploader_if_opted_in(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    command_queue = asyncio.Queue[Command]()
+    database = _FakeDatabase(broadcaster_profile=None)
+    client = _make_client(monkeypatch, tmp_path, database, broadcaster_id=_BROADCASTER_ID, command_queue=command_queue)
+
+    assert _upload(client, may_persist_uploader_info=True) == 303
+
+    message = _get_twitch_chat_message(command_queue)
+    assert message == "@the_broadcaster By @uploader! Upload at http://testserver/viewer/soundboard"
+    # The (unreviewed) suggested command name is never posted to the chat.
+    assert "boom" not in message
+
+
+def test_upload_posts_chat_message_even_if_broadcaster_cannot_be_resolved(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    command_queue = asyncio.Queue[Command]()
+    database = _FakeDatabase(broadcaster_profile=None)
+    client = _make_client(monkeypatch, tmp_path, database, broadcaster_id=None, command_queue=command_queue)
+
+    assert _upload(client) == 303
+
+    assert command_queue.qsize() == 1
