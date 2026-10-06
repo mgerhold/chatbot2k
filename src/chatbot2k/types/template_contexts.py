@@ -143,7 +143,6 @@ class AdminGeneralSettingsContext(AdminContext):
     current_locale: Optional[str]
     current_max_pending_soundboard_clips: Optional[str]
     current_max_pending_soundboard_clips_per_user: Optional[str]
-    current_broadcaster_email_address: Optional[str]
     current_script_execution_timeout: int
     current_dictionary_twitch_cooldown_seconds: Optional[str]
     current_dictionary_discord_cooldown_messages: Optional[str]
@@ -342,6 +341,15 @@ class ClipApprovedContext(BaseModel):
 
     suggested_command: str
     approved_command: str
+
+
+@final
+class NewPendingClipContext(BaseModel):
+    model_config = ConfigDict(frozen=True)
+
+    uploader_display_name: str
+    command_name: str
+    pending_clips_url: str
 
 
 @final

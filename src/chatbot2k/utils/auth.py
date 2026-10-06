@@ -58,6 +58,22 @@ async def get_broadcaster_id(twitch: Twitch, channel_name: str) -> str:
     return users[0].id
 
 
+async def resolve_broadcaster_id(app_state: AppState, user_id: str) -> Optional[str]:
+    """Get the broadcaster's user ID, using the Twitch tokens of the given (logged-in) user.
+
+    Returns `None` if the broadcaster's user ID could not be determined.
+    """
+    try:
+        twitch: Final = await get_authenticated_twitch_client(app_state, user_id)
+        try:
+            return await get_broadcaster_id(twitch, app_state.config.twitch_channel)
+        finally:
+            await twitch.close()
+    except Exception:
+        logger.exception("Failed to resolve the broadcaster's user ID.")
+        return None
+
+
 async def is_user_moderator(twitch: Twitch, broadcaster_id: str, user_id: str) -> bool:
     """Check if a user is a moderator in the broadcaster's channel using moderated channels API."""
     if user_id == broadcaster_id:
