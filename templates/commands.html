@@ -193,29 +193,6 @@
         max-height: 200px;
     }
 
-    /* Hide volume controls on public page - CSS approach for better browser compatibility */
-    /* WebKit browsers (Chrome, Safari, Edge) */
-    #panel-soundboard .data-table audio::-webkit-media-controls-volume-slider,
-    #panel-soundboard .data-table video::-webkit-media-controls-volume-slider {
-        display: none;
-    }
-
-    #panel-soundboard .data-table audio::-webkit-media-controls-mute-button,
-    #panel-soundboard .data-table video::-webkit-media-controls-mute-button {
-        display: none;
-    }
-
-    /* Firefox */
-    #panel-soundboard .data-table audio::-moz-media-controls-volume-slider,
-    #panel-soundboard .data-table video::-moz-media-controls-volume-slider {
-        display: none;
-    }
-
-    #panel-soundboard .data-table audio::-moz-media-controls-mute-button,
-    #panel-soundboard .data-table video::-moz-media-controls-mute-button {
-        display: none;
-    }
-
     /* Source URL container with refresh button */
     .source-url-container {
         margin-top: 8px;
@@ -402,43 +379,43 @@
                         </td>
                         <td>
                             {% if base.endswith('.mp3') %}
-                            <audio controls controlsList="novolume" preload="metadata" src="{{ sb.clip_url }}" type="audio/mpeg" data-volume="{{ sb.volume }}">
+                            <audio controls preload="metadata" src="{{ sb.clip_url }}" type="audio/mpeg" data-volume="{{ sb.volume }}">
                                 Your browser can't play this clip. <a href="{{ sb.clip_url }}" target="_blank" rel="noopener noreferrer">Open</a>.
                             </audio>
                             {% elif base.endswith('.wav') %}
-                            <audio controls controlsList="novolume" preload="metadata" src="{{ sb.clip_url }}" type="audio/wav" data-volume="{{ sb.volume }}">
+                            <audio controls preload="metadata" src="{{ sb.clip_url }}" type="audio/wav" data-volume="{{ sb.volume }}">
                                 Your browser can't play this clip. <a href="{{ sb.clip_url }}" target="_blank" rel="noopener noreferrer">Open</a>.
                             </audio>
                             {% elif base.endswith('.ogg') or base.endswith('.opus') %}
-                            <audio controls controlsList="novolume" preload="metadata" src="{{ sb.clip_url }}" type="audio/ogg" data-volume="{{ sb.volume }}">
+                            <audio controls preload="metadata" src="{{ sb.clip_url }}" type="audio/ogg" data-volume="{{ sb.volume }}">
                                 Your browser can't play this clip. <a href="{{ sb.clip_url }}" target="_blank" rel="noopener noreferrer">Open</a>.
                             </audio>
                             {% elif base.endswith('.flac') %}
-                            <audio controls controlsList="novolume" preload="metadata" src="{{ sb.clip_url }}" type="audio/flac" data-volume="{{ sb.volume }}">
+                            <audio controls preload="metadata" src="{{ sb.clip_url }}" type="audio/flac" data-volume="{{ sb.volume }}">
                                 Your browser can't play this clip. <a href="{{ sb.clip_url }}" target="_blank" rel="noopener noreferrer">Open</a>.
                             </audio>
                             {% elif base.endswith('.aac') %}
-                            <audio controls controlsList="novolume" preload="metadata" src="{{ sb.clip_url }}" type="audio/aac" data-volume="{{ sb.volume }}">
+                            <audio controls preload="metadata" src="{{ sb.clip_url }}" type="audio/aac" data-volume="{{ sb.volume }}">
                                 Your browser can't play this clip. <a href="{{ sb.clip_url }}" target="_blank" rel="noopener noreferrer">Open</a>.
                             </audio>
                             {% elif base.endswith('.m4a') %}
-                            <audio controls controlsList="novolume" preload="metadata" src="{{ sb.clip_url }}" type="audio/mp4" data-volume="{{ sb.volume }}">
+                            <audio controls preload="metadata" src="{{ sb.clip_url }}" type="audio/mp4" data-volume="{{ sb.volume }}">
                                 Your browser can't play this clip. <a href="{{ sb.clip_url }}" target="_blank" rel="noopener noreferrer">Open</a>.
                             </audio>
                             {% elif base.endswith('.mp4') or base.endswith('.m4v') %}
-                            <video controls controlsList="novolume" preload="metadata" playsinline class="sb-preview" src="{{ sb.clip_url }}" type="video/mp4" data-volume="{{ sb.volume }}">
+                            <video controls preload="metadata" playsinline class="sb-preview" src="{{ sb.clip_url }}" type="video/mp4" data-volume="{{ sb.volume }}">
                                 Your browser can't play this clip. <a href="{{ sb.clip_url }}" target="_blank" rel="noopener noreferrer">Open</a>.
                             </video>
                             {% elif base.endswith('.webm') %}
-                            <video controls controlsList="novolume" preload="metadata" playsinline class="sb-preview" src="{{ sb.clip_url }}" type="video/webm" data-volume="{{ sb.volume }}">
+                            <video controls preload="metadata" playsinline class="sb-preview" src="{{ sb.clip_url }}" type="video/webm" data-volume="{{ sb.volume }}">
                                 Your browser can't play this clip. <a href="{{ sb.clip_url }}" target="_blank" rel="noopener noreferrer">Open</a>.
                             </video>
                             {% elif base.endswith('.mov') %}
-                            <video controls controlsList="novolume" preload="metadata" playsinline class="sb-preview" src="{{ sb.clip_url }}" type="video/quicktime" data-volume="{{ sb.volume }}">
+                            <video controls preload="metadata" playsinline class="sb-preview" src="{{ sb.clip_url }}" type="video/quicktime" data-volume="{{ sb.volume }}">
                                 Your browser can't play this clip. <a href="{{ sb.clip_url }}" target="_blank" rel="noopener noreferrer">Open</a>.
                             </video>
                             {% elif base.endswith('.mkv') %}
-                            <video controls controlsList="novolume" preload="metadata" playsinline class="sb-preview" src="{{ sb.clip_url }}" type="video/x-matroska" data-volume="{{ sb.volume }}">
+                            <video controls preload="metadata" playsinline class="sb-preview" src="{{ sb.clip_url }}" type="video/x-matroska" data-volume="{{ sb.volume }}">
                                 Your browser can't play this clip. <a href="{{ sb.clip_url }}" target="_blank" rel="noopener noreferrer">Open</a>.
                             </video>
                             {% else %}
@@ -483,20 +460,13 @@
 <!-- Refresh source code buttons -->
 <script>
   document.addEventListener("DOMContentLoaded", () => {
-    // Set volume on all audio/video elements based on data-volume attribute
-    // and disable volume changes by users on the public page
+    // Set the initial volume of all audio/video elements based on the data-volume
+    // attribute (users can still change it afterwards)
     const mediaElements = document.querySelectorAll('audio[data-volume], video[data-volume]');
     mediaElements.forEach(element => {
       const volumeValue = parseFloat(element.getAttribute('data-volume'));
       if (!isNaN(volumeValue) && volumeValue >= 0.0 && volumeValue <= 1.0) {
         element.volume = volumeValue;
-        
-        // Prevent user volume changes - reset to database value
-        element.addEventListener('volumechange', () => {
-          if (element.volume !== volumeValue) {
-            element.volume = volumeValue;
-          }
-        });
       }
     });
 
