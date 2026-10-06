@@ -4,6 +4,7 @@ from typing import Final
 from typing import final
 
 from chatbot2k.chats.discord_chat import DiscordChat
+from chatbot2k.types.broadcast_message import BroadcastMessage
 
 
 @final
@@ -19,4 +20,12 @@ class RetrieveDiscordChatCommand:
 class ReloadBroadcastersCommand: ...
 
 
-type Command = RetrieveDiscordChatCommand | ReloadBroadcastersCommand
+@final
+class SendTwitchBroadcastCommand:
+    """Sends a message to the Twitch chat, but only while the stream is live."""
+
+    def __init__(self, message: BroadcastMessage) -> None:
+        self.message: Final = message
+
+
+type Command = RetrieveDiscordChatCommand | ReloadBroadcastersCommand | SendTwitchBroadcastCommand

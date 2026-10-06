@@ -27,6 +27,7 @@ from chatbot2k.types.chat_message import ChatMessage
 from chatbot2k.types.chat_response import ChatResponse
 from chatbot2k.types.commands import ReloadBroadcastersCommand
 from chatbot2k.types.commands import RetrieveDiscordChatCommand
+from chatbot2k.types.commands import SendTwitchBroadcastCommand
 from chatbot2k.types.feature_flags import FormattingSupport
 from chatbot2k.types.live_notification import LiveNotification
 from chatbot2k.types.live_notification import LiveNotificationTextTemplate
@@ -133,6 +134,19 @@ async def _handle_channel_being_raided(
         await app_state.enqueue_soundboard_clip_url(clip_url, soundboard_command.volume)
 
 
+async def _handle_send_twitch_broadcast_command(command: SendTwitchBroadcastCommand, chats: Sequence[Chat]) -> None:
+    twitch_chat: Final = next((chat for chat in chats if isinstance(chat, TwitchChat)), None)
+    if twitch_chat is None:
+        logger.error("No Twitch chat available to send the broadcast to.")
+        return
+    # The message is sent as-is (without preprocessing), since it is meant for the Twitch chat only.
+    # Errors (e.g. when checking whether the stream is live) must not end the command handling loop.
+    try:
+        await twitch_chat.send_broadcast(command.message)
+    except Exception:
+        logger.exception("Failed to send broadcast to Twitch chat.")
+
+
 async def run_main_loop(app_state: AppState) -> None:
     chats: Final[list[Chat]] = [
         await TwitchChat.create(app_state),
@@ -187,6 +201,8 @@ async def run_main_loop(app_state: AppState) -> None:
                     broadcaster_tasks.clear()
                     for i, broadcaster in enumerate(app_state.broadcasters):
                         broadcaster_tasks.append(asyncio.create_task(_producer(i + len(chats), broadcaster)))
+                case SendTwitchBroadcastCommand():
+                    await _handle_send_twitch_broadcast_command(command, chats)
 
     monitored_streams: Final = await MonitoredStreamsManager.try_create(app_state, _on_channel_live, _on_channel_raid)
 

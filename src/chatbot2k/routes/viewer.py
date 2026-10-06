@@ -30,6 +30,9 @@ from chatbot2k.dependencies import get_app_state
 from chatbot2k.dependencies import get_authenticated_user
 from chatbot2k.dependencies import get_common_context
 from chatbot2k.dependencies import get_templates
+from chatbot2k.translation_key import TranslationKey
+from chatbot2k.types.broadcast_message import BroadcastMessage
+from chatbot2k.types.commands import SendTwitchBroadcastCommand
 from chatbot2k.types.configuration_setting_kind import ConfigurationSettingKind
 from chatbot2k.types.template_contexts import CommonContext
 from chatbot2k.types.template_contexts import NewPendingClipContext
@@ -502,6 +505,20 @@ async def upload_pending_soundboard_clip(
             ),
             app_state=app_state,
         )
+
+    # Only mention the uploader if they agreed to their name being shown publicly. The suggested command
+    # name is never mentioned, since it has not been reviewed by the broadcaster yet.
+    chat_message_template: Final = app_state.translations_manager.get_translation(
+        TranslationKey.SOUNDBOARD_CLIP_SUGGESTED_BY_USER
+        if may_persist_uploader_info == "on"
+        else TranslationKey.SOUNDBOARD_CLIP_SUGGESTED
+    )
+    chat_message: Final = (
+        chat_message_template.replace("{broadcaster}", app_state.config.twitch_channel)
+        .replace("{uploader}", current_user.login)
+        .replace("{soundboard_url}", str(request.url_for("viewer_soundboard")))
+    )
+    await app_state.command_queue.put(SendTwitchBroadcastCommand(BroadcastMessage(text=chat_message)))
 
     return RedirectResponse(request.url_for("viewer_soundboard"), status_code=303)
 
