@@ -1,5 +1,19 @@
 {% extends "admin/base.html" %}
 
+{# Shows the rendered message both raw and formatted as Markdown. `html` must already be sanitized. #}
+{% macro broadcast_preview(id, text='', html='') %}
+<div id="{{ id }}" class="broadcast-preview" aria-live="polite">
+    <div>
+        <div class="broadcast-preview-variant-label">Raw</div>
+        <div class="broadcast-preview-text" data-preview-text>{{ text }}</div>
+    </div>
+    <div>
+        <div class="broadcast-preview-variant-label">Formatted (Markdown)</div>
+        <div class="broadcast-preview-html" data-preview-html>{{ html | safe }}</div>
+    </div>
+</div>
+{% endmacro %}
+
 {% block title %}{{ bot_name }} — Broadcasts{% endblock %}
 
 {% block head_extra %}
@@ -281,22 +295,49 @@
         color: var(--muted);
     }
 
+    /* Raw and Markdown-formatted previews side by side (stacked on narrow screens). */
     .broadcast-preview {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(14rem, 1fr));
+        gap: 0.5rem;
+    }
+
+    .broadcast-preview-variant-label {
+        margin-bottom: 0.125rem;
+        font-size: 0.75rem;
+        color: var(--muted);
+    }
+
+    .broadcast-preview-text,
+    .broadcast-preview-html {
         padding: 0.5rem;
         border: 1px dashed var(--border);
         border-radius: var(--radius);
         color: var(--text);
-        white-space: pre-wrap;
         word-break: break-word;
     }
 
-    .broadcast-preview:empty::before {
+    .broadcast-preview-text {
+        white-space: pre-wrap;
+    }
+
+    .broadcast-preview-html > :first-child {
+        margin-top: 0;
+    }
+
+    .broadcast-preview-html > :last-child {
+        margin-bottom: 0;
+    }
+
+    .broadcast-preview-text:empty::before,
+    .broadcast-preview-html:empty::before {
         content: "Nothing to preview yet";
         color: var(--muted);
         font-style: italic;
     }
 
-    .broadcast-preview.error {
+    .broadcast-preview.error .broadcast-preview-text,
+    .broadcast-preview.error .broadcast-preview-html {
         color: var(--muted);
         font-style: italic;
     }
@@ -339,7 +380,9 @@
         // Live message previews (debounced, so that not every keypress causes a request).
         document.querySelectorAll('textarea[data-preview-id]').forEach(textarea => {
             const preview = document.getElementById(textarea.dataset.previewId);
-            if (!preview) {
+            const previewText = preview?.querySelector('[data-preview-text]');
+            const previewHtml = preview?.querySelector('[data-preview-html]');
+            if (!previewText || !previewHtml) {
                 return;
             }
             let debounceTimer = null;
@@ -364,14 +407,16 @@
                             throw new Error(`HTTP ${response.status}`);
                         }
                         const data = await response.json();
-                        preview.textContent = data.preview;
+                        previewText.textContent = data.text;
+                        previewHtml.innerHTML = data.html; // Already sanitized by the backend.
                         preview.classList.remove('error');
                     } catch (error) {
                         if (error.name === 'AbortError') {
                             return;
                         }
                         console.error('Failed to update broadcast preview:', error);
-                        preview.textContent = 'Preview unavailable';
+                        previewText.textContent = 'Preview unavailable';
+                        previewHtml.textContent = 'Preview unavailable';
                         preview.classList.add('error');
                     }
                 }, 300);
@@ -402,7 +447,7 @@
         </div>
         <div class="form-group">
             <div class="broadcast-preview-label">Message preview</div>
-            <div id="broadcast-preview-add" class="broadcast-preview" aria-live="polite"></div>
+            {{ broadcast_preview('broadcast-preview-add') }}
         </div>
         <div class="alias-container">
             <div class="alias-checkbox">
@@ -503,7 +548,7 @@
                 <td></td>
                 <td colspan="2">
                     <div class="broadcast-preview-label">Message preview</div>
-                    <div id="broadcast-preview-{{ loop.index }}" class="broadcast-preview" aria-live="polite">{{ broadcast.preview }}</div>
+                    {{ broadcast_preview('broadcast-preview-' ~ loop.index, broadcast.preview, broadcast.preview_html) }}
                 </td>
                 <td></td>
             </tr>

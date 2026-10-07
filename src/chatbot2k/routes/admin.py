@@ -4,6 +4,7 @@ from datetime import datetime
 from typing import Annotated
 from typing import Final
 from typing import Literal
+from typing import Self
 from typing import cast
 from typing import final
 from uuid import uuid4
@@ -61,6 +62,7 @@ from chatbot2k.types.template_contexts import SoundboardSortBy
 from chatbot2k.types.user_info import UserInfo
 from chatbot2k.utils.command_aliases import get_aliases
 from chatbot2k.utils.discord import get_available_discord_text_channels
+from chatbot2k.utils.markdown import markdown_to_sanitized_html
 from chatbot2k.utils.mime_types import get_file_extension_by_mime_type
 from chatbot2k.utils.notifications import notify_user
 from chatbot2k.utils.soundboard import get_soundboard_clip_uploaded_at
@@ -372,6 +374,16 @@ async def delete_constant(
 # region Broadcasts
 
 
+class _BroadcastPreview(BaseModel):
+    text: str  # The rendered message (e.g. with constants replaced).
+    html: str  # The rendered message, formatted as Markdown (sanitized HTML).
+
+    @classmethod
+    def render(cls, message: str, app_state: AppState) -> Self:
+        text: Final = render_broadcast_message(message, app_state)
+        return cls(text=text, html=markdown_to_sanitized_html(text))
+
+
 @router.get("/broadcasts", name="admin_broadcasts")
 async def admin_broadcasts(
     request: Request,
@@ -384,20 +396,22 @@ async def admin_broadcasts(
         **common_context.model_dump(),
         active_page=AdminDashboardActivePage.BROADCASTS,
     )
-    broadcasts: Final = sorted(
-        (
+    broadcasts: Final[list[Broadcast]] = []
+    for broadcast in app_state.database.get_broadcasts():
+        if broadcast.id is None:
+            continue
+        preview = _BroadcastPreview.render(broadcast.message, app_state)
+        broadcasts.append(
             Broadcast(
                 id=broadcast.id,
                 interval_seconds=broadcast.interval_seconds,
                 message=broadcast.message,
-                preview=render_broadcast_message(broadcast.message, app_state),
+                preview=preview.text,
+                preview_html=preview.html,
                 alias_command=broadcast.alias_command,
             )
-            for broadcast in app_state.database.get_broadcasts()
-            if broadcast.id is not None
-        ),
-        key=lambda b: b.id,
-    )
+        )
+    broadcasts.sort(key=lambda b: b.id)
     static_commands: Final = sorted([f"!{cmd.name}" for cmd in app_state.database.get_static_commands()])
     context: Final = AdminBroadcastsContext(
         **admin_context.model_dump(),
@@ -416,17 +430,13 @@ class _BroadcastPreviewRequest(BaseModel):
     message: str
 
 
-class _BroadcastPreviewResponse(BaseModel):
-    preview: str
-
-
 @router.post("/broadcasts/preview", name="preview_broadcast")
 async def preview_broadcast(
     request_data: _BroadcastPreviewRequest,
     app_state: Annotated[AppState, Depends(get_app_state)],
-) -> _BroadcastPreviewResponse:
+) -> _BroadcastPreview:
     """Render a (possibly unsaved) broadcast message for previewing it while editing."""
-    return _BroadcastPreviewResponse(preview=render_broadcast_message(request_data.message, app_state))
+    return _BroadcastPreview.render(request_data.message, app_state)
 
 
 @router.post("/broadcasts/add", name="add_broadcast")

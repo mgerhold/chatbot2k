@@ -37,6 +37,8 @@ class _FakeDatabase:
         return [
             Constant(name="holy", text="Holy moly!"),
             Constant(name="html", text="<b>bold</b>"),
+            Constant(name="markdown", text="**bold** and _italic_"),
+            Constant(name="script", text='<script>alert("x")</script>'),
         ]
 
     def retrieve_configuration_setting_or_default[T](self, kind: ConfigurationSettingKind, default: T) -> T:
@@ -82,11 +84,24 @@ def test_render_broadcast_message_replaces_constants_and_builtins() -> None:
     assert rendered.endswith(". {unknown}")
 
 
+def _extract_previews(html: str, preview_id: str) -> tuple[str, str]:
+    """Returns the contents of the raw and the formatted preview with the given ID."""
+    match: Final = re.search(
+        rf'<div id="{preview_id}" class="broadcast-preview" aria-live="polite">.*?'
+        + r'<div class="broadcast-preview-text" data-preview-text>(.*?)</div>.*?'
+        + r'<div class="broadcast-preview-html" data-preview-html>(.*?)</div>',
+        html,
+        re.DOTALL,
+    )
+    assert match is not None
+    return match.group(1), match.group(2)
+
+
 def test_broadcasts_page_shows_preview_row_below_each_broadcast() -> None:
     client: Final = _make_client(
         [
             Broadcast(id=1, interval_seconds=60, message="{holy}", alias_command=None),
-            Broadcast(id=2, interval_seconds=120, message="Look: {html}", alias_command=None),
+            Broadcast(id=2, interval_seconds=120, message="Look: {markdown}", alias_command=None),
         ]
     )
 
@@ -99,24 +114,52 @@ def test_broadcasts_page_shows_preview_row_below_each_broadcast() -> None:
         re.DOTALL,
     )
     assert len(preview_rows) == 2
-    assert (
-        '<div id="broadcast-preview-1" class="broadcast-preview" aria-live="polite">Holy moly!</div>'
-        in (preview_rows[0])
+    assert 'id="broadcast-preview-1"' in preview_rows[0]
+    assert 'id="broadcast-preview-2"' in preview_rows[1]
+    assert _extract_previews(response.text, "broadcast-preview-1") == ("Holy moly!", "<p>Holy moly!</p>\n")
+    assert _extract_previews(response.text, "broadcast-preview-2") == (
+        "Look: **bold** and _italic_",
+        "<p>Look: <strong>bold</strong> and <em>italic</em></p>\n",
     )
-    # The rendered message is text, not HTML.
-    assert "Look: &lt;b&gt;bold&lt;/b&gt;</div>" in preview_rows[1]
     # The textareas are hooked up to their previews.
     assert 'data-preview-id="broadcast-preview-1"' in response.text
     assert 'data-preview-id="broadcast-preview-2"' in response.text
 
 
+def test_broadcasts_page_escapes_raw_preview_and_sanitizes_formatted_preview() -> None:
+    client: Final = _make_client(
+        [Broadcast(id=1, interval_seconds=60, message="{script}", alias_command=None)],
+    )
+
+    response: Final = client.get("/admin/broadcasts")
+
+    assert response.status_code == 200
+    raw, formatted = _extract_previews(response.text, "broadcast-preview-1")
+    assert raw == "&lt;script&gt;alert(&#34;x&#34;)&lt;/script&gt;"
+    assert "<script" not in formatted
+    assert "&lt;script" not in formatted
+
+
 def test_preview_endpoint_renders_unsaved_message() -> None:
     client: Final = _make_client([])
 
-    response: Final = client.post("/admin/broadcasts/preview", json={"message": "{holy} {html}"})
+    response: Final = client.post("/admin/broadcasts/preview", json={"message": "{holy} {markdown}"})
 
     assert response.status_code == 200
-    assert response.json() == {"preview": "Holy moly! <b>bold</b>"}
+    assert response.json() == {
+        "text": "Holy moly! **bold** and _italic_",
+        "html": "<p>Holy moly! <strong>bold</strong> and <em>italic</em></p>\n",
+    }
+
+
+def test_preview_endpoint_sanitizes_formatted_preview() -> None:
+    client: Final = _make_client([])
+
+    response: Final = client.post("/admin/broadcasts/preview", json={"message": "{script}"})
+
+    assert response.status_code == 200
+    assert response.json()["text"] == '<script>alert("x")</script>'
+    assert "<script" not in response.json()["html"]
 
 
 def test_preview_endpoint_requires_message() -> None:
@@ -146,4 +189,4 @@ def test_add_broadcast_form_has_empty_preview() -> None:
         'name="message" placeholder="Enter broadcast message..." required data-preview-id="broadcast-preview-add"'
         in (response.text)
     )
-    assert '<div id="broadcast-preview-add" class="broadcast-preview" aria-live="polite"></div>' in response.text
+    assert _extract_previews(response.text, "broadcast-preview-add") == ("", "")

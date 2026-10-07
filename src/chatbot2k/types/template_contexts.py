@@ -172,6 +172,7 @@ class Broadcast(BaseModel):
     interval_seconds: int
     message: str
     preview: str  # The rendered message (e.g. with constants replaced).
+    preview_html: str  # The rendered message, formatted as Markdown (sanitized HTML).
     alias_command: Optional[str]
 
 
