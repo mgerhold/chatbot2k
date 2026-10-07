@@ -31,6 +31,13 @@ class ErrorContext(CommonContext):
 
 
 @final
+class LoginContext(CommonContext):
+    model_config = ConfigDict(frozen=True)
+
+    twitch_login_url: str
+
+
+@final
 class Command(BaseModel):
     model_config = ConfigDict(frozen=True)
 

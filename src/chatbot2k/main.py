@@ -5,21 +5,25 @@ from collections.abc import AsyncGenerator
 from collections.abc import Callable
 from contextlib import asynccontextmanager
 from contextlib import suppress
+from http import HTTPStatus
 from types import FrameType
 from typing import Final
 from typing import Optional
 from typing import cast
+from urllib.parse import urlencode
 
 import uvicorn
 from fastapi import FastAPI
 from fastapi import HTTPException
 from starlette.requests import Request
+from starlette.responses import RedirectResponse
 from starlette.responses import Response
 from starlette.staticfiles import StaticFiles
 from starlette.templating import Jinja2Templates
 
 from chatbot2k.constants import STATIC_FILES_DIRECTORY
 from chatbot2k.core import run_main_loop
+from chatbot2k.dependencies import NotAuthenticatedException
 from chatbot2k.dependencies import get_app_state
 from chatbot2k.dependencies import get_common_context
 from chatbot2k.dependencies import get_current_user
@@ -100,6 +104,21 @@ async def http_exception_handler(request: Request, exc: HTTPException) -> Respon
         name="error.html",
         context=context.model_dump(),
         status_code=exc.status_code,
+    )
+
+
+@app.exception_handler(NotAuthenticatedException)
+async def not_authenticated_exception_handler(request: Request, exc: NotAuthenticatedException) -> Response:
+    """Redirect browsers that open a page requiring a login to the login page. After logging in, they
+    are redirected back to the requested page."""
+    is_page_request: Final = request.method == "GET" and "text/html" in request.headers.get("accept", "")
+    if not is_page_request:
+        # E.g. `fetch()` calls, which expect the error status instead of the login page.
+        return await http_exception_handler(request, exc)
+    requested_page: Final = request.url.path + (f"?{request.url.query}" if request.url.query else "")
+    return RedirectResponse(
+        f"{request.app.url_path_for('login')}?{urlencode({'next': requested_page})}",
+        status_code=HTTPStatus.SEE_OTHER,
     )
 
 

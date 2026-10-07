@@ -81,15 +81,20 @@ def get_current_user(
         return None
 
 
+class NotAuthenticatedException(HTTPException):
+    """Raised when a page requires a logged-in user, but nobody is logged in. Browsers opening such a
+    page are redirected to the login page (see `main.py`)."""
+
+    def __init__(self) -> None:
+        super().__init__(status_code=HTTPStatus.UNAUTHORIZED, detail="Not authenticated")
+
+
 def get_authenticated_user(
     current_user: Annotated[Optional[UserInfo], Depends(get_current_user)],
 ) -> UserInfo:
     """Dependency that ensures a user is logged in, otherwise raises 401."""
     if current_user is None:
-        raise HTTPException(
-            status_code=HTTPStatus.UNAUTHORIZED,
-            detail="Not authenticated",
-        )
+        raise NotAuthenticatedException()
     return current_user
 
 
