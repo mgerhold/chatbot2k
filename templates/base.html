@@ -107,7 +107,9 @@
             {% endif %}
             <span class="navbar-user">{{ current_user.display_name | e }} (<a href="/auth/twitch/logout" class="navbar-link">logout</a>)</span>
             {% else %}
-            <a href="/login" class="navbar-link">Login</a>
+            {# After logging in, return to the current page (unless that's the login page itself). #}
+            {% set current_page = request.url.path ~ ('?' ~ request.url.query if request.url.query else '') %}
+            <a href="/login{% if request.url.path != '/login' %}?next={{ current_page | urlencode }}{% endif %}" class="navbar-link">Login</a>
             {% endif %}
         </div>
     </div>

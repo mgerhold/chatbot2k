@@ -24,6 +24,7 @@ from chatbot2k.dependencies import get_authenticated_user
 from chatbot2k.dependencies import get_common_context
 from chatbot2k.dependencies import get_current_user
 from chatbot2k.routes import auth
+from chatbot2k.routes import imprint
 from chatbot2k.routes import login
 from chatbot2k.routes.auth import _build_logged_in_response  # type: ignore[reportPrivateUsage]
 from chatbot2k.routes.auth_constants import POST_LOGIN_REDIRECT_COOKIE
@@ -79,6 +80,7 @@ def _make_client(monkeypatch: pytest.MonkeyPatch) -> TestClient:
     app.add_exception_handler(NotAuthenticatedException, main.not_authenticated_exception_handler)  # type: ignore[reportArgumentType]
     app.include_router(login.router)
     app.include_router(auth.router)
+    app.include_router(imprint.router)
 
     @app.api_route("/protected", methods=["GET", "POST"])
     async def protected(  # type: ignore[reportUnusedFunction]
@@ -206,3 +208,21 @@ def test_user_is_redirected_to_main_page_after_logging_in_without_redirect_targe
 
 def test_tampered_redirect_cookie_is_ignored_after_logging_in() -> None:
     assert _logged_in_response_location(f'{POST_LOGIN_REDIRECT_COOKIE}="//evil.example"') == "/"
+
+
+def test_navbar_login_link_returns_to_current_page(monkeypatch: pytest.MonkeyPatch) -> None:
+    client = _make_client(monkeypatch)
+
+    response = client.get("/imprint", params={"x": "1"})
+
+    assert response.status_code == 200
+    assert 'href="/login?next=/imprint%3Fx%3D1" class="navbar-link">Login</a>' in response.text
+
+
+def test_navbar_login_link_on_login_page_has_no_redirect_target(monkeypatch: pytest.MonkeyPatch) -> None:
+    client = _make_client(monkeypatch)
+
+    response = client.get("/login")
+
+    assert response.status_code == 200
+    assert 'href="/login" class="navbar-link">Login</a>' in response.text
