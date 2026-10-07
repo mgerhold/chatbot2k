@@ -33,9 +33,11 @@ from chatbot2k.dependencies import get_current_user
 from chatbot2k.routes.auth_constants import JWT_ALG
 from chatbot2k.routes.auth_constants import JWT_EXPIRY_DAYS
 from chatbot2k.routes.auth_constants import OAUTH_STATE_COOKIE
+from chatbot2k.routes.auth_constants import POST_LOGIN_REDIRECT_COOKIE
 from chatbot2k.routes.auth_constants import SCOPES
 from chatbot2k.routes.auth_constants import SESSION_COOKIE
 from chatbot2k.types.user_info import UserInfo
+from chatbot2k.utils.redirects import get_safe_redirect_target
 
 logger: Final = logging.getLogger(__name__)
 
@@ -88,7 +90,10 @@ async def _get_or_create_login_state(state: str) -> tuple[_LoginState, bool]:
 
 
 @router.get("/login")
-async def twitch_login(app_state: Annotated[AppState, Depends(get_app_state)]) -> Response:
+async def twitch_login(
+    app_state: Annotated[AppState, Depends(get_app_state)],
+    next: Optional[str] = None,  # The page to redirect to after logging in.
+) -> Response:
     state: Final = secrets.token_urlsafe(32)
     url: Final = _build_authorize_url(app_state, state)
 
@@ -101,6 +106,41 @@ async def twitch_login(app_state: Annotated[AppState, Depends(get_app_state)]) -
         secure=app_state.config.environment == Environment.PRODUCTION,
         samesite="lax",
         path="/auth/twitch",
+    )
+    redirect_target: Final = get_safe_redirect_target(next)
+    if redirect_target is None:
+        # Don't use a redirect target left over from a previous, unfinished login.
+        response.delete_cookie(key=POST_LOGIN_REDIRECT_COOKIE, path="/auth/twitch")
+    else:
+        response.set_cookie(
+            key=POST_LOGIN_REDIRECT_COOKIE,
+            value=redirect_target,
+            max_age=600,
+            httponly=True,
+            secure=app_state.config.environment == Environment.PRODUCTION,
+            samesite="lax",
+            path="/auth/twitch",
+        )
+    return response
+
+
+def _build_logged_in_response(request: Request, app_state: AppState, session_jwt: str) -> Response:
+    # The redirect target is validated (again), since the cookie could have been tampered with.
+    redirect_target: Final = get_safe_redirect_target(request.cookies.get(POST_LOGIN_REDIRECT_COOKIE))
+    response: Final = RedirectResponse(
+        "/" if redirect_target is None else redirect_target,
+        status_code=HTTPStatus.SEE_OTHER,
+    )
+    response.delete_cookie(key=OAUTH_STATE_COOKIE, path="/auth/twitch")
+    response.delete_cookie(key=POST_LOGIN_REDIRECT_COOKIE, path="/auth/twitch")
+    response.set_cookie(
+        key=SESSION_COOKIE,
+        value=session_jwt,
+        max_age=JWT_EXPIRY_DAYS * 24 * 60 * 60,
+        httponly=True,
+        secure=app_state.config.environment == Environment.PRODUCTION,
+        samesite="lax",
+        path="/",
     )
     return response
 
@@ -124,18 +164,7 @@ async def twitch_callback(
         # Another request is/was handling this state. Wait for it and re-issue cookie.
         await login_state.done.wait()
         if login_state.session_jwt is not None:
-            response = RedirectResponse("/", status_code=HTTPStatus.SEE_OTHER)
-            response.delete_cookie(key=OAUTH_STATE_COOKIE, path="/auth/twitch")
-            response.set_cookie(
-                key=SESSION_COOKIE,
-                value=login_state.session_jwt,
-                max_age=JWT_EXPIRY_DAYS * 24 * 60 * 60,
-                httponly=True,
-                secure=app_state.config.environment == Environment.PRODUCTION,
-                samesite="lax",
-                path="/",
-            )
-            return response
+            return _build_logged_in_response(request, app_state, login_state.session_jwt)
         raise HTTPException(
             status_code=HTTPStatus.UNAUTHORIZED,
             detail=login_state.error or "Failed to authenticate with Twitch",
@@ -205,18 +234,7 @@ async def twitch_callback(
 
         session_jwt: Final = await _do_login()
         login_state.session_jwt = session_jwt
-        return_response = RedirectResponse("/", status_code=HTTPStatus.SEE_OTHER)
-        return_response.delete_cookie(key=OAUTH_STATE_COOKIE, path="/auth/twitch")
-        return_response.set_cookie(
-            key=SESSION_COOKIE,
-            value=session_jwt,
-            max_age=JWT_EXPIRY_DAYS * 24 * 60 * 60,
-            httponly=True,
-            secure=app_state.config.environment == Environment.PRODUCTION,
-            samesite="lax",
-            path="/",
-        )
-        return return_response
+        return _build_logged_in_response(request, app_state, session_jwt)
     except Exception as e:
         logger.exception("Error during Twitch OAuth callback")
         login_state.error = str(e)
