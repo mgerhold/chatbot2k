@@ -134,3 +134,16 @@ def test_preview_endpoint_requires_broadcaster() -> None:
     response: Final = client.post("/admin/broadcasts/preview", json={"message": "{holy}"})
 
     assert response.status_code == 401
+
+
+def test_add_broadcast_form_has_empty_preview() -> None:
+    client: Final = _make_client([])
+
+    response: Final = client.get("/admin/broadcasts")
+
+    assert response.status_code == 200
+    assert (
+        'name="message" placeholder="Enter broadcast message..." required data-preview-id="broadcast-preview-add"'
+        in (response.text)
+    )
+    assert '<div id="broadcast-preview-add" class="broadcast-preview" aria-live="polite"></div>' in response.text

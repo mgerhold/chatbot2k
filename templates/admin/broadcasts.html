@@ -290,6 +290,12 @@
         word-break: break-word;
     }
 
+    .broadcast-preview:empty::before {
+        content: "Nothing to preview yet";
+        color: var(--muted);
+        font-style: italic;
+    }
+
     .broadcast-preview.error {
         color: var(--muted);
         font-style: italic;
@@ -392,7 +398,11 @@
         </div>
         <div class="form-group">
             <label for="message">Message</label>
-            <textarea id="message" name="message" placeholder="Enter broadcast message..." required></textarea>
+            <textarea id="message" name="message" placeholder="Enter broadcast message..." required data-preview-id="broadcast-preview-add"></textarea>
+        </div>
+        <div class="form-group">
+            <div class="broadcast-preview-label">Message preview</div>
+            <div id="broadcast-preview-add" class="broadcast-preview" aria-live="polite"></div>
         </div>
         <div class="alias-container">
             <div class="alias-checkbox">
