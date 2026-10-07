@@ -22,6 +22,7 @@ from starlette.responses import Response
 from starlette.templating import Jinja2Templates
 
 from chatbot2k.app_state import AppState
+from chatbot2k.broadcasters.utils import render_broadcast_message
 from chatbot2k.constants import RELATIVE_SOUNDBOARD_FILES_DIRECTORY
 from chatbot2k.constants import SOUNDBOARD_FILES_DIRECTORY
 from chatbot2k.database.engine import TwitchUserVariants
@@ -389,6 +390,7 @@ async def admin_broadcasts(
                 id=broadcast.id,
                 interval_seconds=broadcast.interval_seconds,
                 message=broadcast.message,
+                preview=render_broadcast_message(broadcast.message, app_state),
                 alias_command=broadcast.alias_command,
             )
             for broadcast in app_state.database.get_broadcasts()
@@ -408,6 +410,23 @@ async def admin_broadcasts(
         name="admin/broadcasts.html",
         context=context.model_dump(),
     )
+
+
+class _BroadcastPreviewRequest(BaseModel):
+    message: str
+
+
+class _BroadcastPreviewResponse(BaseModel):
+    preview: str
+
+
+@router.post("/broadcasts/preview", name="preview_broadcast")
+async def preview_broadcast(
+    request_data: _BroadcastPreviewRequest,
+    app_state: Annotated[AppState, Depends(get_app_state)],
+) -> _BroadcastPreviewResponse:
+    """Render a (possibly unsaved) broadcast message for previewing it while editing."""
+    return _BroadcastPreviewResponse(preview=render_broadcast_message(request_data.message, app_state))
 
 
 @router.post("/broadcasts/add", name="add_broadcast")

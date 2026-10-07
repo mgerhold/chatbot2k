@@ -171,6 +171,7 @@ class Broadcast(BaseModel):
     id: int
     interval_seconds: int
     message: str
+    preview: str  # The rendered message (e.g. with constants replaced).
     alias_command: Optional[str]
 
 

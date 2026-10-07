@@ -261,6 +261,39 @@
         cursor: pointer;
         user-select: none;
     }
+
+    /* The preview row belongs to the broadcast row above it. */
+    .data-table tr.broadcast-row td {
+        border-bottom: none;
+    }
+
+    .data-table tr.broadcast-preview-row td {
+        width: auto; /* Don't apply the column widths meant for the broadcast row. */
+        padding-top: 0;
+    }
+
+    .broadcast-preview-label {
+        margin-bottom: 0.25rem;
+        font-size: 0.75rem;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+        color: var(--muted);
+    }
+
+    .broadcast-preview {
+        padding: 0.5rem;
+        border: 1px dashed var(--border);
+        border-radius: var(--radius);
+        color: var(--text);
+        white-space: pre-wrap;
+        word-break: break-word;
+    }
+
+    .broadcast-preview.error {
+        color: var(--muted);
+        font-style: italic;
+    }
 </style>
 <script>
     function toggleAliasDropdown(checkboxId, selectId) {
@@ -296,6 +329,48 @@
             // Initialize state
             addSelect.disabled = !addCheckbox.checked;
         }
+
+        // Live message previews (debounced, so that not every keypress causes a request).
+        document.querySelectorAll('textarea[data-preview-id]').forEach(textarea => {
+            const preview = document.getElementById(textarea.dataset.previewId);
+            if (!preview) {
+                return;
+            }
+            let debounceTimer = null;
+            let abortController = null;
+
+            textarea.addEventListener('input', () => {
+                clearTimeout(debounceTimer);
+                debounceTimer = setTimeout(async () => {
+                    // Cancel a still running request, so that its (outdated) result can't overwrite a newer one.
+                    abortController?.abort();
+                    abortController = new AbortController();
+                    try {
+                        const response = await fetch('{{ request.app.url_path_for("preview_broadcast") }}', {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json',
+                            },
+                            body: JSON.stringify({ message: textarea.value }),
+                            signal: abortController.signal,
+                        });
+                        if (!response.ok) {
+                            throw new Error(`HTTP ${response.status}`);
+                        }
+                        const data = await response.json();
+                        preview.textContent = data.preview;
+                        preview.classList.remove('error');
+                    } catch (error) {
+                        if (error.name === 'AbortError') {
+                            return;
+                        }
+                        console.error('Failed to update broadcast preview:', error);
+                        preview.textContent = 'Preview unavailable';
+                        preview.classList.add('error');
+                    }
+                }, 300);
+            });
+        });
     });
 </script>
 {% endblock %}
@@ -355,7 +430,7 @@
             </thead>
             <tbody>
             {% for broadcast in broadcasts %}
-            <tr>
+            <tr class="broadcast-row">
                 <td>
                     <input 
                         type="number" 
@@ -373,6 +448,7 @@
                         class="edit-textarea"
                         required
                         form="save-form-{{ loop.index }}"
+                        data-preview-id="broadcast-preview-{{ loop.index }}"
                     >{{ broadcast.message }}</textarea>
                 </td>
                 <td>
@@ -412,6 +488,14 @@
                         </form>
                     </div>
                 </td>
+            </tr>
+            <tr class="broadcast-preview-row">
+                <td></td>
+                <td colspan="2">
+                    <div class="broadcast-preview-label">Message preview</div>
+                    <div id="broadcast-preview-{{ loop.index }}" class="broadcast-preview" aria-live="polite">{{ broadcast.preview }}</div>
+                </td>
+                <td></td>
             </tr>
             {% else %}
             <tr>
