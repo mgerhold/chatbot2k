@@ -9,8 +9,7 @@ from typing import override
 
 from chatbot2k.app_state import AppState
 from chatbot2k.broadcasters.broadcaster import Broadcaster
-from chatbot2k.broadcasters.utils import replace_constants
-from chatbot2k.builtins import apply_builtins
+from chatbot2k.broadcasters.utils import render_broadcast_message
 from chatbot2k.types.broadcast_message import BroadcastMessage
 from chatbot2k.types.chat_command import ChatCommand
 from chatbot2k.types.chat_message import ChatMessage
@@ -41,12 +40,7 @@ class SimpleBroadcaster(Broadcaster):
                 await sleep(remaining_time)
                 continue
             self._time_of_next_broadcast += self._interval_seconds
-            yield BroadcastMessage(
-                text=replace_constants(
-                    apply_builtins(self._message, self._app_state),
-                    self._app_state.database.get_constants(),
-                )
-            )
+            yield BroadcastMessage(text=render_broadcast_message(self._message, self._app_state))
 
     @override
     async def on_chat_message_received(self, message: ChatMessage) -> None:
