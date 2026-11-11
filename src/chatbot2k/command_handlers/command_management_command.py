@@ -103,6 +103,7 @@ class CommandManagementCommand(CommandHandler):
             ChatResponse(
                 text=response,
                 chat_message=chat_command.source_message,
+                attachment=None,
             )
         ]
 

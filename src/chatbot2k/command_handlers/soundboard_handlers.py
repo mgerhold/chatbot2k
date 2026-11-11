@@ -30,6 +30,7 @@ class SoundboardHandler(CommandHandler):
                     ChatResponse(
                         text=self._app_state.translations_manager.get_translation(TranslationKey.SOUNDBOARD_ENABLED),
                         chat_message=chat_command.source_message,
+                        attachment=None,
                     )
                 ]
             case SoundboardHandler._DISABLE_COMMAND:
@@ -38,6 +39,7 @@ class SoundboardHandler(CommandHandler):
                     ChatResponse(
                         text=self._app_state.translations_manager.get_translation(TranslationKey.SOUNDBOARD_DISABLED),
                         chat_message=chat_command.source_message,
+                        attachment=None,
                     )
                 ]
             case _:

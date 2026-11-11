@@ -98,40 +98,50 @@ class GiveawayCommand(CommandHandler):
     @staticmethod
     def enter_giveaway(picked_user: PickedUser, source_message: ChatMessage) -> Optional[list[ChatResponse]]:
         if GiveawayCommand._state.state != _State.RUNNING:
-            return [ChatResponse("No giveaway is currently running.", source_message)]
+            return [ChatResponse("No giveaway is currently running.", source_message, attachment=None)]
         if picked_user in GiveawayCommand._state.picked:
             return []
         GiveawayCommand._state.picked.add(picked_user)
-        return [ChatResponse(f"{picked_user.identifier} has entered the giveaway!", source_message)]
+        return [ChatResponse(f"{picked_user.identifier} has entered the giveaway!", source_message, attachment=None)]
 
     def _start_giveaway(self, source_message: ChatMessage) -> ChatResponse:
         if GiveawayCommand._state.state not in (_State.IDLE, _State.ENDED):
             return ChatResponse(
                 "A giveaway is already running. Please end it before starting a new one.",
                 source_message,
+                attachment=None,
             )
         GiveawayCommand._state = _GiveawayState(state=_State.RUNNING, picked=set())
         return ChatResponse(
             f"A new giveaway has started! Type `!{ENTER_GIVEAWAY_COMMAND}` to participate.",
             source_message,
+            attachment=None,
         )
 
     def _end_giveaway(self, source_message: ChatMessage) -> ChatResponse:
         if GiveawayCommand._state.state != _State.RUNNING:
-            return ChatResponse("Cannot end giveaway: No giveaway is currently running.", source_message)
+            return ChatResponse(
+                "Cannot end giveaway: No giveaway is currently running.", source_message, attachment=None
+            )
         GiveawayCommand._state.state = _State.ENDED
-        return ChatResponse("The giveaway has ended! No more entries will be accepted.", source_message)
+        return ChatResponse(
+            "The giveaway has ended! No more entries will be accepted.", source_message, attachment=None
+        )
 
     def _pick_winner(self, source_message: ChatMessage) -> ChatResponse:
         if GiveawayCommand._state.state == _State.RUNNING:
-            return ChatResponse("Cannot pick a winner: The giveaway is still running.", source_message)
+            return ChatResponse("Cannot pick a winner: The giveaway is still running.", source_message, attachment=None)
         if GiveawayCommand._state.state != _State.ENDED:
-            return ChatResponse("Cannot pick a winner: No giveaway is currently running.", source_message)
+            return ChatResponse(
+                "Cannot pick a winner: No giveaway is currently running.", source_message, attachment=None
+            )
         if not GiveawayCommand._state.picked:
             return ChatResponse(
-                "No participants have entered the giveaway yet or there is no one left to pick.", source_message
+                "No participants have entered the giveaway yet or there is no one left to pick.",
+                source_message,
+                attachment=None,
             )
 
         winner: Final = random.choice(list(GiveawayCommand._state.picked))  # noqa: S311 # This is not security-sensitive.
         GiveawayCommand._state.picked.remove(winner)
-        return ChatResponse(f"The winner of the giveaway is: {winner.identifier}!", source_message)
+        return ChatResponse(f"The winner of the giveaway is: {winner.identifier}!", source_message, attachment=None)

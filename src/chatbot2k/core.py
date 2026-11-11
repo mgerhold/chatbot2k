@@ -341,6 +341,7 @@ async def _process_chat_message(
                 ChatResponse(
                     text=f"Usages: {', '.join(command_handler.usages)}",
                     chat_message=chat_message,
+                    attachment=None,
                 )
             ]
         )

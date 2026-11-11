@@ -6,10 +6,13 @@ from typing import override
 from chatbot2k.app_state import AppState
 from chatbot2k.command_handlers.command_handler import CommandHandler
 from chatbot2k.constants import RELATIVE_SOUNDBOARD_FILES_DIRECTORY
+from chatbot2k.constants import SOUNDBOARD_FILES_DIRECTORY
 from chatbot2k.types.chat_command import ChatCommand
+from chatbot2k.types.chat_response import ChatAttachment
 from chatbot2k.types.chat_response import ChatResponse
 from chatbot2k.types.permission_level import PermissionLevel
 from chatbot2k.utils.command_aliases import get_aliases
+from chatbot2k.utils.public_url import get_public_base_url
 
 
 @final
@@ -26,6 +29,7 @@ class ClipHandler(CommandHandler):
     ) -> None:
         super().__init__(app_state, name=name)
         self._clip_url: Final = f"/{RELATIVE_SOUNDBOARD_FILES_DIRECTORY.as_posix()}/{filename}"
+        self._filename: Final = filename
         self._volume: Final = volume
         self._uploader_twitch_login: Final = uploader_twitch_login
         self._uploader_twitch_display_name: Final = uploader_twitch_display_name
@@ -48,8 +52,22 @@ class ClipHandler(CommandHandler):
 
     @override
     async def handle_command(self, chat_command: ChatCommand) -> Optional[list[ChatResponse]]:
-        if chat_command.source_chat.feature_flags.can_trigger_soundboard:
+        feature_flags: Final = chat_command.source_chat.feature_flags
+        if feature_flags.can_trigger_soundboard:
             await self._app_state.enqueue_soundboard_clip_url(self._clip_url, self._volume)
+        if feature_flags.can_post_soundboard_clips:
+            # Posting the clip into the chat is independent of the soundboard being enabled,
+            # because that switch only controls the playback on stream.
+            return [
+                ChatResponse(
+                    text="",
+                    chat_message=chat_command.source_message,
+                    attachment=ChatAttachment(
+                        path=SOUNDBOARD_FILES_DIRECTORY / self._filename,
+                        url=f"{get_public_base_url(self._app_state.config)}{self._clip_url}",
+                    ),
+                )
+            ]
         return []
 
     @property

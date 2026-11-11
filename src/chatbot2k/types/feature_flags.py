@@ -19,6 +19,7 @@ class FeatureFlags(NamedTuple):
     can_post_live_notifications: bool
     can_react_to_raids: bool
     can_shoutout: bool
-    can_trigger_soundboard: bool
+    can_trigger_soundboard: bool  # Can soundboard clips be played on stream via this chat?
+    can_post_soundboard_clips: bool  # Can soundboard clips be posted into this chat as media?
     can_trigger_entrance_sounds: bool
     supports_giveaways: bool

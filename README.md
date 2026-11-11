@@ -25,7 +25,7 @@ Chatbot2k is a multi-platform chatbot application with an integrated web dashboa
 - **Static Commands** – Simple text responses (e.g., `!discord` → "Join my Discord: discord.gg/...")
 - **Parameterized Commands** – Response templates with placeholders (e.g., `!hello @user`)
 - **Script Commands** – Custom logic using the built-in scripting language
-- **Soundboard Commands** – Trigger media clips (managed exclusively via web UI)
+- **Soundboard Commands** – Trigger media clips on stream (Twitch) or post them to the channel as a file (Discord; clips exceeding the server's upload limit are posted as a link). Managed exclusively via web UI
 
 ## Development
 

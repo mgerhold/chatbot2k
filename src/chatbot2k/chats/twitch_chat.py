@@ -57,6 +57,7 @@ class TwitchChat(Chat):
                 can_react_to_raids=True,
                 can_shoutout=True,
                 can_trigger_soundboard=True,
+                can_post_soundboard_clips=False,
                 can_trigger_entrance_sounds=True,
                 supports_giveaways=True,
             ),
