@@ -38,6 +38,7 @@ class StaticResponseCommand(CommandHandler):
                     app_state=self._app_state,
                 ),
                 chat_message=chat_command.source_message,
+                attachment=None,
             )
         ]
 

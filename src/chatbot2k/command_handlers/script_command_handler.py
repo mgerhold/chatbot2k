@@ -68,6 +68,7 @@ class ScriptCommandHandler(CommandHandler):
                     ChatResponse(
                         text=(f"Script '!{self._name}' execution timed out " + f"(exceeded {timeout_seconds}s)"),
                         chat_message=chat_command.source_message,
+                        attachment=None,
                     )
                 ]
             if not execution_task.done():
@@ -78,6 +79,7 @@ class ScriptCommandHandler(CommandHandler):
                 ChatResponse(
                     text=f"An error occurred while executing the script '!{self._name}': {e}",
                     chat_message=chat_command.source_message,
+                    attachment=None,
                 )
             ]
 
@@ -92,6 +94,7 @@ class ScriptCommandHandler(CommandHandler):
             ChatResponse(
                 text=output,
                 chat_message=chat_command.source_message,
+                attachment=None,
             )
         ]
 

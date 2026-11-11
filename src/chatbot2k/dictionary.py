@@ -59,6 +59,7 @@ class Dictionary:
             ChatResponse(
                 text=f"{f'{word}: {explanation}'}",
                 chat_message=chat_message,
+                attachment=None,
             )
             for word, explanation in matching_entries
         ]
@@ -70,6 +71,7 @@ class Dictionary:
                     + f"{original_number_of_matches - (Dictionary._MAX_NUM_EXPLANATIONS_AT_ONCE - 1)} "
                     + "explanations available.",
                     chat_message=chat_message,
+                    attachment=None,
                 )
             )
 

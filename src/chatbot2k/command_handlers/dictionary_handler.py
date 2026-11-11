@@ -31,6 +31,7 @@ class DictionaryHandler(CommandHandler):
                     ChatResponse(
                         text=add_result,
                         chat_message=chat_command.source_message,
+                        attachment=None,
                     )
                 ]
             case "update" if len(chat_command.arguments) == 3:
@@ -39,6 +40,7 @@ class DictionaryHandler(CommandHandler):
                     ChatResponse(
                         text=update_result,
                         chat_message=chat_command.source_message,
+                        attachment=None,
                     )
                 ]
             case "append" if len(chat_command.arguments) == 3:
@@ -47,6 +49,7 @@ class DictionaryHandler(CommandHandler):
                     ChatResponse(
                         text=append_result,
                         chat_message=chat_command.source_message,
+                        attachment=None,
                     )
                 ]
             case "remove" if len(chat_command.arguments) == 2:
@@ -55,6 +58,7 @@ class DictionaryHandler(CommandHandler):
                     ChatResponse(
                         text=remove_result,
                         chat_message=chat_command.source_message,
+                        attachment=None,
                     )
                 ]
             case _:

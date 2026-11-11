@@ -22,6 +22,7 @@ from chatbot2k.models.discord_chat_message_metadata import DiscordChatMessageMet
 from chatbot2k.types.broadcast_message import BroadcastMessage
 from chatbot2k.types.chat_message import ChatMessage
 from chatbot2k.types.chat_platform import ChatPlatform
+from chatbot2k.types.chat_response import ChatAttachment
 from chatbot2k.types.chat_response import ChatResponse
 from chatbot2k.types.configuration_setting_kind import ConfigurationSettingKind
 from chatbot2k.types.feature_flags import FeatureFlags
@@ -34,6 +35,9 @@ if TYPE_CHECKING:
     from chatbot2k.app_state import AppState
 
 logger: Final = logging.getLogger(__name__)
+
+# Upload limit of Discord for guilds without boosts (and for DMs).
+_DEFAULT_FILESIZE_LIMIT: Final = 10 * 1024 * 1024
 
 
 # This is just a helper type because of how this module is structured. It is
@@ -118,6 +122,7 @@ class DiscordChat(Chat):
                 can_react_to_raids=False,
                 can_shoutout=False,
                 can_trigger_soundboard=False,
+                can_post_soundboard_clips=True,
                 can_trigger_entrance_sounds=False,
                 supports_giveaways=False,
             )
@@ -173,12 +178,34 @@ class DiscordChat(Chat):
                 logging.error("Response metadata is not of type DiscordChatMessageMetadata. Unable to respond.")
                 continue
             try:
-                await metadata.message.channel.send(response.text)
+                if response.attachment is not None:
+                    await DiscordChat._send_attachment(metadata.message, response.text, response.attachment)
+                else:
+                    await metadata.message.channel.send(response.text)
             except Exception as e:
                 try:
                     await metadata.message.channel.send(f"Unable to send message: {e}")
                 except Exception:
                     logging.error(f"Unable to send error message to channel: {e}")
+
+    @staticmethod
+    async def _send_attachment(message: Message, text: str, attachment: ChatAttachment) -> None:
+        try:
+            file_size: Final = attachment.path.stat().st_size
+        except OSError:
+            logger.error(f"Unable to post attachment: File '{attachment.path}' does not exist or is unreadable.")
+            return
+        # Not all channels belong to a guild (e.g. direct messages), so fall back to the default limit.
+        size_limit: Final = message.guild.filesize_limit if message.guild is not None else _DEFAULT_FILESIZE_LIMIT
+        if file_size > size_limit:
+            logger.info(
+                f"Clip '{attachment.path.name}' ({file_size} bytes) exceeds the upload limit of "
+                + f"{size_limit} bytes; posting a link instead."
+            )
+            link_message: Final = f"{text}\n{attachment.url}" if text else attachment.url
+            await message.channel.send(link_message)
+            return
+        await message.channel.send(content=text or None, file=discord.File(attachment.path))
 
     @override
     async def send_broadcast(self, message: BroadcastMessage) -> None:

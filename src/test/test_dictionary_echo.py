@@ -22,7 +22,11 @@ def _make_app_state(dictionary_entries: dict[str, str]) -> MagicMock:
     # If `get_explanations` were called for a dictionary command, this would surface as an
     # extra response and the test would catch it.
     dictionary.get_explanations.return_value = [
-        ChatResponse(text="FOO: should never be echoed here", chat_message=cast(ChatMessage, MagicMock()))
+        ChatResponse(
+            text="FOO: should never be echoed here",
+            chat_message=cast(ChatMessage, MagicMock()),
+            attachment=None,
+        )
     ]
 
     app_state_mock: Final = MagicMock()
